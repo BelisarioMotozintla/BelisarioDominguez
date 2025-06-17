@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, render_template, request, redirect, session, flash, url_for, send_file
-from sqlalchemy import extract
+from sqlalchemy import desc, extract, func
 from sqlalchemy.sql.functions import current_user
 from app.utils.validaciones import campos_validos
 from app.models import RegistroAdultoMayor
@@ -141,7 +141,8 @@ def exportar():
 def consultar():
     resultados = []
     if request.method == 'POST':
-        nombre = request.form.get('nombre')
+       
+        nombre =  request.form.get('nombre', '').upper()
         resultados = RegistroAdultoMayor.query.filter(
             RegistroAdultoMayor.paciente.ilike(f"%{nombre}%")
         ).all()
@@ -162,3 +163,48 @@ def total_capturados_mes():
         RegistroAdultoMayor.personal_enfermeria==usua
     ).count()
     return jsonify({'total': total})
+
+@bp.route("/api/reporte", methods=["GET"])
+def reporte_capturas():
+    """
+    Devuelve registros del modelo RegistroAdultoMayor entre dos fechas dadas.
+    Parámetros esperados (query string):
+    - inicio (YYYY-MM-DD)
+    - fin (YYYY-MM-DD)
+    """
+
+    # 1. Parámetros requeridos
+    inicio_str = request.args.get("inicio")
+    fin_str = request.args.get("fin")
+
+    if not inicio_str or not fin_str:
+        return jsonify({"error": "Debes proporcionar 'inicio' y 'fin' en el formato YYYY-MM-DD"}), 400
+
+    # 2. Validación de fechas
+    try:
+        inicio = date.fromisoformat(inicio_str)
+        fin = date.fromisoformat(fin_str)
+    except ValueError:
+        return jsonify({"error": "Fechas inválidas; usa formato YYYY-MM-DD"}), 400
+
+    if inicio > fin:
+        return jsonify({"error": "La fecha de inicio no puede ser posterior a la fecha de fin"}), 400
+
+    # 3. Consulta base de datos
+    try:
+        registros = (
+            db.session.query(
+                RegistroAdultoMayor.personal_enfermeria,
+                func.count(RegistroAdultoMayor.id).label('total')
+            )
+            .filter(RegistroAdultoMayor.fecha.between(inicio, fin))
+            .group_by(RegistroAdultoMayor.personal_enfermeria)
+            .order_by(desc('total'))  
+            .all()
+        )
+        resultado = [{"personal_enfermeria": r[0], "total": r[1]} for r in registros]
+    except Exception as e:
+        return jsonify({"error": f"Error al obtener registros: {str(e)}"}), 500
+
+    # 4. Respuesta exitosa
+    return jsonify(resultado), 200

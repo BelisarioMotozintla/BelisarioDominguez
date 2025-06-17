@@ -1,4 +1,5 @@
 # app/models.py
+from datetime import date, datetime
 from app.utils.db import db
 from werkzeug.security import generate_password_hash, check_password_hash
 # Modelo Usuario
@@ -72,6 +73,11 @@ class RegistroAdultoMayor(db.Model):
     OBSERVACIONES_GENERALES = db.Column(db.String)
 
     def to_dict(self):
+        def safe_iso(value):
+            if isinstance(value, (date, datetime)):
+                return value.isoformat()
+            return value  # Si ya es str u otro tipo, lo deja igual
+
         return {
             'id': self.id,
             'unidad_salud': self.unidad_salud,
@@ -80,12 +86,12 @@ class RegistroAdultoMayor(db.Model):
             'localidad': self.localidad,
             'servicio': self.servicio,
             'personal_enfermeria': self.personal_enfermeria,
-            'fecha': self.fecha.isoformat() if self.fecha else None,
+            'fecha': safe_iso(self.fecha),
             'hora_inicio': self.hora_inicio,
             'hora_termino': self.hora_termino,
             'nombre_jefe_fam': self.nombre_jefe_fam,
             'paciente': self.paciente,
-            'fecha_nacimiento': self.fecha_nacimiento,
+            'fecha_nacimiento': safe_iso(self.fecha_nacimiento),
             'domicilio': self.domicilio,
             'edad': self.edad,
             'sexo': self.sexo,
