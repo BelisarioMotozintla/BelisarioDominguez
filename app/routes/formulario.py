@@ -67,7 +67,7 @@ def formulario():
                 PF_METODO = get_str(request.form, 'PF_METODO'),
                 VI_EMB_grupo_edad = get_str(request.form, 'VI_EMB_grupo_edad'),
                 VI_EMB_TRIMESTRE_GESTACIONAL = get_str(request.form, 'VI_EMB_TRIMESTRE_GESTACIONAL'),
-                VI_EMB_ACCIONES_IRREDUCTIBLES = get_str(request.form, 'VI_EMB_ACCIONES_IRREDUCTIBLES'),
+                VI_EMB_ACCIONES_IRREDUCTIBLES = request.form.getlist('VI_EMB_ACCIONES_IRREDUCTIBLES[]'),
                 observaciones = get_str(request.form, 'observaciones'),
                 DETECCION_TAMIZ = get_str(request.form, 'DETECCION_TAMIZ'),
                 diagnostico_nutricional = get_str(request.form, 'diagnostico_nutricional'),

@@ -13,7 +13,7 @@ def campos_validos(form):
     # Validar edad: debe ser entero positivo
     try:
         edad = int(form.get('edad', '').strip())
-        if edad <= 0:
+        if edad < 0:
             return False, 'edad (valor no válido)'
     except ValueError:
         return False, 'edad (no numérico)'

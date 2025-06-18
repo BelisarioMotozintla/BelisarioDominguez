@@ -152,23 +152,36 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">Edad:</label>
-                <input class="form-control" type="number" name="edad" id="edad" readonly>
+                <input class="form-control" type="hidden" name="edad" id="edad" readonly>
+                <input class="form-control" type="text" name="edad_unidad" id="edad_unidad" readonly>
             </div>
                 <script>
-                    document.getElementById("fecha_nacimiento").addEventListener("change", function () {
+                  document.getElementById("fecha_nacimiento").addEventListener("change", function () {
                     const fechaNacimiento = new Date(this.value);
                     const hoy = new Date();
 
-                    let edad = hoy.getFullYear() - fechaNacimiento.getFullYear();
-                    const mes = hoy.getMonth() - fechaNacimiento.getMonth();
+                    let años = hoy.getFullYear() - fechaNacimiento.getFullYear();
+                    let meses = hoy.getMonth() - fechaNacimiento.getMonth();
+                    let dias = hoy.getDate() - fechaNacimiento.getDate();
 
-                    if (mes < 0 || (mes === 0 && hoy.getDate() < fechaNacimiento.getDate())) {
-                        edad--;
+                    // Ajustar meses y años si aún no cumple el mes actual
+                    if (dias < 0) {
+                        meses--;
                     }
-                    
+                    if (meses < 0) {
+                        años--;
+                        meses += 12;
+                    }
 
-                    console.log("EDAD CALCULADA:", edad);
-                    
+                    if (años < 1) {
+                        document.getElementById("edad_unidad").value = `${meses} meses`;
+                        document.getElementById("edad").value = meses;
+                    } else {
+                        document.getElementById("edad_unidad").value = `${años} años`;
+                        document.getElementById("edad").value = años;
+                        
+                    }
+                    edad=años
 
                     // Llamar a la función para seleccionar el grupo de edad
                    
@@ -180,7 +193,7 @@
                     SelecionarEDA_MADRES(edad);
                     SelecionarIRA_MADRES(edad);
                     Selecionargrupo_riesgo(edad);
-                    document.getElementById("edad").value = isNaN(edad) ? "" : edad;
+                    //document.getElementById("edad").value = isNaN(edad) ? "" : edad;
                 });
                 function SeleccionarGrupoEdad(edad) {
                     const select = document.getElementById('DG_GRUPOS_EDAD');
@@ -585,15 +598,65 @@
                 </select> 
             </div> 
             <div class="col-md-4">
-                <label>Acciones Irreductibles</label>
-                 <select class="form-select" id="VI_EMB_ACCIONES_IRREDUCTIBLES" name="VI_EMB_ACCIONES_IRREDUCTIBLES">
-                    <option value="1">Valoración de riesgo obstetricio.</option>
-                    <option value="2">Identificación De signos de alarma.</option>
-                    <option value="3">Prescripción De ácido folico/ fum. Ferroso.</option>
-                    <option value="4">Uroanalisis</option>
-                    <option value="5">Orientación Signos de alarma.  </option>
-                    <option value="6">No Aplica</option>
-                </select> 
+               <label>Acciones Irreductibles</label>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="1" id="accion1">
+                <label class="form-check-label" for="accion1">Valoración de riesgo obstétrico.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="2" id="accion2">
+                <label class="form-check-label" for="accion2">Identificación de signos de alarma.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="3" id="accion3">
+                <label class="form-check-label" for="accion3">Prescripción de ácido fólico / fumarato ferroso.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="4" id="accion4">
+                <label class="form-check-label" for="accion4">Uroanálisis</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="5" id="accion5">
+                <label class="form-check-label" for="accion5">Orientación sobre signos de alarma.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="6" id="accion6"  checked>
+                <label class="form-check-label" for="accion6">No Aplica</label>
+                </div>
+
+                <script>
+                const noAplica = document.getElementById("accion6");
+                const otrasOpciones = document.querySelectorAll(".accion-checkbox");
+
+                noAplica.addEventListener("change", function () {
+                    if (this.checked) {
+                    otrasOpciones.forEach(cb => {
+                        cb.checked = false;
+                        cb.disabled = true;
+                    });
+                    } else {
+                    otrasOpciones.forEach(cb => {
+                        cb.disabled = false;
+                    });
+                    }
+                });
+
+                // Desactiva "No Aplica" si otra opción es seleccionada
+                otrasOpciones.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                    if (this.checked) {
+                        noAplica.checked = false;
+                    }
+
+                    const algunoMarcado = Array.from(otrasOpciones).some(c => c.checked);
+                    noAplica.disabled = algunoMarcado;
+                    if (!algunoMarcado) {
+                        noAplica.disabled = false;
+                    }
+                    });
+                });
+                </script>
+
             </div>
             <script>
                 const campos = ["peso", "talla", "ta_sistolica", "ta_diastolica", "glucosa", "fc", "fcr", "temperatura", "spo2", "imc"];
@@ -666,7 +729,7 @@
         <fieldset class="border p-3 mb-3">
             <legend class="w-auto px-2">Enfermedad Diarreica Aguda menor de 5 Años</legend>
             <div class="col-md-4">
-                <label>Madres Capacitadas En Manejo</label>
+                <label>Sobres de Hidratacion Oral Entregados</label>
                  <select class="form-select" id="EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS" name="EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS">
                     <option value="1">Si</option>
                     <option value="2">No</option>
