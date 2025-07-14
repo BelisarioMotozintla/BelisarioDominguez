@@ -27,11 +27,28 @@ def formulario():
     if session['rol'] == 'admin':
         return redirect(url_for('admin.panel'))
 
+    usua = session['usuario']
+    hoy = date.today()
+
+    # Rango de fechas: del 26 del mes anterior al 25 del actual
+    if hoy.month == 1:
+        inicio = datetime(hoy.year - 1, 12, 26)
+    else:
+        inicio = datetime(hoy.year, hoy.month - 1, 26)
+
+    fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
+
+    registros = RegistroAdultoMayor.query.filter(
+        RegistroAdultoMayor.fecha >= inicio,
+        RegistroAdultoMayor.fecha <= fin,
+        RegistroAdultoMayor.personal_enfermeria == usua
+    ).all()
+
     if request.method == 'POST':
         validado, campo = campos_validos(request.form)
         if not validado:
             flash(f"Completa el campo: {campo}", 'danger')
-            return redirect(url_for('formulario.formulario'))
+            return render_template('formulario.html', datos=request.form, registros=registros)
 
         try:
             fecha_obj = datetime.strptime(get_str(request.form, 'fecha'), '%Y-%m-%d').date()
@@ -46,10 +63,10 @@ def formulario():
                 fecha = fecha_obj,
                 hora_inicio = get_str(request.form, 'hora_inicio'),
                 hora_termino = get_str(request.form, 'hora_termino'),
-                nombre_jefe_fam = get_str(request.form, 'nombre_jefe_fam'),
-                paciente = get_str(request.form, 'paciente'),
+                nombre_jefe_fam = get_str(request.form, 'nombre_jefe_fam').upper(),
+                paciente = get_str(request.form, 'paciente').upper(),
                 fecha_nacimiento = get_str(request.form, 'fecha_nacimiento'),
-                domicilio = get_str(request.form, 'domicilio'),
+                domicilio = get_str(request.form, 'domicilio').upper(),
                 edad = get_int(request.form, 'edad'),
                 sexo = get_str(request.form, 'sexo'),
                 indigena = get_str(request.form, 'indigena'),
@@ -96,16 +113,14 @@ def formulario():
         except Exception as e:
             db.session.rollback()
             flash(f'Error al guardar: {e}', 'danger')
+            return render_template('formulario.html', datos=request.form, registros=registros)
 
-        return redirect(url_for('formulario.formulario'))
+        # Mostrar formulario limpio después de guardar
+        return render_template('formulario.html', datos={}, registros=registros)
 
-    # GET: mostrar registros del día y usuario
-    usua = session['usuario']
-    hoy = date.today()
+    # GET: formulario inicial
+    return render_template('formulario.html', datos={}, registros=registros)
 
-    registros = RegistroAdultoMayor.query.filter_by(personal_enfermeria=usua, fecha=hoy).all()
-
-    return render_template('formulario.html', registros=registros)
 
 @bp.route('/exportar', methods=['GET'])
 def exportar():
@@ -142,9 +157,9 @@ def consultar():
     resultados = []
     if request.method == 'POST':
        
-        nombre =  request.form.get('nombre', '').upper()
+        nombre = request.form.get('nombre', '').strip()
         resultados = RegistroAdultoMayor.query.filter(
-            RegistroAdultoMayor.paciente.ilike(f"%{nombre}%")
+        RegistroAdultoMayor.paciente.ilike(f"%{nombre}%")
         ).all()
     return render_template('consulta_nombre.html', resultados=resultados)
 
@@ -157,11 +172,22 @@ def detalle(registro_id):
 def total_capturados_mes():
     usua = session['usuario']
     hoy = datetime.now()
+
+    # Calcular el día 26 del mes anterior
+    if hoy.month == 1:
+        inicio = datetime(hoy.year - 1, 12, 26)
+    else:
+        inicio = datetime(hoy.year, hoy.month - 1, 26)
+
+    # Calcular el día 25 del mes actual
+    fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
+
     total = RegistroAdultoMayor.query.filter(
-        extract('month', RegistroAdultoMayor.fecha) == hoy.month,
-        extract('year', RegistroAdultoMayor.fecha) == hoy.year,
-        RegistroAdultoMayor.personal_enfermeria==usua
+        RegistroAdultoMayor.fecha >= inicio,
+        RegistroAdultoMayor.fecha <= fin,
+        RegistroAdultoMayor.personal_enfermeria == usua
     ).count()
+
     return jsonify({'total': total})
 
 @bp.route("/api/reporte", methods=["GET"])

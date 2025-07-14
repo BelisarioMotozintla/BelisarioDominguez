@@ -84,11 +84,11 @@
             <div class="row">
                 <div class="col-md-6">
                     <label>Nombre del Paciente</label>
-                    <input class="form-control" name="paciente" id="paciente">
+                    <input class="form-control" name="paciente" id="paciente" value="{{ datos.get('paciente', '') }}">
                 </div>
                 <div class="col-md-6">
                     <label>Nombre del Jefe de Familia</label>
-                    <input class="form-control" name="nombre_jefe_fam" id="nombre_jefe_fam">
+                    <input class="form-control" name="nombre_jefe_fam" id="nombre_jefe_fam" value="{{ datos.get('nombre_jefe_fam', '') }}">
                 </div>
             </div>
 
@@ -148,12 +148,12 @@
                 </select>
             </div>
             <div class="col-md-4">
-                <label>Fecha de Nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento" id="fecha_nacimiento">
+                <label>Fecha de Nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ datos.get('fecha_nacimiento', '') }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Edad:</label>
-                <input class="form-control" type="hidden" name="edad" id="edad" readonly>
-                <input class="form-control" type="text" name="edad_unidad" id="edad_unidad" readonly>
+                <input class="form-control" type="hidden" name="edad" id="edad" value="{{ datos.get('edad', '') }}" readonly>
+                <input class="form-control" type="text" name="edad_unidad" id="edad_unidad" value="{{ datos.get('edad_unidad', '') }}" readonly>
             </div>
                 <script>
                   document.getElementById("fecha_nacimiento").addEventListener("change", function () {
@@ -314,7 +314,7 @@
 
             </script>
             <div class="col-md-8">
-                <label>Domicilio</label><input class="form-control" name="domicilio">
+                <label>Domicilio</label><input class="form-control" name="domicilio" value="{{ datos.get('domicilio', '') }}">
             </div>
             <div class="container mb-4 imss-fondo">
             <fieldset class="border p-3 ">
@@ -322,48 +322,48 @@
                 <div class="row text-center bg-warning fw-bold py-2 rounded ">
                     <div class="col ">
                         <label>PESO (kg):</label>
-                    <input type="number" step="0.1" min="0" id="peso" name="peso" class="form-control text-center" placeholder="Ej: 44.5">
+                    <input type="number" step="0.1" min="0" id="peso" name="peso" class="form-control text-center" placeholder="Ej: 44.5" value="{{ datos.get('peso', '') }}">
                     </div>
                 <div class="col ">
                     <label>TALLA (cm):</label>
-                    <input type="number" step="0.1" min="0" id="talla" name="talla" class="form-control text-center" placeholder="Ej: 141">
+                    <input type="number" step="0.1" min="0" id="talla" name="talla" class="form-control text-center" placeholder="Ej: 141" value="{{ datos.get('talla', '') }}">
                 </div>
                 <div class="row ">
                      <label>Tensión Arterial(t/a):</label>
                     <div class="col ">
-                        <input type="number" id="ta_sistolica" name="ta_sistolica" class="form-control" placeholder="Sistólica (ej. 120)">
+                        <input type="number" id="ta_sistolica" name="ta_sistolica" class="form-control" placeholder="Sistólica (ej. 120)" value="{{ datos.get('ta_sistolica', '') }}">
                     </div>
                     <div class="col ">
-                        <input type="number" id="ta_diastolica" name="ta_diastolica" class="form-control" placeholder="Diastólica (ej. 80)">
+                        <input type="number" id="ta_diastolica" name="ta_diastolica" class="form-control" placeholder="Diastólica (ej. 80)" value="{{ datos.get('ta_diastolica', '') }}">
                     </div>
 		 </div>
 		 <div class="col ">
                     	<label>Glucosa:</label>
-                    	<input type="number" step="1" min="0" id="glucosa" name="glucosa" class="form-control text-center" placeholder="Ej: 101">
+                    	<input type="number" step="1" min="0" id="glucosa" name="glucosa" class="form-control text-center" placeholder="Ej: 101" value="{{ datos.get('glucosa', '') }}">
                     </div>	
                 <div class="col ">
                     <label>Frecuencia Cardiaca:</label>
-                    <input type="number" step="0.1" min="0" id="fc" name="fc" class="form-control text-center" placeholder="75" min="0" max="200"> <small class="text-muted">latidos por minuto</small>
+                    <input type="number" step="0.1" min="0" id="fc" name="fc" class="form-control text-center" placeholder="Ej: 75" min="0" max="200" value="{{ datos.get('fc', '') }}"> <small class="text-muted">latidos por minuto</small>
                 </div>
                 <div class="col ">
                     <label>FCR(X´):</label>
-                    <input class="form-control" type="number" id="fcr" name="fcr"  placeholder="18" min="0" max="60"> <small class="text-muted">respiraciones por minuto</small>
+                    <input class="form-control" type="number" id="fcr" name="fcr"  placeholder="Ej: 18" min="0" max="60" value="{{ datos.get('fcr', '') }}"> <small class="text-muted">respiraciones por minuto</small>
                 </div>
                 <div class="col ">
                     <label>Temperatura  (°C):</label>
-                    <input class="form-control" type="number" id="temperatura" name="temperatura" step="0.1" placeholder="Ej: 36.6" min="0" max="60"> 
+                    <input class="form-control" type="number" id="temperatura" name="temperatura" step="0.1" placeholder="Ej: 36.6" min="0" max="60" value="{{ datos.get('temperatura', '') }}"> 
                 </div>
                 <div class="col ">
                     <label>Circunferencia  (cm):</label>
-                    <input class="form-control" type="number" id="circo" name="circo" step="0.1" placeholder="Ej: 98 cm" min="0" max="200"> 
+                    <input class="form-control" type="number" id="circo" name="circo" step="0.1" placeholder="Ej: 98 cm" min="0" max="200" value="{{ datos.get('circo', '') }}"> 
                 </div>
                 <div class="col ">
                     <label>IMC:</label>
-                    <input id="imc" class="form-control text-center" id="imc" name="imc"  readonly />
+                    <input id="imc" class="form-control text-center" id="imc" name="imc" value="{{ datos.get('imc', '') }}" readonly />
                 </div>
                 <div class="col ">
                     <label>SPO2 (%):</label>
-                    <input type="number" step="1" min="0" id="spo2" name="spo2" class="form-control text-center" placeholder="Ej: 98">
+                    <input type="number" step="1" min="0" id="spo2" name="spo2" class="form-control text-center" placeholder="Ej: 98" value="{{ datos.get('spo2', '') }}">
                 </div>
             </div>
   </fieldset>
@@ -453,15 +453,15 @@
             <div class="row g-3">
             <div class="col-md-6">
                 <label for="fecha" class="form-label">Fecha</label>
-                <input class="form-control" type="date" id="fecha" name="fecha">
+                <input class="form-control" type="date" id="fecha" name="fecha" value="{{ datos.get('fecha', '') }}">
             </div>
             <div class="col-md-6">
                 <label for="hora_inicio" class="form-label">Hora Inicio</label>
-                <input class="form-control" type="time" id="hora_inicio" name="hora_inicio">
+                <input class="form-control" type="time" id="hora_inicio" name="hora_inicio" value="{{ datos.get('hora_inicio', '') }}">
             </div>
             <div class="col-md-6">
                 <label for="hora_termino" class="form-label">Hora Término</label>
-                <input class="form-control" type="time" id="hora_termino" name="hora_termino">
+                <input class="form-control" type="time" id="hora_termino" name="hora_termino" value="{{ datos.get('hora_termino', '') }}">
             </div>
             </div>
         </fieldset>
@@ -911,18 +911,18 @@
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>ID</th><th>Paciente</th><th>Edad</th><th>Sexo</th><th>Diabetes</th><th>Hipertensión</th><th>Acciones</th>
+                            <th>Fecha</th><th>Paciente</th><th>Edad</th><th>Sexo</th><th>Domicilio</th><th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in registros %}
                         <tr>
-                            <td>{{ row.id }}</td>
+                            <td>{{ row.fecha.strftime('%d/%m/%Y') }}</td>
                             <td>{{ row.paciente }}</td>
                             <td>{{ row.edad }}</td>
                             <td>{{ row.sexo }}</td>
-                            <td>{{ row.DIABETES_MELLITUS }}</td>
-                            <td>{{ row.hipertension }}</td>
+                            <td>{{ row.domicilio }}</td>
+                            
                             <td>
                                 <form method="POST" action="/eliminar/{{ row.id }}" style="display:inline">
                                     <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>

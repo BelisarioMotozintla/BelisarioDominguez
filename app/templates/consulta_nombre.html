@@ -4,8 +4,15 @@
 <h2>Buscar por Nombre</h2>
 
 <form method="POST">
-    <input type="text" name="nombre" placeholder="Ingrese nombre del paciente" class="form-control" required>
-    <button type="submit" class="btn btn-primary mt-2">Buscar</button>
+  <input 
+    type="text" 
+    name="nombre" 
+    placeholder="Ingrese nombre del paciente" 
+    class="form-control" 
+    required
+    style="font-size: 1.5rem; height: 3.5rem;"
+  >
+  <button type="submit" class="btn btn-primary mt-2">Buscar</button>
 </form>
  <a href="{{ url_for('formulario.formulario') }}" class="btn btn-primary">Ir al Consulta Enfermería</a>
 {% if resultados %}
