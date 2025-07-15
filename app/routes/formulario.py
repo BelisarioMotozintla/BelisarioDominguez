@@ -246,13 +246,13 @@ def reporte_capturas():
 
     # 4. Respuesta exitosa
     return jsonify(resultado), 200
-    
+
 @bp.route('/eliminar/<int:id>', methods=['GET', 'POST'])
 def eliminar(id):
     registro = RegistroAdultoMayor.query.get(id)
     if not registro:
         flash(f"Registro con ID {id} no encontrado.", "error")
-        return redirect(url_for('listar'))
+        return redirect(url_for('formulario.html'))
 
     try:
         db.session.delete(registro)
@@ -261,4 +261,4 @@ def eliminar(id):
     except Exception as e:
         db.session.rollback()
         flash(f"Error al eliminar: {str(e)}", "error")
-    return redirect(url_for('listar'))
+    return redirect(url_for('formulario.html'))
