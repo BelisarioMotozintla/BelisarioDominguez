@@ -12,7 +12,7 @@ def campos_validos(form):
         if valor == '':
             return False, campo
 
-    # edad
+    # Edad
     try:
         edad = int(form.get('edad', '').strip())
         if edad < 0:
@@ -20,7 +20,7 @@ def campos_validos(form):
     except ValueError:
         return False, 'edad (no numérico)'
 
-    # fecha
+    # Fecha
     try:
         fecha = datetime.strptime(form.get('fecha', '').strip(), '%Y-%m-%d')
         if fecha > datetime.now():
@@ -28,7 +28,7 @@ def campos_validos(form):
     except ValueError:
         return False, 'fecha (formato inválido)'
 
-    # hora inicio / termino
+    # Hora inicio / término
     try:
         inicio = datetime.strptime(form.get('hora_inicio', '').strip(), '%H:%M')
         fin = datetime.strptime(form.get('hora_termino', '').strip(), '%H:%M')
@@ -37,23 +37,23 @@ def campos_validos(form):
     except ValueError:
         return False, 'hora_inicio o hora_termino (formato inválido)'
 
-    # peso
+    # Peso
     try:
-        peso = float(form.get('peso', '').strip())
-        if peso <= 0:
+        peso = float(form.get('peso', '0').strip() or '0')
+        if peso != 0 and peso <= 0:
             return False, 'peso (debe ser positivo)'
     except ValueError:
         return False, 'peso (no numérico)'
 
-    # talla
+    # Talla
     try:
-        talla = float(form.get('talla', '').strip())
-        if talla <= 0:
+        talla = float(form.get('talla', '0').strip() or '0')
+        if talla != 0 and talla <= 0:
             return False, 'talla (debe ser positiva)'
     except ValueError:
         return False, 'talla (no numérico)'
 
-  # TA sistólica
+    # TA sistólica
     try:
         sistolica = int(form.get('ta_sistolica', '0').strip() or '0')
         if sistolica != 0 and sistolica < 50:
@@ -77,51 +77,52 @@ def campos_validos(form):
     except ValueError:
         return False, 'glucosa (no numérico)'
 
-    # frecuencia cardiaca (fc)
+    # Frecuencia cardiaca (fc)
     try:
-        fc = int(form.get('fc', '').strip())
-        if fc < 0:
+        fc = int(form.get('fc', '0').strip() or '0')
+        if fc != 0 and fc < 0:
             return False, 'fc (debe ser positivo)'
     except ValueError:
         return False, 'fc (no numérico)'
 
-    # frecuencia respiratoria (fcr)
+    # Frecuencia respiratoria (fcr)
     try:
-        fcr = int(form.get('fcr', '').strip())
-        if fcr < 0:
+        fcr = int(form.get('fcr', '0').strip() or '0')
+        if fcr != 0 and fcr < 0:
             return False, 'fcr (debe ser positivo)'
     except ValueError:
         return False, 'fcr (no numérico)'
 
-    # temperatura
+    # Temperatura
     try:
-        temperatura = float(form.get('temperatura', '').strip())
-        #if not (30 <= temperatura <= 45):
-        if temperatura < 0:
+        temperatura = float(form.get('temperatura', '0').strip() or '0')
+        if temperatura != 0 and temperatura < 30:
             return False, 'temperatura (rango inválido)'
     except ValueError:
         return False, 'temperatura (no numérico)'
 
-    # circunferencia (HTML: circo)
+    # Circunferencia (circo)
     try:
-        circo = float(form.get('circo', '').strip())
-        if circo < 0:
+        circo = float(form.get('circo', '0').strip() or '0')
+        if circo != 0 and circo < 0:
             return False, 'circo (debe ser positivo)'
     except ValueError:
         return False, 'circo (no numérico)'
 
     # IMC
     try:
-        imc = float(form.get('imc', '').strip())
-        if imc <= 0:
+        imc = float(form.get('imc', '0').strip() or '0')
+        if imc != 0 and imc <= 0:
             return False, 'imc (debe ser positivo)'
     except ValueError:
         return False, 'imc (no numérico)'
 
-     # Saturación
+    # Saturación
     try:
         spo2 = int(form.get('saturacion', '0').strip() or '0')
         if spo2 != 0 and spo2 < 85:
             return False, 'saturación (valor bajo)'
     except ValueError:
         return False, 'saturación (no numérico)'
+
+    return True, ''
