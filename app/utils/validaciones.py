@@ -53,34 +53,34 @@ def campos_validos(form):
     except ValueError:
         return False, 'talla (no numérico)'
 
-    # TA sistólica
+  # TA sistólica
     try:
-        sistolica = int(form.get('ta_sistolica', '').strip())
-        if sistolica < 50:
+        sistolica = int(form.get('ta_sistolica', '0').strip() or '0')
+        if sistolica != 0 and sistolica < 50:
             return False, 'ta_sistolica (valor bajo)'
     except ValueError:
         return False, 'ta_sistolica (no numérico)'
 
     # TA diastólica
     try:
-        diastolica = int(form.get('ta_diastolica', '').strip())
-        if diastolica < 30:
+        diastolica = int(form.get('ta_diastolica', '0').strip() or '0')
+        if diastolica != 0 and diastolica < 30:
             return False, 'ta_diastolica (valor bajo)'
     except ValueError:
         return False, 'ta_diastolica (no numérico)'
 
-    # glucosa
+    # Glucosa
     try:
-        glucosa = int(form.get('glucosa', '').strip())
-        if glucosa < 0:
-            return False, 'glucosa (debe ser positiva)'
+        glucosa = int(form.get('glucosa', '0').strip() or '0')
+        if glucosa != 0 and glucosa < 40:
+            return False, 'glucosa (valor bajo)'
     except ValueError:
         return False, 'glucosa (no numérico)'
 
     # frecuencia cardiaca (fc)
     try:
         fc = int(form.get('fc', '').strip())
-        if fc <= 0:
+        if fc < 0:
             return False, 'fc (debe ser positivo)'
     except ValueError:
         return False, 'fc (no numérico)'
@@ -88,7 +88,7 @@ def campos_validos(form):
     # frecuencia respiratoria (fcr)
     try:
         fcr = int(form.get('fcr', '').strip())
-        if fcr <= 0:
+        if fcr < 0:
             return False, 'fcr (debe ser positivo)'
     except ValueError:
         return False, 'fcr (no numérico)'
@@ -96,7 +96,8 @@ def campos_validos(form):
     # temperatura
     try:
         temperatura = float(form.get('temperatura', '').strip())
-        if not (30 <= temperatura <= 45):
+        #if not (30 <= temperatura <= 45):
+        if temperatura < 0:
             return False, 'temperatura (rango inválido)'
     except ValueError:
         return False, 'temperatura (no numérico)'
@@ -117,12 +118,10 @@ def campos_validos(form):
     except ValueError:
         return False, 'imc (no numérico)'
 
-    # SPO2
+     # Saturación
     try:
-        spo2 = int(form.get('spo2', '').strip())
-        if not (0 <= spo2 <= 100):
-            return False, 'spo2 (rango 0-100%)'
+        spo2 = int(form.get('saturacion', '0').strip() or '0')
+        if spo2 != 0 and spo2 < 85:
+            return False, 'saturación (valor bajo)'
     except ValueError:
-        return False, 'spo2 (no numérico)'
-
-    return True, None
+        return False, 'saturación (no numérico)'
