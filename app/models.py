@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # Modelo Usuario
 
 class Usuario(db.Model):
+    __tablename__ = 'usuario' 
     id = db.Column(db.Integer, primary_key=True)
     usuario = db.Column(db.String(100), unique=True, nullable=False)
     contrasena_hash = db.Column(db.String(500), nullable=False)
@@ -15,7 +16,7 @@ class Usuario(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.contrasena_hash, password)
-        
+
 # Modelo RegistroAdultoMayor
 class RegistroAdultoMayor(db.Model):
     __tablename__ = 'registroadultosmayores'
