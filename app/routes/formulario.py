@@ -170,25 +170,37 @@ def detalle(registro_id):
 
 @bp.route('/api/total_capturados_mes', methods=['GET', 'POST'])
 def total_capturados_mes():
-    usua = session['usuario']
-    hoy = datetime.now()
+    try:
+        usua = session.get('usuario')
+        if not usua:
+            return jsonify({'error': 'Sesión no válida'}), 401
 
-    # Calcular el día 26 del mes anterior
-    if hoy.month == 1:
-        inicio = datetime(hoy.year - 1, 12, 26)
-    else:
-        inicio = datetime(hoy.year, hoy.month - 1, 26)
+        hoy = datetime.now()
 
-    # Calcular el día 25 del mes actual
-    fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
+        # Calcular el día 26 del mes anterior
+        if hoy.month == 1:
+            inicio = datetime(hoy.year - 1, 12, 26)
+        else:
+            inicio = datetime(hoy.year, hoy.month - 1, 26)
 
-    total = RegistroAdultoMayor.query.filter(
-        RegistroAdultoMayor.fecha >= inicio,
-        RegistroAdultoMayor.fecha <= fin,
-        RegistroAdultoMayor.personal_enfermeria == usua
-    ).count()
+        # Calcular el día 25 del mes actual
+        fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
 
-    return jsonify({'total': total})
+        print("📅 Rango de fechas:", inicio, "→", fin)
+        print("👤 Personal:", usua)
+
+        total = RegistroAdultoMayor.query.filter(
+            RegistroAdultoMayor.fecha >= inicio,
+            RegistroAdultoMayor.fecha <= fin,
+            RegistroAdultoMayor.personal_enfermeria == usua
+        ).count()
+
+        return jsonify({'total': total})
+
+    except Exception as e:
+        print("❌ ERROR total_capturados_mes:", e)
+        return jsonify({'error': 'Error al obtener datos'}), 500
+
 
 @bp.route("/api/reporte", methods=["GET"])
 def reporte_capturas():
