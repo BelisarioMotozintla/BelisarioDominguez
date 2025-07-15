@@ -11,22 +11,28 @@ def home():
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario = request.form['usuario'].upper()
-        contrasena = request.form['contrasena']
+        try:
+            usuario = request.form['usuario'].upper()
+            contrasena = request.form['contrasena']
 
-        user = Usuario.query.filter_by(usuario=usuario).first()
+            user = Usuario.query.filter_by(usuario=usuario).first()
 
-        if user and user.check_password(contrasena):
-            session['usuario'] = usuario
-            session['rol'] = user.rol
-            flash('Inicio de sesión exitoso', 'info')
+            if user and user.check_password(contrasena):
+                session['usuario'] = usuario
+                session['rol'] = user.rol
+                flash('Inicio de sesión exitoso', 'info')
 
-            if user.rol == 'admin':
-                return redirect(url_for('admin.panel'))
+                if user.rol == 'admin':
+                    return redirect(url_for('admin.panel'))
+                else:
+                    return redirect(url_for('formulario.formulario'))
             else:
-                return redirect(url_for('formulario.formulario'))
-        else:
-            flash('Credenciales incorrectas', 'error')
+                flash('Credenciales incorrectas', 'error')
+                return redirect(url_for('auth.login'))
+
+        except Exception as e:
+            print("Error durante login:", e)
+            flash('Error interno del servidor', 'danger')
             return redirect(url_for('auth.login'))
 
     return render_template('login.html')
