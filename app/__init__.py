@@ -8,6 +8,8 @@ def create_app():
     app.config.from_object(DevelopmentConfig)
 
     # Inicializar db una sola vez
+    #engine_options = app.config.get('SQLALCHEMY_ENGINE_OPTIONS', {})
+    #db.init_app(app, engine_options=engine_options)
     db.init_app(app)
 
     with app.app_context():

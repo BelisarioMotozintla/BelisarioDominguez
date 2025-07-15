@@ -3,6 +3,7 @@ import os
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from pathlib import Path
+from sqlalchemy.pool import NullPool  # Se importa aquí
 
 # Cargar archivo .env de forma explícita
 env_path = Path(__file__).resolve().parent / '.env'
@@ -28,7 +29,12 @@ class DevelopmentConfig(Config):
     )
     DEBUG = True
 
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+        'poolclass': NullPool
+    }
+
 
 class ProductionConfig(DevelopmentConfig):
     DEBUG = False
-

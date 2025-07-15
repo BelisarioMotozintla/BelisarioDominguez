@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash
 
+#db = SQLAlchemy(engine_options=DevelopmentConfig.SQLALCHEMY_ENGINE_OPTIONS)
 db = SQLAlchemy()  # Instancia global
 
 def crear_base_datos():
