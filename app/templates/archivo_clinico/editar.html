@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Editar Archivo Clínico</h2>
+<form method="POST">
+    <label>Ubicación física:</label> <input type="text" name="ubicacion_fisica" value="{{ archivo.ubicacion_fisica }}"><br>
+    <label>Estado:</label>
+    <select name="estado">
+        <option value="disponible" {% if archivo.estado == 'disponible' %}selected{% endif %}>Disponible</option>
+        <option value="prestado" {% if archivo.estado == 'prestado' %}selected{% endif %}>Prestado</option>
+        <option value="extraviado" {% if archivo.estado == 'extraviado' %}selected{% endif %}>Extraviado</option>
+    </select><br>
+    <label>Tipo de archivo:</label> <input type="text" name="tipo_archivo" value="{{ archivo.tipo_archivo }}"><br>
+    <label>Fecha de creación:</label> <input type="date" name="fecha_creacion" value="{{ archivo.fecha_creacion }}"><br>
+    <button type="submit" class="btn btn-primary">Actualizar</button>
+    <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+
+
+</form>
+{% endblock %}

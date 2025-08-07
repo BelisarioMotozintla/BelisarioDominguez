@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Comentarios</h2>
+
+  <!-- Mostrar formulario sólo si el usuario está logueado -->
+  {% if session.get('usuario') %}
+  <form method="POST" action="{{ url_for('comentario.comentarios') }}">
+    <div class="mb-3">
+      <label for="contenido" class="form-label">Deja tu comentario</label>
+      <textarea name="contenido" id="contenido" class="form-control" rows="3" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Enviar</button>
+  </form>
+  {% else %}
+  <p>Debes <a href="{{ url_for('auth.login') }}">iniciar sesión</a> para comentar.</p>
+  {% endif %}
+
+  <hr>
+
+  <!-- Listado de comentarios -->
+  {% for comentario in comentarios %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <p class="card-text">{{ comentario.contenido | e }}</p>
+      <small class="text-muted">
+        Por <strong>{{ comentario.autor }}</strong> - {{ comentario.fecha.strftime('%d/%m/%Y %H:%M') }}
+      </small>
+
+      <!-- Botón eliminar para administradores -->
+      {% if session.get('rol') == 'Administrador' %}
+      <form method="POST" action="{{ url_for('comentario.eliminar_comentario', id=comentario.id) }}" 
+            style="display:inline-block;"
+            onsubmit="return confirm('¿Estás seguro de eliminar este comentario?');">
+        <button type="submit" class="btn btn-sm btn-danger float-end">Eliminar</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p>No hay comentarios aún.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,1069 @@
+{% extends "base.html" %}
+
+{% block title %}Hoja de Consultoria de Enfermeria{% endblock %}
+
+{% block encabezado %}Hoja de Consultoria de Enfermeria{% endblock %}
+
+{% block content %}
+
+<!doctype html>
+<html lang="es">
+<head>
+    <title>Captura Salud del Adulto</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+ 
+
+</head>
+<body class="container mt-4">
+  <!-- Mensajes flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mt-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      
+    {% endif %}
+  {% endwith %}
+    <div class="col">
+        <h2 class="col-md-6">Hola, {{ session['usuario'] }}!</h2>
+        <p id="conteo-capturas" class="text-primary fs-5"> Capturados este mes: <span id="total-capturas">...</span> </p>
+        <script>
+        fetch('/enfermeria/api/total_capturados_mes')
+            .then(response => response.json())
+            .then(data => {
+            if (data.total !== undefined) {
+                document.getElementById('total-capturas').textContent = data.total;
+            } else {
+                document.getElementById('total-capturas').textContent = 'Error';
+                console.error('Respuesta inesperada:', data);
+            }
+            })
+            .catch(error => {
+            console.error('Error al obtener el total:', error);
+            document.getElementById('total-capturas').textContent = 'Error';
+            });
+        </script>
+         <p>Bienvenido al panel de usuario.</p>
+    </div>
+    <div class="d-flex justify-content-end gap-3 mt-1 col">
+            <a href="{{ url_for('enfermeria.consultar') }}" class="btn btn-primary">
+               Consulta por Nombre
+            </a>
+            <a href="{{ url_for('enfermeria.tutorial') }}">
+                <button class="btn btn-info">📘 Ver Tutorial</button>
+            </a>
+           
+    </div>
+        <form method="POST" class="row g-3">
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Datos de la Unidad</legend>
+            <div class="row g-3">
+            <div class="col-md-6">
+                <label>Unidad de Salud</label><input class="form-control"  readonly name="unidad_salud" value="CESSA BELISARIO DOMINGUEZ">
+            </div>
+            <div class="col-md-6">
+                <label>Entidad Federativa</label><input class="form-control" readonly name="entidad_federativa" value="CHIAPAS">
+            </div>
+            <div class="col-md-4">
+                <label>CLUES</label><input class="form-control"  readonly name="clues" value="CSIMB005343">
+            </div>
+            <div class="col-md-4">
+                <label>Localidad</label><input class="form-control"  readonly name="localidad" value="BELISARIO DOMINGUEZ">
+            </div>
+            <div class="col-md-6">
+                <label>Personal de Enfermería</label><input class="form-control" readonly name="personal_enfermeria" value="{{ session['usuario'] }}">
+            </div>
+            <div class="col-md-4">
+                <label>Servicio</label><select class="form-select" name="servicio">
+                    <option >Consulta Externa</option>
+                    <option >Urgencia</option></select>
+                
+            </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Datos del Paciente</legend>
+             <div class="row g-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <label>Nombre del Paciente</label>
+                  <input class="form-control" {% if campo == 'paciente' %}is-invalid{% endif %}"  name="paciente" id="paciente"   value="{{ datos.get('paciente', '') }}">
+                </div>
+                <div class="col-md-6">
+                    <label>Nombre del Jefe de Familia</label>
+                    <input class="form-control" {% if campo == 'nombre_jefe_fam' %}is-invalid{% endif %}"  name="nombre_jefe_fam" id="nombre_jefe_fam" value="{{ datos.get('nombre_jefe_fam', '') }}">
+                </div>
+            </div>
+
+            <div id="alertas" class="mt-3"></div>
+
+            <script>
+                function mostrarAlertaConfirmacion(mensaje, onYes, onNo) {
+                    const alerta = $(`
+                        <div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            ${mensaje}
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-success me-2">Sí</button>
+                                <button type="button" class="btn btn-sm btn-danger">No</button>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                        </div>
+                    `);
+
+                    alerta.find('.btn-success').on('click', function () {
+                        alerta.alert('close');
+                        if (onYes) onYes();
+                    });
+
+                    alerta.find('.btn-danger').on('click', function () {
+                        alerta.alert('close');
+                        if (onNo) onNo();
+                    });
+
+                    $('#alertas').append(alerta);
+
+                    // Auto cerrar en 10 segundos si no hay respuesta
+                    setTimeout(() => alerta.alert('close'), 10000);
+                }
+
+                document.getElementById("paciente").addEventListener("blur", function () {
+                    const nombrePaciente = this.value.trim();
+                    if (nombrePaciente === "") return;
+
+                    mostrarAlertaConfirmacion(
+                        "¿El paciente es el mismo que el jefe de familia?",
+                        () => {
+                            // Sí
+                            document.getElementById("nombre_jefe_fam").value = nombrePaciente;
+                        },
+                        () => {
+                            // No
+                            document.getElementById("nombre_jefe_fam").focus();
+                        }
+                    );
+                });
+            </script>
+            <div class="col-md-3">
+                <label>Sexo</label>
+                <select class="form-select" id="sexo" name="sexo" >
+                    <option value="F">Femenino</option>
+                    <option value="M">Masculino</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Fecha de Nacimiento</label><input class="form-control" type="date" name="fecha_nacimiento" id="fecha_nacimiento" value="{{ datos.get('fecha_nacimiento', '') }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Edad:</label>
+                <input class="form-control" type="hidden" name="edad" id="edad" value="{{ datos.get('edad', '') }}" readonly>
+                <input class="form-control" type="text" name="edad_unidad" id="edad_unidad" value="{{ datos.get('edad_unidad', '') }}" readonly>
+            </div>
+                <script>
+                  document.getElementById("fecha_nacimiento").addEventListener("change", function () {
+                    const fechaNacimiento = new Date(this.value);
+                    const hoy = new Date();
+
+                    let años = hoy.getFullYear() - fechaNacimiento.getFullYear();
+                    let meses = hoy.getMonth() - fechaNacimiento.getMonth();
+                    let dias = hoy.getDate() - fechaNacimiento.getDate();
+
+                    // Ajustar meses y años si aún no cumple el mes actual
+                    if (dias < 0) {
+                        meses--;
+                    }
+                    if (meses < 0) {
+                        años--;
+                        meses += 12;
+                    }
+
+                    if (años < 1) {
+                        document.getElementById("edad_unidad").value = `${meses} meses`;
+                        document.getElementById("edad").value = meses;
+                    } else {
+                        document.getElementById("edad_unidad").value = `${años} años`;
+                        document.getElementById("edad").value = años;
+                        
+                    }
+                    edad=años
+
+                    // Llamar a la función para seleccionar el grupo de edad
+                   
+                    SeleccionarGrupoEdad(edad);
+                    SeleccionarGrupoEdadEmbarazadas(edad);
+                    SelecionarPfEdad(edad);
+                    SelecionarTamiz(edad);
+                    SelecionarHIDRATACION_ORAL(edad);
+                    SelecionarEDA_MADRES(edad);
+                    SelecionarIRA_MADRES(edad);
+                    Selecionargrupo_riesgo(edad);
+                    //document.getElementById("edad").value = isNaN(edad) ? "" : edad;
+                });
+                function SeleccionarGrupoEdad(edad) {
+                    const select = document.getElementById('DG_GRUPOS_EDAD');
+                    console.log("EDAD ENVIADA:", edad);
+                    if (edad < 10) {
+                        select.value = "1";  // 0 a 9 años
+                    } else if (edad >= 10 && edad < 20) {
+                        select.value = "2";  // 10 a 19 años
+                    } else if (edad >= 20 && edad < 60) {
+                        select.value = "3";  // 20 a 59 años
+                    } else if (edad >= 60) {
+                        select.value = "4";  // 60 años o más
+                    } else {
+                        select.value = "";  // en caso de edad inválida
+                    }
+                }
+                function SeleccionarGrupoEdadEmbarazadas(edad) {
+                        const selecti = document.getElementById("VI_EMB_grupo_edad");
+                        const select = document.getElementById("VI_EMB_TRIMESTRE_GESTACIONAL");
+                        const selecta = document.getElementById("VI_EMB_ACCIONES_IRREDUCTIBLES");
+                        const selectGINECO_DETECCION = document.getElementById("SALUD_GINECO_DETECCION");
+                        const sexoPaciente = document.getElementById("sexo").value.trim();
+                        
+                    if (sexoPaciente === "M") {
+                            selecti.value = "5";  // No aplica
+                            select.value="4";
+                            selecta.value="6";
+                            selectGINECO_DETECCION.value="3";
+                        return;
+                    }else{
+                         if (edad < 15) {
+                            selecti.value = "1";
+                        } else if (edad >= 15 && edad < 20) {
+                            selecti.value = "2";  // 15 a 19 años
+                        } else if (edad >= 20 && edad < 34) {
+                            selecti.value = "3";  // 20 a 34 años
+                        } else if (edad >= 35) {
+                            selecti.value = "4";  // 35 años o más
+                        }
+                    }
+                }
+                function SelecionarPfEdad(edad) {
+                        const select = document.getElementById("PF_GRUPOS_EDAD");
+                        console.log("EDAD ENVIADA2:", edad);
+                        if (edad < 20) {
+                            select.value = "1";  // menor a 20 años
+                        } else if (edad > 20 ) {
+                            select.value = "2";  // mayor a 20 años
+                        }
+                       
+                }
+                function SelecionarTamiz(edad) {
+                        const select = document.getElementById("DETECCION_TAMIZ");
+                        if (edad >= 1) { // mayor a un año no aplica, debe ser menor a un año
+                            select.value = "4";  // menor a 20 años
+                        } 
+                       
+                } 
+                 function SelecionarHIDRATACION_ORAL(edad) {
+                        const select = document.getElementById("EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS");
+                        console.log("EDAD ENVIADA4:", edad);
+                        if (edad > 5) { // mayor a un 5 años no aplica, debe ser menor a 5 año
+                            select.value = "3";  // no aplica
+                        }else{
+                            select.value = "1"; 
+                        }
+                       
+                }
+                function SelecionarEDA_MADRES(edad) {
+                        const select = document.getElementById("EDA_MADRES_CAPACITADAS_MANEJO");
+                        if (edad > 5) { // mayor a un 5 años no aplica, debe ser menor a 5 año
+                            select.value = "3";  // no aplica
+                        } else{
+                            select.value = "1"; 
+                        }
+                       
+                }                    
+                function SelecionarIRA_MADRES(edad) {
+                        const select = document.getElementById("IRA_MADRES_CAPACITADAS_MANEJO");
+                        if (edad > 5) { // mayor a un 5 años no aplica, debe ser menor a 5 año
+                            select.value = "3";  // no aplica
+                        } else{
+                            select.value = "1"; 
+                        }
+                       
+                }
+                function Selecionargrupo_riesgo(edad) {
+                        const select = document.getElementById("grupo_riesgo");
+                        if (edad <19 ) {
+                            select.value = "5";  // no aplica
+                        }else if (edad > 19 && edad<=44) { //MAYOR A 19 AÑOS FACTOR DE RIESGO
+                            select.value = "1"; 
+                        } else if  (edad > 44 && edad <= 59) {
+                            select.value = "2";                           
+                        }else if (edad>60) {
+                            select.value = "3"; 
+                        }
+                             
+                        const selecti = document.getElementById("DETECCION_ENFERMEDADES_CRONICAS");
+                        const selectDIABETES = document.getElementById("DIABETES_MELLITUS");
+                        const selecta = document.getElementById("DISLIPIDEMIA");
+                        const selecthipertension = document.getElementById("hipertension");
+                        const selectMIEMBROS_INFERIORES = document.getElementById("REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES");
+                        const selectCUIDADOS_PIES = document.getElementById("DIABETICOS_INFORMADOS_CUIDADOS_PIES");
+                        const grupo_riesgo = document.getElementById("grupo_riesgo").value.trim();
+                        
+                        if (grupo_riesgo === "5") {
+                            selecti.value="3";
+                            selectDIABETES.value="3";
+                            selecta.value="3";
+                            selecthipertension.value="3";
+                            selectMIEMBROS_INFERIORES.value="3";
+                            selectCUIDADOS_PIES.value="3";
+                        
+                        }
+
+                }
+
+            </script>
+            <div class="col-md-8">
+                <label>Domicilio</label><input class="form-control" name="domicilio" value="{{ datos.get('domicilio', '') }}">
+            </div>
+            <div class="container mb-4 imss-fondo">
+            <fieldset class="border p-3 ">
+                <legend class="w-auto px-2">Signos Vitales</legend>
+                <div class="row text-center bg-warning fw-bold py-2 rounded ">
+                    <div class="col ">
+                        <label>PESO (kg):</label>
+                    <input type="number" step="0.1" min="0" id="peso" name="peso" class="form-control text-center" placeholder="Ej: 44.5" value="{{ datos.get('peso', '') }}">
+                    </div>
+                <div class="col ">
+                    <label>TALLA (cm):</label>
+                    <input type="number" step="0.1" min="0" id="talla" name="talla" class="form-control text-center" placeholder="Ej: 141" value="{{ datos.get('talla', '') }}">
+                </div>
+                <div class="row ">
+                     <label>Tensión Arterial(t/a):</label>
+                    <div class="col ">
+                        <input type="number" id="ta_sistolica" name="ta_sistolica" class="form-control" placeholder="Sistólica (ej. 120)" value="{{ datos.get('ta_sistolica', '') }}">
+                    </div>
+                    <div class="col ">
+                        <input type="number" id="ta_diastolica" name="ta_diastolica" class="form-control" placeholder="Diastólica (ej. 80)" value="{{ datos.get('ta_diastolica', '') }}">
+                    </div>
+		 </div>
+		 <div class="col ">
+                    	<label>Glucosa:</label>
+                    	<input type="number" step="1" min="0" id="glucosa" name="glucosa" class="form-control text-center" placeholder="Ej: 101" value="{{ datos.get('glucosa', '') }}">
+                    </div>	
+                <div class="col ">
+                    <label>Frecuencia Cardiaca:</label>
+                    <input type="number" step="0.1" min="0" id="fc" name="fc" class="form-control text-center" placeholder="Ej: 75" min="0" max="200" value="{{ datos.get('fc', '') }}"> <small class="text-muted">latidos por minuto</small>
+                </div>
+                <div class="col ">
+                    <label>FCR(X´):</label>
+                    <input class="form-control" type="number" id="fcr" name="fcr"  placeholder="Ej: 18" min="0" max="60" value="{{ datos.get('fcr', '') }}"> <small class="text-muted">respiraciones por minuto</small>
+                </div>
+                <div class="col ">
+                    <label>Temperatura  (°C):</label>
+                    <input class="form-control" type="number" id="temperatura" name="temperatura" step="0.1" placeholder="Ej: 36.6" min="0" max="60" value="{{ datos.get('temperatura', '') }}"> 
+                </div>
+                <div class="col ">
+                    <label>Circunferencia  (cm):</label>
+                    <input class="form-control" type="number" id="circo" name="circo" step="0.1" placeholder="Ej: 98 cm" min="0" max="200" value="{{ datos.get('circo', '') }}"> 
+                </div>
+                <div class="col ">
+                    <label>IMC:</label>
+                    <input id="imc" class="form-control text-center" id="imc" name="imc" value="{{ datos.get('imc', '') }}" readonly />
+                </div>
+                <div class="col ">
+                    <label>SPO2 (%):</label>
+                    <input type="number" step="1" min="0" id="spo2" name="spo2" class="form-control text-center" placeholder="Ej: 98" value="{{ datos.get('spo2', '') }}">
+                </div>
+            </div>
+  </fieldset>
+</div>
+
+        <!-- JS -->
+        <script>
+        $(document).ready(function () {
+            function mostrarAlerta(mensaje, tipo = 'danger') {
+            const alerta = $(`
+                <div class="alert alert-${tipo} alert-dismissible fade show mt-2" role="alert">
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            `);
+            $('#alertas').append(alerta);
+            setTimeout(() => alerta.alert('close'), 5000);
+            }
+
+            function calcularIMC() {
+            const peso = parseFloat($('#peso').val());
+            const tallaCm = parseFloat($('#talla').val());
+
+            if (!isNaN(peso) && !isNaN(tallaCm) && tallaCm > 0) {
+                const tallaM = tallaCm / 100;
+                const imc = peso / (tallaM * tallaM);
+                const imcRedondeado = imc.toFixed(1);
+                $('#imc').val(imcRedondeado);
+
+                // Evaluar IMC
+                evaluarIMC(imc);
+
+            } else {
+                $('#imc').val('');
+            }
+            }
+
+            $('#peso, #talla').on('input', calcularIMC);
+
+            $('#spo2').on('input', function () {
+            const valor = parseInt($(this).val());
+            if (!isNaN(valor) && valor < 92) {
+                mostrarAlerta("⚠️ SPO2 bajo: posible hipoxia", "danger");
+            }
+            });
+
+            $('#fc').on('input', function () {
+            const valor = parseInt($(this).val());
+            if (!isNaN(valor) && valor > 100) {
+                mostrarAlerta("⚠️ Frecuencia cardíaca elevada (taquicardia)", "danger");
+            }
+            });
+        });
+        function evaluarIMC(imc) {
+                    const imcRedondeado = imc.toFixed(1);
+                    const select = document.getElementById('diagnostico_nutricional');
+
+                    if (imc < 16) {
+                        select.value = "3";  // Desnutrición severa
+                        mostrarAlerta(`⚠️ IMC muy bajo (${imcRedondeado}): desnutrición severa`, 'warning');
+                    } else if (imc >= 16 && imc < 17) {
+                        select.value = "2";  // Desnutrición moderada
+                        mostrarAlerta(`⚠️ IMC bajo (${imcRedondeado}): desnutrición moderada`, 'warning');
+                    } else if (imc >= 17 && imc < 18.5) {
+                        select.value = "1";  // Desnutrición leve
+                        mostrarAlerta(`⚠️ IMC bajo (${imcRedondeado}): desnutrición leve`, 'warning');
+                    } else if (imc >= 18.5 && imc <= 24.9) {
+                        select.value = "4";  // Normal
+                        mostrarAlerta(`✅ IMC normal (${imcRedondeado})`, 'success');
+                    } else if (imc >= 25 && imc < 30) {
+                        select.value = "5";  // Sobrepeso
+                        mostrarAlerta(`⚠️ IMC alto (${imcRedondeado}): sobrepeso`, 'warning');
+                    } else if (imc >= 30 && imc < 40) {
+                        select.value = "6";  // Obesidad
+                        mostrarAlerta(`⚠️ IMC muy alto (${imcRedondeado}): obesidad`, 'danger');
+                    } else {
+                        select.value = "7";  // Obesidad mórbida
+                        mostrarAlerta(`🚨 IMC crítico (${imcRedondeado}): obesidad mórbida`, 'danger');
+                    }
+                }
+        </script>
+            </div>          
+        </fieldset>
+
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Atención y Diagnóstico</legend>
+            <div class="row g-3">
+            <div class="col-md-6">
+                <label for="fecha" class="form-label">Fecha</label>
+                <input class="form-control" type="date" id="fecha" name="fecha" value="{{ datos.get('fecha', '') }}">
+            </div>
+            <div class="col-md-6">
+                <label for="hora_inicio" class="form-label"  step="60">Hora Inicio</label>
+                <input class="form-control" type="time" id="hora_inicio" name="hora_inicio" value="{{ datos.get('hora_inicio', '') }}">
+            </div>
+            <div class="col-md-6">
+                <label for="hora_termino" class="form-label">Hora Término</label>
+                <input class="form-control" type="time" id="hora_termino" name="hora_termino" value="{{ datos.get('hora_termino', '') }}">
+            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const inputFecha = document.getElementById('fecha');
+                const inputHora = document.getElementById('hora_inicio');
+                const inputfinHora = document.getElementById('hora_termino');
+
+                // Establecer hora actual por defecto
+                const ahora = new Date();
+                const hh = String(ahora.getHours()).padStart(2, '0');
+                const mm = String(ahora.getMinutes()).padStart(2, '0');
+                inputHora.value = `${hh}:${mm}`;
+                 
+                if (!inputFecha.value) {
+                    inputFecha.value = ahora.toISOString().split('T')[0]; // YYYY-MM-DD
+                }
+                // Al cambiar hora_inicio, suma 5 minutos a hora_termino
+                inputHora.addEventListener('change', function () {
+                if (!inputHora.value) return;
+
+                const [h, m] = inputHora.value.split(':').map(Number);
+                const fecha = new Date();
+                fecha.setHours(h);
+                fecha.setMinutes(m);
+                fecha.setMinutes(fecha.getMinutes() + 10);
+
+                const finH = String(fecha.getHours()).padStart(2, '0');
+                const finM = String(fecha.getMinutes()).padStart(2, '0');
+                inputfinHora.value = `${finH}:${finM}`;
+                });
+
+                // También lo activamos al cargar
+                inputHora.dispatchEvent(new Event('change'));
+            });
+            </script>
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Datos Generales</legend>
+             <div class="row g-3">
+            <div class="col-md-3">
+                <label>¿Indígena?</label><select class="form-select" name="indigena">
+                    <option value="2">No</option>
+                    <option  value="1">Sí</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>¿Migrante?</label><select class="form-select" name="migrante">
+                    <option value="2">No</option>
+                    <option value="1">Sí</option>
+                    </select>
+            </div>
+            <div class="col-md-6">
+                <label>Nivel de Atención</label><select class="form-select" name="nivel_atencion">
+                    <option value="1">Primer nivel de Atencion</option>
+                    <option value="2">Segundo nivel de Atencion</option>
+                    <option value="3">Tercer nivel de Atencion</option>
+                    </select>
+            </div>
+            <div class="col-md-6">
+                <label>Consulta de Enfermería Otorgada</label>
+                <select class="form-select" name="consulta_enfermeria">
+                    <option value="1">Primera vez</option>
+                    <option value="2">Subsecuente</option>
+                    </select>            
+            </div>
+            
+            <div class="col-md-6">
+                <label>Consultoría Otorgada</label>
+                <select class="form-select" name="consultoria_otorgada">
+                    <option value="1">Dentro de la Unidad</option>
+                    <option value="2">Fuera de la Unidad</option>
+                    </select>
+            </div>
+            <div class="col-md-6">
+                <label>Prescripción de Medicamentos</label>
+                <select class="form-select" name="prescripcion_medicamentos">
+                    <option value="1">Se otorgó medicamento</option>
+                    <option value="2">Caso Contrario</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label>Plan De Cuidados Domiciliario</label>
+                <select class="form-select" name="DG_plan_cuidados">
+                      <option value="2">No</option>
+                    <option value="1">Sí</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label>Grupo de Edad</label><select class="form-select" id="DG_GRUPOS_EDAD" name="DG_GRUPOS_EDAD">
+                    <option value="1">0 - 9 años</option>
+                    <option value="2">10 a 19 años</option>
+                    <option value="3">20 a 59 años</option>
+                    <option value="4">60 años y más</option></select>
+            </div>
+            <div class="col-md-4">
+                <label>Institución De Procedencia</label>
+                 <select class="form-select" name="INSTITUCION_PROCEDENCIA">
+                    <option value="1">Servicio De salud Bienestar</option>
+                    <option value="2">Imss </option>
+                    <option value="3">Issste</option>
+                    <option value="4">Programa imss bienestar</option>
+                    <option value="5">Otras</option>
+                </select> 
+            </div> 
+            <div class="col-md-4">
+                <label>Consejería De Planificación familias</label>
+                 <select class="form-select" name="CONSEJERIA_PF">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select> 
+            </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Planificación familiar</legend>
+            <legend class="w-auto px-1">(PRIMER NIVEL)</legend>
+            <div class="col-md-4">
+                <label>Grupos De Edad En Años</label>
+                 <select class="form-select" id="PF_GRUPOS_EDAD" name="PF_GRUPOS_EDAD">
+                    <option value="1">Menor a 20</option>
+                    <option value="2">20 años y más</option>
+                    <option value="3">No Aplica</option>
+                </select> 
+            </div> 
+            <div class="col-md-4">
+                <label>Tipo De Atención </label>
+                 <select class="form-select" name="PF_SUBSECUENTE">
+                    <option value="1">Primera vez</option>
+                    <option value="2">Subsecuente</option>
+                    <option value="3">No aplica</option>
+                </select> 
+            </div> 
+            <div class="col-md-4">
+                <label>Metodo</label>
+                 <select class="form-select" name="PF_METODO">
+                    <option value="1">Hormonal Oral.</option>
+                    <option value="2">Hormonal Inyectable</option>
+                    <option value="3">Parche anticonceptivo</option>
+                    <option value="4">Diu</option>
+                    <option value="5">Condón.  </option>
+                    <option value="6">Implante subdérmico hormonal </option>
+                    <option value="7">No Aplica</option>
+                </select> 
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Salud Reproductiva</legend>
+            <legend class="w-auto px-1">Atención materno infantil-Vigilancia de las embarazadas</legend>
+            <div class="col-md-4">
+                <label>Grupos De Edad En Años</label>
+                 <select class="form-select" id="VI_EMB_grupo_edad" name="VI_EMB_grupo_edad" >
+                    <option value="1">Menor a 15</option>
+                    <option value="2">15 a 19 años</option>
+                    <option value="3">20 a 34 años</option>
+                    <option value="4">35 años y más</option>
+                    <option value="5">No Aplica</option>
+                </select> 
+            </div> 
+            <div class="col-md-4">
+                <label>Trimestre Gestacional </label>
+                 <select class="form-select" id="VI_EMB_TRIMESTRE_GESTACIONAL" name="VI_EMB_TRIMESTRE_GESTACIONAL">
+                    <option value="1">Primer Trimestre</option>
+                    <option value="2">Segundo Trimistre</option>
+                    <option value="3">Tercer Trimestre</option>
+                    <option value="4">No Aplica</option>
+                </select> 
+            </div> 
+            <div class="col-md-4">
+               <label>Acciones Irreductibles</label>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="1" id="accion1">
+                <label class="form-check-label" for="accion1">Valoración de riesgo obstétrico.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="2" id="accion2">
+                <label class="form-check-label" for="accion2">Identificación de signos de alarma.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="3" id="accion3">
+                <label class="form-check-label" for="accion3">Prescripción de ácido fólico / fumarato ferroso.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="4" id="accion4">
+                <label class="form-check-label" for="accion4">Uroanálisis</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input accion-checkbox" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="5" id="accion5">
+                <label class="form-check-label" for="accion5">Orientación sobre signos de alarma.</label>
+                </div>
+                <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="VI_EMB_ACCIONES_IRREDUCTIBLES[]" value="6" id="accion6"  checked>
+                <label class="form-check-label" for="accion6">No Aplica</label>
+                </div>
+
+                <script>
+                const noAplica = document.getElementById("accion6");
+                const otrasOpciones = document.querySelectorAll(".accion-checkbox");
+
+                noAplica.addEventListener("change", function () {
+                    if (this.checked) {
+                    otrasOpciones.forEach(cb => {
+                        cb.checked = false;
+                        cb.disabled = true;
+                    });
+                    } else {
+                    otrasOpciones.forEach(cb => {
+                        cb.disabled = false;
+                    });
+                    }
+                });
+
+                // Desactiva "No Aplica" si otra opción es seleccionada
+                otrasOpciones.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                    if (this.checked) {
+                        noAplica.checked = false;
+                    }
+
+                    const algunoMarcado = Array.from(otrasOpciones).some(c => c.checked);
+                    noAplica.disabled = algunoMarcado;
+                    if (!algunoMarcado) {
+                        noAplica.disabled = false;
+                    }
+                    });
+                });
+                </script>
+
+            </div>
+            <script>
+                const campos = ["peso", "talla", "ta_sistolica", "ta_diastolica", "glucosa", "fc", "fcr", "temperatura", "spo2", "imc"];
+
+                function actualizarResumen() {
+                    let peso = parseFloat(document.getElementById("peso").value) || 0;
+                    let talla = parseInt(document.getElementById("talla").value) || 0;
+                    let sistolica = parseInt(document.getElementById("ta_sistolica").value) || 0;
+                    let diastolica = parseInt(document.getElementById("ta_diastolica").value) || 0;
+		    let ta = `${sistolica}/${diastolica}`;
+                    let glucosa = parseInt(document.getElementById("glucosa").value) || 0;
+   		    let fc = parseInt(document.getElementById("fc").value) || 0;
+                    let fcr = parseInt(document.getElementById("fcr").value) || 0;
+                    let circonferencia = parseInt(document.getElementById("circo").value) || 0;
+                    let temperatura = parseFloat(document.getElementById("temperatura").value) || 0;
+                    let spo2 = parseInt(document.getElementById("spo2").value) || 0;
+                    let imc = parseFloat(document.getElementById("imc").value) || 0;
+
+                    let resumen = `PESO:${peso}KG TALLA:${talla}CM T/A:${ta} GLU:${glucosa} FC:${fc}X´ FCR:${fcr}X´  T:${temperatura}°C C:${circonferencia}CM SPO2:${spo2}% IMC:${imc}`;
+                    document.getElementById("observaciones").value = resumen;
+                }
+
+                    campos.forEach(id => {
+                    document.getElementById(id).addEventListener("change", actualizarResumen);
+                });
+            </script>
+            <div class="col-md-4">
+                <input class="form-control" type="hidden" id="observaciones" name="observaciones">     
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2"></legend>
+             <div class="col-md-4">
+                <label>Detección</label>
+                 <select class="form-select" id="DETECCION_TAMIZ" name="DETECCION_TAMIZ">
+                    <option value="1">Tamiz metabólico </option>
+                    <option value="2">Tamiz auditivo</option>
+                    <option value="3">Otro</option>
+		    <option value="4">No Aplica</option>
+                </select> 
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Valoración Del Estado Nutricional</legend>
+             <div class="col-md-6">
+                <label>Diagnóstico Nutricional</label>
+                <select class="form-select"  name="diagnostico_nutricional" id="diagnostico_nutricional">
+                    <option value="1">Desnutricion leve</option>
+                    <option value="2"> Desnutrion moderada</option>
+                    <option value="3">Desnutricion severa</option>
+                    <option value="4">Normal</option>
+                    <option value="5">Sobrepeso</option>
+                    <option value="6">Obesidad</option>
+                    <option value="7">Obesidad Morbida</option>
+                </select>
+               
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Salud Ginecológica</legend>
+             <div class="col-md-4">
+                <label>Detección</label>
+                 <select class="form-select" id="SALUD_GINECO_DETECCION" name="SALUD_GINECO_DETECCION">
+                    <option value="1">Citología Cervical</option>
+                    <option value="2">Exploración De Mama</option>
+                    <option value="3">No aplica</option>
+                </select> 
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Enfermedad Diarreica Aguda menor de 5 Años</legend>
+            <div class="col-md-4">
+                <label>Sobres de Hidratacion Oral Entregados</label>
+                 <select class="form-select" id="EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS" name="EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select> 
+            </div>
+             <div class="col-md-4">
+                <label>Madres Capacitadas En Manejo</label>
+                 <select class="form-select" id="EDA_MADRES_CAPACITADAS_MANEJO" name="EDA_MADRES_CAPACITADAS_MANEJO">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select> 
+            </div>
+        </fieldset>
+         <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Infección Respiratoria Aguda menor de 5 Años</legend>
+             <div class="col-md-4">
+                <label>Madres Capacitadas En Manejo</label>
+                 <select class="form-select" id="IRA_MADRES_CAPACITADAS_MANEJO" name="IRA_MADRES_CAPACITADAS_MANEJO">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select> 
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2">Acciones integrales</legend>
+            <div class="row g-3">
+             <div class="col-md-6">
+                <label>Grupo con/sin Factor de Riesgo</label>
+                 <select class="form-select" ID="grupo_riesgo" name="grupo_riesgo">
+                    <option value="1">20 a 44 años</option>
+                    <option value="2">45 a 59 años</option>
+                    <option value="3">60 años y mas</option>
+                    <option value="4">Adolecentes con obesidad</option>
+		    <option value="5">No Aplica</option>
+                </select> 
+            </div>
+            <div class="col-md-4">
+                <label>Detección Enfermedades Crónicas</label><select class="form-select" ID="DETECCION_ENFERMEDADES_CRONICAS" name="DETECCION_ENFERMEDADES_CRONICAS">
+                    <option value="1">Primera vez</option>
+                    <option value="2">Subsecuente</option>
+		    <option value="3">No Aplica</option>
+		</select>
+            </div>
+            <div class="col-md-4">
+                <label>Diabetes</label>
+		    <select class="form-select" id="DIABETES_MELLITUS" name="DIABETES_MELLITUS">
+                    	<option value="1">Normal</option>
+                    	<option value="2">Anormal</option>
+			<option value="3">No Aplica</option>
+		    </select>
+            </div>
+            <div class="col-md-4">
+                <label>Dislipidemia</label><select class="form-select" id="DISLIPIDEMIA" name="DISLIPIDEMIA">
+                    <option value="1">Normal</option>
+                    <option value="2">Anormal</option>
+		    <option value="3">No Aplica</option>
+		</select>
+            </div>
+            <div class="col-md-4">
+                <label>Hipertensión</label>
+		<select class="form-select" id="hipertension" name="hipertension">
+                    <option value="1">Normal</option>
+                    <option value="2">Anormal</option>
+		    <option value="3">No Aplica</option>
+		</select>
+            </div>
+            <div class="col-md-4">
+                <label>Revisión Integral De La Piel De Miembros Inferiores</label>
+                 <select class="form-select" id="REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES" name="REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Diabeticos Informados sobre Cuidados de Los pies </label>
+                 <select class="form-select" id="DIABETICOS_INFORMADOS_CUIDADOS_PIES" name="DIABETICOS_INFORMADOS_CUIDADOS_PIES">
+                    <option value="1">Si</option>
+                    <option value="2">No</option>
+		    <option value="3">No Aplica</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Vacunación</label>
+                <select class="form-select" name="vacunacion">
+                    <option value="1">Tipo de Vacuna</option>
+                    <option value="2">Dosis</option>
+                    <option value="3">No Aplica</option>
+                </select>
+               
+            </div>
+            <div class="col-md-6">
+                <label>Promocion de la Salud</label>
+                 <select class="form-select" name="PROMOCION_SALUD">
+                    <option value="1">Atresia de vías Biliares </option>
+                    <option value="2">Lactancia Materna</option>
+                    <option value="3">Otros</option>
+                </select>
+            </div>
+            </div>
+        </fieldset>
+        <fieldset class="border p-3 mb-3">
+            <legend class="w-auto px-2"></legend>
+             <div class="col-md-6">
+                <label>Derivación</label>
+                 <select class="form-select" name="DERIVACION">
+                    <option value="1">DIT</option>
+                    <option value="2">SAIS</option>
+                    <option value="3">CAI</option>
+                    <option value="4">SAISME</option>
+                    <option value="5">CASA</option>
+                    <option value="6">OTRO</option>
+		    <option value="7">No Aplica</option>
+                 </select>
+            </div>
+            <div class="col-md-4">
+                <label>Actividades Asitenciales</label>
+                 <select class="form-select" name="ACTIVIDADES_ASISTENCIALES">
+                    <option value="1">Inyecciones</option>
+                    <option value="2">Curaciones</option>
+                    <option value="3">Venoclisis</option>
+                    <option value="4">Colocacion de Sondas</option>
+                    <option value="5">Otras</option>
+		    <option value="6">No Aplica</option>
+                 </select>
+            </div>
+            <div class="col-md-12">
+                <label>Observaciones</label><textarea class="form-control" name="OBSERVACIONES_GENERALES"></textarea>
+            </div>
+        </fieldset>
+        <div class="col-12">
+            <div id="preview" style="white-space: pre-wrap; margin-top: 1em; border: 1px solid #ccc; padding: 10px;">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            </div>
+        </div>
+    </form>
+    
+    <script>
+        document.getElementById("formulario").addEventListener("submit", function(event) {
+        event.preventDefault(); // Evita el envío inmediato
+
+            const form = event.target;
+            const formData = new FormData(form);
+            let resumen = "📋 Datos capturados:\n";
+
+            for (let [clave, valor] of formData.entries()) {
+                resumen += `• ${clave}: ${valor || "(vacío)"}\n`;
+            }
+
+            document.getElementById("preview").textContent = resumen;
+
+            // Si quieres enviar después de mostrar:
+            // form.submit(); // descomenta si deseas que luego sí se envíe
+        });
+    </script>
+   
+    <ul class="nav nav-tabs" id="manualTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="instructivo1-tab" data-bs-toggle="tab" data-bs-target="#instructivo1" type="button" role="tab" aria-controls="instructivo1" aria-selected="false">
+            Capturados
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="instructivo2-tab" data-bs-toggle="tab" data-bs-target="#instructivo2" type="button" role="tab" aria-controls="instructivo2" aria-selected="false">
+            Reportes
+        </button>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="instructivo3-tab" data-bs-toggle="tab" data-bs-target="#instructivo3" type="button" role="tab" aria-controls="instructivo3" aria-selected="true">
+            Exportar
+        </button>
+    </li>
+  </ul>
+    <div class="tab-content mt-4" id="manualTabsContent">
+        <div class="tab-pane fade show active" id="instructivo1" role="tabpanel" aria-labelledby="instructivo1-tab">
+            <h2 class="mt-5">Registros Capturados</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th><th>Paciente</th><th>Edad</th><th>Sexo</th><th>Domicilio</th><th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in registros %}
+                        <tr>
+                            <td>{{ row.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ row.paciente }}</td>
+                            <td>{{ row.edad }}</td>
+                            <td>{{ row.sexo }}</td>
+                            <td>{{ row.domicilio }}</td>
+                            
+                            <td>
+                                <form method="POST" action="/eliminar/{{ row.id }}" style="display:inline">
+                                    <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+        </div>
+        <div class="tab-pane fade" id="instructivo2" role="tabpanel" aria-labelledby="instructivo2-tab">
+            <h2 class="mt-5">Reporte de Captura</h2>
+                <form id="reporteForm">
+                    <label for="fechaInicio">Fecha de inicio:</label>
+                    <input type="date" id="fechaInicio" name="inicio" required>
+
+                    <label for="fechaFin">Fecha de fin:</label>
+                    <input type="date" id="fechaFin" name="fin" required>
+
+                    <button type="submit">Generar reporte</button>
+                </form>
+                <table id="tablaResultados" border="1" hidden>
+                    <thead>
+                        <tr><th>Enfermera</th><th>Total</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <script>
+                    document.getElementById('reporteForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const inicio = document.getElementById('fechaInicio').value;
+                    const fin    = document.getElementById('fechaFin').value;
+
+                    // Validación mínima en el cliente
+                    if (!inicio || !fin) {
+                        alert('Debes seleccionar ambas fechas.');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/reporte?inicio=${inicio}&fin=${fin}`);
+                        const data = await response.json();
+
+                        const tbody = document.querySelector('#tablaResultados tbody');
+                        tbody.innerHTML = '';
+
+                      if (response.ok && Array.isArray(data)) {
+                        if (data.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="2">No se encontraron registros en el rango seleccionado.</td></tr>';
+                        } else {
+                            data.forEach(c => {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td>${c.personal_enfermeria}</td><td>${c.total}</td>`;
+                                tbody.appendChild(tr);
+                            });
+                        }
+                        document.getElementById('tablaResultados').hidden = false;
+                    } else {
+                        alert(data.error || 'Error al procesar la respuesta del servidor.');
+                    }
+                    } catch (err) {
+                        console.error(err);
+                        alert('Error de conexión o del servidor.');
+                    }
+                    });
+                </script>   
+        </div>
+        <div class="tab-pane fade" id="instructivo3" role="tabpanel" aria-labelledby="instructivo3-tab">
+                <h2 class="mt-5">Exportacion de Captura</h2>
+                <form action="/exportar" method="GET" id="reporteForm">
+                    <label for="fecha_inicio">Fecha inicio:</label>
+                    <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+
+                    <label for="fecha_fin">Fecha fin:</label>
+                    <input type="date" id="fecha_fin" name="fecha_fin" required>
+
+                    <button class="btn btn-success" type="submit">Exportar Excel</button> 
+                </form>
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const fechaInicio = document.getElementById('fecha_inicio');
+                    const fechaFin = document.getElementById('fecha_fin');
+                    fechaInicio.addEventListener('change', () => {
+                    fechaFin.min = fechaInicio.value;
+                });
+            });
+            </script>
+               
+
+        </div> 
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+{% endblock %}

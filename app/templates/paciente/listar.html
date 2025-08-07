@@ -1,0 +1,42 @@
+{# templates/paciente/listar.html #}
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Pacientes Registrados</h2>
+  <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-success mb-3">+ Nuevo Paciente</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>CURP</th>
+        <th>Fecha Nacimiento</th>
+        <th>Sexo</th>
+        <th>Cronico</th>
+        <th>Tipo</th>
+        <th>Embarazo</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for paciente in pacientes %}
+      <tr>
+        <td>{{ paciente.nombre }}</td>
+        <td>{{ paciente.curp }}</td>
+        <td>{{ paciente.fecha_nacimiento }}</td>
+        <td>{{ paciente.sexo }}</td>
+        <td>{{ paciente.es_cronico }}</td>
+        <td>{{ paciente.tipo_cronicidad }}</td>
+        <td>{{ paciente.esta_embarazada }}</td>
+        <td>
+          <a href="{{ url_for('paciente.editar_paciente', id=paciente.id_paciente) }}" class="btn btn-sm btn-warning">Editar</a>
+          <form method="POST" action="{{ url_for('paciente.eliminar_paciente', id=paciente.id_paciente) }}" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Seguro que deseas eliminar este paciente?')">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+</div>
+{% endblock %}

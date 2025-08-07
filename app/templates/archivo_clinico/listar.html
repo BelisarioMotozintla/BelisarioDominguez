@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Lista de Archivos Clínicos</h2>
+<table style="border: none;">
+    <tr>
+       
+        
+        <td>
+          <div class="btn-group" role="group">
+             <a href="{{ url_for('archivo_clinico.agregar_archivo') }}" class="btn btn-sm btn-outline-danger" title="Agregar">
+               <i class="bi bi-pencil"></i>Agregar
+            </a>
+            <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-sm btn-outline-primary" title="Pacientes">
+               <i class="bi bi-person-fill"></i>Pacientes
+            </a>
+            <a href="{{ url_for('archivo_clinico.lista_solicitudes') }}" class="btn btn-sm btn-outline-warning" title="Registrar salida">
+              <i class="bi bi-box-arrow-right"></i>Registrar salida
+            </a>
+            <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-sm btn-outline-secondary" title="Historial">
+              <i class="bi bi-clock-history"></i>Historial
+            </a>
+            <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-sm btn-outline-info" title="Unidad médica">
+              <i class="bi bi-hospital"></i>Unidad médica
+            </a>
+          </div>
+        </td>
+    </tr>
+</table>
+<table border="1">
+    <tr>
+        <th>ID</th><th>Paciente</th><th>Ubicación</th><th>Estado</th><th>Tipo</th><th>Fecha</th><th>Acciones</th>
+    </tr>
+    {% for archivo in archivos %}
+    <tr>
+        <td>{{ archivo.id_archivo }}</td>
+        <td>{{ archivo.paciente.nombre }}</td>
+        <td>{{ archivo.ubicacion_fisica }}</td>
+        <td>{{ archivo.estado }}</td>
+        <td>{{ archivo.tipo_archivo }}</td>
+        <td>{{ archivo.fecha_creacion }}</td>
+        
+        <td>
+          <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-sm btn-outline-primary" title="Editar">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form method="POST" action="{{ url_for('archivo_clinico.eliminar_archivo', id=archivo.id_archivo) }}" style="display:inline;">
+            <button type="submit" onclick="return confirm('¿Eliminar archivo?')" class="btn btn-sm btn-outline-danger" title="Eliminar">
+              <i class="bi bi-trash"></i></button>      
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

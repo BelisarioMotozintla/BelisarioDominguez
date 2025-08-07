@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Usuarios{% endblock %}
+{% block encabezado %}Gestión de Usuarios{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Usuarios Registrados</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="mb-3 d-flex justify-content-between">
+        <a href="{{ url_for('admin.panel') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+        <a href="{{ url_for('admin.registrar_usuario') }}" class="btn btn-success">
+            <i class="bi bi-person-plus"></i> Registrar Usuario
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Empleado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in usuarios %}
+                <tr>
+                    <td>{{ u.id_usuario }}</td>
+                    <td>{{ u.usuario }}</td>
+                    <td>{{ u.rol.nombre_rol if u.rol else 'Sin rol' }}</td>
+                    <td>
+                        {% if u.empleado %}
+                            {{ u.empleado.nombre }} {{ u.empleado.apellido_paterno }} {{ u.empleado.apellido_materno }}
+                        {% else %}
+                            Sin asignar
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.usuario != session['usuario'] %}
+                            <a href="{{ url_for('admin.editar_usuario', usuario_id=u.id_usuario) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil-square"></i> Editar
+                            </a>
+                            <form method="post" action="{{ url_for('admin.eliminar_usuario', usuario_id=u.id_usuario) }}" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar al usuario {{ u.usuario }}?')">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">(Tú mismo)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

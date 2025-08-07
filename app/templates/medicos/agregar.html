@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Agregar Registro Clínico</h2>
+<form method="POST">
+    <label>Nombre:</label> <input type="text" name="nombre"><br>
+    <label>CURP:</label> <input type="text" name="curp"><br>
+    <label>Edad:</label> <input type="number" name="edad"><br>
+    <label>Sexo:</label> 
+    <select name="sexo">
+        <option value="F">Femenino</option>
+        <option value="M">Masculino</option>
+    </select><br>
+    <label>Motivo de consulta:</label><br><textarea name="motivo"></textarea><br>
+    <label>Antecedentes:</label><br><textarea name="antecedentes"></textarea><br>
+    <label>Diagnóstico:</label><br><textarea name="diagnostico"></textarea><br>
+    <label>Tratamiento:</label><br><textarea name="tratamiento"></textarea><br>
+    <label>Fecha de consulta:</label> <input type="date" name="fecha"><br><br>
+    <button type="submit">Guardar</button>
+</form>
+{% endblock %}

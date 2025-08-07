@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Archivo Clínico</h2>
+
+<!-- Mostrar quién está logueado -->
+{% if session.usuario %}
+  <p>Sesión activa como: <strong>{{ session['archivo_user'] }}</strong></p>
+  <a href="{{ url_for('medicos.agregar') }}">Agregar nuevo</a>
+  <br><br>
+{% else %}
+  <p><em>No has iniciado sesión. Inicia sesión para agregar registros.</em></p>
+{% endif %}
+
+<!-- Mostrar tabla si hay registros -->
+{% if registros %}
+  <table border="1" cellpadding="5" cellspacing="0">
+      <thead>
+          <tr>
+              <th>Paciente</th>
+              <th>CURP</th>
+              <th>Edad</th>
+              <th>Sexo</th>
+              <th>Fecha</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for r in registros %}
+          <tr>
+              <td>{{ r.nombre_paciente }}</td>
+              <td>{{ r.curp }}</td>
+              <td>{{ r.edad }}</td>
+              <td>{{ r.sexo }}</td>
+              <td>{{ r.fecha_consulta }}</td>
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+{% else %}
+  <p>No hay registros clínicos aún.</p>
+{% endif %}
+
+{% endblock %}
+

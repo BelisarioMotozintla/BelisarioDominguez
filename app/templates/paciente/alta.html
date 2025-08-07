@@ -1,0 +1,56 @@
+{# templates/paciente/alta.html #}
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Registrar Paciente</h2>
+  <form method="POST">
+    {% include 'paciente/_form.html' %}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const esCronico = document.getElementById('es_cronico');
+    const tipoCronicidad = document.getElementById('tipo_cronicidad');
+    const sexo = document.getElementById('sexo');
+    const embarazada = document.getElementById('esta_embarazada');
+    const tipoRelacion = document.getElementById('tipo_relacion');
+    const unidad = document.getElementById('id_unidad');
+
+    function actualizarTipoCronicidad() {
+        tipoCronicidad.disabled = (esCronico.value !== 'Sí');
+    }
+
+    function actualizarEmbarazo() {
+        if (sexo.value === 'H') {
+            embarazada.value = 'No';
+            embarazada.disabled = true;
+        } else {
+            embarazada.disabled = false;
+        }
+    }
+
+    function seleccionarUnidadBelisario() {
+        if (tipoRelacion.value === 'Universo') {
+            const options = unidad.options;
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].textContent.includes('BELISARIO DOMINGUEZ')) {
+                    unidad.value = options[i].value;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Eventos
+    esCronico.addEventListener('change', actualizarTipoCronicidad);
+    sexo.addEventListener('change', actualizarEmbarazo);
+    tipoRelacion.addEventListener('change', seleccionarUnidadBelisario);
+
+    // Llamadas iniciales por si hay datos cargados
+    actualizarTipoCronicidad();
+    actualizarEmbarazo();
+});
+</script>
+{% endblock %}

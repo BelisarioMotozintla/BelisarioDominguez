@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Usuario{% endblock %}
+{% block encabezado %}Editar Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Editar usuario: {{ usuario.usuario }}</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="post" class="card p-4 shadow-sm">
+        <div class="mb-3">
+            <label for="rol" class="form-label">Rol:</label>
+            <select id="rol" name="rol" class="form-select" required>
+                <option value="" disabled>Seleccione un rol</option>
+                {% for r in roles %}
+                    <option value="{{ r.nombre_rol }}"
+                        {% if usuario.rol.nombre_rol == r.nombre_rol %}selected{% endif %}>
+                        {{ r.nombre_rol }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="contrasena" class="form-label">Nueva contraseña (opcional):</label>
+            <input id="contrasena" type="password" name="contrasena" class="form-control" minlength="4" placeholder="Deja vacío para no cambiarla">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </form>
+
+    <a href="{{ url_for('admin.lista_usuarios') }}" class="btn btn-secondary mt-3">Volver a la lista</a>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{# templates/paciente/editar.html #}
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Editar Paciente</h2>
+  <form method="POST">
+    {% include 'paciente/_form.html' %}
+    <button type="submit" class="btn btn-primary">Actualizar</button>
+    <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

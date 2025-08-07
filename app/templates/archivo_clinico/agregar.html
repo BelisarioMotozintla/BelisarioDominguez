@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Agregar Archivo Clínico</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label>Buscar paciente (por nombre o CURP):</label>
+	<input type="text" id="buscar_paciente" class="form-control" placeholder="Ej. Juan Pérez o CURP" autocomplete="off">
+	<input type="hidden" name="id_paciente" id="id_paciente">
+
+<ul id="sugerencias" class="list-group mt-2"></ul>
+
+    </div>
+
+    <div class="mb-3">
+      <label>Ubicación física:</label>
+      <input type="text" name="ubicacion_fisica" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label>Estado:</label>
+      <select name="estado" class="form-select" required>
+        <option value="disponible">Disponible</option>
+        <option value="prestado">Prestado</option>
+        <option value="extraviado">Extraviado</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label>Tipo de archivo:</label>
+      <input type="text" name="tipo_archivo" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label>Fecha de creación:</label>
+      <input type="date" name="fecha_creacion" class="form-control">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const input = document.getElementById("buscar_paciente");
+    const lista = document.getElementById("sugerencias");
+    const hiddenId = document.getElementById("id_paciente");
+
+    input.addEventListener("input", function () {
+        const query = input.value.trim();
+        lista.innerHTML = '';
+        hiddenId.value = '';
+
+        if (query.length < 2) return;
+
+        fetch(`/paciente/buscar?query=${query}`)
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(p => {
+                    const item = document.createElement("li");
+                    item.classList.add("list-group-item", "list-group-item-action");
+                    item.textContent = `${p.nombre} - ${p.curp}`;
+                    item.addEventListener("click", () => {
+                        input.value = `${p.nombre}`;
+                        hiddenId.value = p.id_paciente;
+                        lista.innerHTML = '';
+                    });
+                    lista.appendChild(item);
+                });
+            });
+    });
+});
+</script>
+
+</div>
+{% endblock %}

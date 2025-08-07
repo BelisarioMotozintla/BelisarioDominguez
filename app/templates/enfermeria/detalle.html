@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Detalle del Registro</h2>
+
+<table class="table table-striped">
+    <tr><th>ID:</th><td>{{ registro.id }}</td></tr>
+    <tr><th>Unidad de Salud:</th><td>{{ registro.unidad_salud }}</td></tr>
+    <tr><th>Entidad Federativa:</th><td>{{ registro.entidad_federativa }}</td></tr>
+    <tr><th>CLUES:</th><td>{{ registro.clues }}</td></tr>
+    <tr><th>Localidad:</th><td>{{ registro.localidad }}</td></tr>
+    <tr><th>Servicio:</th><td>{{ registro.servicio }}</td></tr>
+    <tr><th>Personal de Enfermería:</th><td>{{ registro.personal_enfermeria }}</td></tr>
+    <tr><th>Fecha:</th><td>{{ registro.fecha }}</td></tr>
+    <tr><th>Hora Inicio:</th><td>{{ registro.hora_inicio }}</td></tr>
+    <tr><th>Hora Término:</th><td>{{ registro.hora_termino }}</td></tr>
+    <tr><th>Nombre Jefe de Familia:</th><td>{{ registro.nombre_jefe_fam }}</td></tr>
+    <tr><th>Paciente:</th><td>{{ registro.paciente }}</td></tr>
+    <tr><th>Fecha de Nacimiento:</th><td>{{ registro.fecha_nacimiento }}</td></tr>
+    <tr><th>Domicilio:</th><td>{{ registro.domicilio }}</td></tr>
+    <tr><th>Edad:</th><td>{{ registro.edad }}</td></tr>
+    <tr><th>Sexo:</th><td>{{ registro.sexo }}</td></tr>
+    <tr><th>Indígena:</th><td>{{ registro.indigena }}</td></tr>
+    <tr><th>Migrante:</th><td>{{ registro.migrante }}</td></tr>
+    <tr><th>Nivel de Atención:</th><td>{{ registro.nivel_atencion }}</td></tr>
+    <tr><th>Consulta Enfermería:</th><td>{{ registro.consulta_enfermeria }}</td></tr>
+    <tr><th>Consultoría Otorgada:</th><td>{{ registro.consultoria_otorgada }}</td></tr>
+    <tr><th>Prescripción de Medicamentos:</th><td>{{ registro.prescripcion_medicamentos }}</td></tr>
+    <tr><th>DG Plan Cuidados:</th><td>{{ registro.DG_plan_cuidados }}</td></tr>
+    <tr><th>DG Grupos Edad:</th><td>{{ registro.DG_GRUPOS_EDAD }}</td></tr>
+    <tr><th>Institución de Procedencia:</th><td>{{ registro.INSTITUCION_PROCEDENCIA }}</td></tr>
+    <tr><th>Consejería PF:</th><td>{{ registro.CONSEJERIA_PF }}</td></tr>
+    <tr><th>PF Grupos Edad:</th><td>{{ registro.PF_GRUPOS_EDAD }}</td></tr>
+    <tr><th>PF Subsecuente:</th><td>{{ registro.PF_SUBSECUENTE }}</td></tr>
+    <tr><th>PF Método:</th><td>{{ registro.PF_METODO }}</td></tr>
+    <tr><th>VI EMB Grupo Edad:</th><td>{{ registro.VI_EMB_grupo_edad }}</td></tr>
+    <tr><th>VI EMB Trimestre Gestacional:</th><td>{{ registro.VI_EMB_TRIMESTRE_GESTACIONAL }}</td></tr>
+    <tr><th>VI EMB Acciones Irreductibles:</th><td>{{ registro.VI_EMB_ACCIONES_IRREDUCTIBLES }}</td></tr>
+    <tr><th>Observaciones:</th><td>{{ registro.observaciones }}</td></tr>
+    <tr><th>Detección Tamiz:</th><td>{{ registro.DETECCION_TAMIZ }}</td></tr>
+    <tr><th>Diagnóstico Nutricional:</th><td>{{ registro.diagnostico_nutricional }}</td></tr>
+    <tr><th>Salud Gineco Detección:</th><td>{{ registro.SALUD_GINECO_DETECCION }}</td></tr>
+    <tr><th>EDA Sobres de Hidratación Oral Entregados:</th><td>{{ registro.EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS }}</td></tr>
+    <tr><th>EDA Madres Capacitadas Manejo:</th><td>{{ registro.EDA_MADRES_CAPACITADAS_MANEJO }}</td></tr>
+    <tr><th>IRA Madres Capacitadas Manejo:</th><td>{{ registro.IRA_MADRES_CAPACITADAS_MANEJO }}</td></tr>
+    <tr><th>Grupo Riesgo:</th><td>{{ registro.grupo_riesgo }}</td></tr>
+    <tr><th>Detección Enfermedades Crónicas:</th><td>{{ registro.DETECCION_ENFERMEDADES_CRONICAS }}</td></tr>
+    <tr><th>Diabetes Mellitus:</th><td>{{ registro.DIABETES_MELLITUS }}</td></tr>
+    <tr><th>Dislipidemia:</th><td>{{ registro.DISLIPIDEMIA }}</td></tr>
+    <tr><th>Hipertensión:</th><td>{{ registro.hipertension }}</td></tr>
+    <tr><th>Revisión Integral Piel Miembros Inferiores:</th><td>{{ registro.REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES }}</td></tr>
+    <tr><th>Diabéticos Informados Cuidados Pies:</th><td>{{ registro.DIABETICOS_INFORMADOS_CUIDADOS_PIES }}</td></tr>
+    <tr><th>Vacunación:</th><td>{{ registro.vacunacion }}</td></tr>
+    <tr><th>Promoción Salud:</th><td>{{ registro.PROMOCION_SALUD }}</td></tr>
+    <tr><th>Derivación:</th><td>{{ registro.DERIVACION }}</td></tr>
+    <tr><th>Actividades Asistenciales:</th><td>{{ registro.ACTIVIDADES_ASISTENCIALES }}</td></tr>
+    <tr><th>Observaciones Generales:</th><td>{{ registro.OBSERVACIONES_GENERALES }}</td></tr>
+</table>
+
+<a href="{{ url_for('enfermeria.consultar') }}" class="btn btn-secondary">Volver</a>
+{% endblock %}

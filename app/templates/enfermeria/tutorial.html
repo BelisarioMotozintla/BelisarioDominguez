@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manual de Usuario - Consultoría de Enfermería</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="mb-4 text-end">
+    <a href="{{ url_for('formatos.formatos') }}" class="btn btn-primary">
+      <i class="bi bi-folder2-open"></i> Ir a Formatos
+    </a>
+     <a href="{{ url_for('enfermeria.formulario') }}" class="btn btn-primary">Ir al Consulta Enfermería</a>
+  </div>
+<div class="container mt-5">
+   <div class="text-center mb-4">
+    <h2 class="mt-3">📘 Guía de Uso - Consultoría de Enfermería</h2>
+  </div>
+
+  <section class="mb-4">
+    <h4>📖 Justificación de la Aplicación</h4>
+    <p>
+      Esta aplicación fue desarrollada debido a la necesidad de concentrar mensualmente la información de las consultas de enfermería. 
+      Anteriormente, esta tarea se realizaba mediante hojas de Excel individuales por cada personal, pero en los equipos disponibles no se cuenta con Microsoft Office, sino con OpenOffice, 
+      el cual no ejecuta correctamente las macros necesarias para automatizar el trabajo. 
+      Esta plataforma soluciona ese problema centralizando la información de forma segura y accesible.
+    </p>
+  </section>
+
+  <section class="mb-5">
+    <h4>1. ⚖️ Ingreso a la plataforma</h4>
+    <p>
+      Accede desde: <a href="https://consultoriaenfermeria.onrender.com" target="_blank">consultoriaenfermeria.onrender.com</a><br>
+      <i class="bi bi-person-check"></i> Inicia sesión con tu usuario y contraseña.
+    </p>
+  </section>
+
+  <section class="mb-5">
+    <h4>2. 🔍 Navegación general</h4>
+    <ul>
+      <li><i class="bi bi-house-door"></i> <strong>Inicio</strong>: Bienvenida al sistema.</li>
+      <li><i class="bi bi-journal-plus"></i> <strong>Registrar consulta</strong>: Llenar hoja de consultoría.</li>
+      <li><i class="bi bi-folder2-open"></i> <strong>Formatos</strong>: Ver/subir/eliminar documentos.</li>
+      <li><i class="bi bi-box-arrow-right"></i> <strong>Cerrar sesión</strong></li>
+    </ul>
+  </section>
+
+  <section class="mb-5">
+    <h4>3. 📅 Registrar hoja de consultoría</h4>
+    <ol>
+      <li>Llenar los datos del paciente.</li>
+      <li>La <strong>edad</strong> se calcula automáticamente desde la fecha de nacimiento.</li>
+      <li>Se asigna el <strong>grupo etario</strong> según la edad.</li>
+      <li>Si el paciente es también jefe de familia, el nombre se copia automáticamente.</li>
+    </ol>
+    <img src="{{ url_for('static', filename='img/registro_consulta.png') }}" class="img-fluid rounded border mt-3" alt="Registro de consulta">
+  </section>
+
+  
+  <section class="mb-5">
+    <h4>5. 🚀 Funcionalidades automáticas</h4>
+    <ul>
+      <li>Cálculo automático de edad.</li>
+      <li>Selección automática del grupo etario.</li>
+      <li>Copiado inteligente si el jefe de familia es el mismo paciente.</li>
+      <li>Alertas visuales amigables.</li>
+    </ul>
+  </section>
+
+  
+  <section class="mb-5">
+    <h4>7. 🧰 Preguntas frecuentes</h4>
+    <ul>
+      <li><strong>¿Puedo editar un registro?</strong> No, solo puedes eliminarlo y volver a ingresarlo.</li>
+      <li><strong>¿Funciona en celular?</strong> Sí, la app es responsiva y está optimizada para móviles.</li>
+    </ul>
+  </section>
+
+  <section class="mb-5">
+    <h4>8. 📧 Soporte</h4>
+    <p>
+      Para dudas, errores o sugerencias que enriquezcan esta aplicación, contáctanos:
+      <strong>belisario.dominguez.calidad@gmail.com</strong>
+    </p>
+  </section>
+</div>
+<div class="container mt-5">
+   
+
+    <ul class="nav nav-tabs" id="manualTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="instructivo1-tab" data-bs-toggle="tab" data-bs-target="#instructivo1" type="button" role="tab" aria-controls="instructivo1" aria-selected="true">Instructivo 1</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="instructivo2-tab" data-bs-toggle="tab" data-bs-target="#instructivo2" type="button" role="tab" aria-controls="instructivo2" aria-selected="false">Instructivo 2</button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-4" id="manualTabsContent">
+        <div class="tab-pane fade show active" id="instructivo1" role="tabpanel" aria-labelledby="instructivo1-tab">
+            <h4 class="mb-3">📄 Instructivo 1: Anverso</h4>
+            <table class="table table-bordered table-striped">
+                <thead class="table-success">
+                    <tr>
+                        <th>N°</th>
+                        <th>DATO</th>
+                        <th>ANOTAR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Nombre de la Unidad de Salud</td><td>El nombre de la Unidad de Salud.</td></tr>
+                    <tr><td>2</td><td>Fecha de elaboración</td><td>Día, mes y año de atención (DD/MM/AA).</td></tr>
+                    <tr><td>3</td><td>Hora de inicio</td><td>Hora y minutos de inicio de jornada.</td></tr>
+                    <tr><td>4</td><td>Hora de término</td><td>Hora y minutos de término de jornada.</td></tr>
+                    <tr><td>5</td><td>Entidad federativa</td><td>Nombre del estado mexicano.</td></tr>
+                    <tr><td>6</td><td>CLUES</td><td>Clave CLUES de la Unidad de Salud.</td></tr>
+                    <tr><td>7</td><td>Localidad</td><td>Nombre de la localidad donde se ubica la unidad.</td></tr>
+                    <tr><td>8</td><td>Servicio</td><td>Nombre del servicio (ej. Medicina preventiva).</td></tr>
+                    <tr><td>9</td><td>Nombre del personal de enfermería</td><td>Nombre completo iniciando por apellidos.</td></tr>
+                    <tr><td>10</td><td>Nombre del jefe de familia</td><td>Nombre completo del jefe de familia.</td></tr>
+                    <tr><td>11</td><td>Nombre del paciente, fecha de nacimiento y domicilio</td><td>Nombre completo, fecha (DD/MM/AA) y domicilio del paciente.</td></tr>
+                    <tr><td>12</td><td>Indígena</td><td>1 si es indígena, 2 si no.</td></tr>
+                    <tr><td>13</td><td>Edad</td><td>Años cumplidos del paciente.</td></tr>
+                    <tr><td>14</td><td>Sexo</td><td>M para mujer, H para hombre.</td></tr>
+                    <tr><td>15</td><td>Migrante</td><td>1 si es migrante, 2 si no.</td></tr>
+                    <tr><td>16</td><td>Nivel de atención</td><td>1: Primer nivel, 2: Segundo, 3: Tercero.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="instructivo2" role="tabpanel" aria-labelledby="instructivo2-tab">
+            <h4 class="mb-3">📄 Instructivo 2: Reverso</h4>
+            <table class="table table-bordered table-striped">
+                <thead class="table-info">
+                    <tr>
+                        <th>N°</th>
+                        <th>DATOS</th>
+                        <th>ANOTAR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>17</td><td>Consultoría de enfermería</td><td>1 si es primera vez, 2 si es subsecuente.</td></tr>
+                    <tr><td>18</td><td>Consultoría otorgada</td><td>1 dentro de unidad, 2 fuera de unidad.</td></tr>
+                    <tr><td>19</td><td>Prescripción de medicamentos</td><td>1 si se otorgó, 2 si no.</td></tr>
+                    <tr><td>20</td><td>Plan de cuidado domiciliario</td><td>1 si se realiza, 2 si no.</td></tr>
+                    <tr><td>21</td><td>Grupo de edad</td><td>1: 0–9, 2: 10–19, 3: 20–59, 4: 60+ años.</td></tr>
+                    <tr><td>22</td><td>Institución de procedencia</td><td>1 IMSS Bienestar, 2 IMSS, 3 ISSSTE, 4 Programa, 5 Otras.</td></tr>
+                    <tr><td>23</td><td>Consejería de PF</td><td>1 si se otorga, 2 si no.</td></tr>
+                    <tr><td>24</td><td>PF: Grupo de edad</td><td>1 menor de 20, 2 20 y más años.</td></tr>
+                    <tr><td>25</td><td>PF: Subsecuente</td><td>1 Primera vez, 2 Subsecuente.</td></tr>
+                    <tr><td>26</td><td>PF: Método</td><td>1 Oral, 2 Inyectable, 3 Parche, 4 DIU, 5 Condón.</td></tr>
+                    <tr><td>27</td><td>AMI: Grupo de edad</td><td>1 <15 años, 2: 15–19, 3: 20–34, 4: 35+.</td></tr>
+                    <tr><td>28</td><td>AMI: Trimestre gestacional</td><td>1: 1er, 2: 2do, 3: 3er trimestre.</td></tr>
+                    <tr><td>29</td><td>AMI: Acciones irreductibles</td><td>1 Riesgo obstétrico, 2 Signos alarma, 3 Suplementos, 4 Uroanálisis, 5 Orientación.</td></tr>
+                    <tr><td>30</td><td>Diagnóstico</td><td>Diagnóstico de la valoración del paciente.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+</body>
+</html>
+{% endblock %}

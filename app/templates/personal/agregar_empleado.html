@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block title %}Agregar Empleado{% endblock %}
+{% block encabezado %}Agregar Empleado{% endblock %}
+
+{% block content %}
+<form method="post">
+    <h5>Datos del Empleado</h5>
+    <div class="mb-3">
+        <label>Tipo de Trabajador</label>
+        <input type="text" name="tipo_trabajador" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>CURP</label>
+        <input type="text" name="curp" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>RFC</label>
+        <input type="text" name="rfc" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>No. Biométrico</label>
+        <input type="text" name="no_biometrico" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Apellido paterno</label>
+        <input type="text" name="apellido_paterno" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Apellido materno</label>
+        <input type="text" name="apellido_materno" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Nombre(s)</label>
+        <input type="text" name="nombre" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Título</label>
+        <input type="text" name="titulo" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Cédula</label>
+        <input type="text" name="cedula" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Fecha de ingreso</label>
+        <input type="date" name="fecha_ingreso" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Horario</label>
+        <input type="text" name="horario" class="form-control" placeholder="Ej: 08:00 - 14:00">
+    </div>
+    <div class="mb-3">
+        <label>Días laborables</label>
+        <input type="text" name="dias_laborables" class="form-control" placeholder="Ej: Lunes a Viernes">
+    </div>
+    <div class="mb-3">
+        <label>Horas laborales</label>
+        <input type="number" name="horas_laborales" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Email</label>
+        <input type="email" name="email" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Teléfono</label>
+        <input type="text" name="telefono" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Dirección</label>
+        <textarea name="direccion" class="form-control"></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label>Puesto</label>
+        <select name="id_puesto" class="form-select" required>
+            <option value="">Selecciona un puesto</option>
+            {% for p in puestos %}
+                <option value="{{ p.id_puesto }}">{{ p.descripcion }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Turno</label>
+        <select name="id_turno" class="form-select" required>
+            <option value="">Selecciona un turno</option>
+            {% for t in turnos %}
+                <option value="{{ t.id_turno }}">{{ t.nombre_turno }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Adscripción</label>
+        <select name="id_adscripcion" class="form-select" required>
+            <option value="">Selecciona una adscripción</option>
+            {% for a in adscripciones %}
+                <option value="{{ a.id_adscripcion }}">{{ a.nombre_adscripcion }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Servicio</label>
+        <select name="id_servicio" class="form-select" required>
+            <option value="">Selecciona un servicio</option>
+            {% for s in servicios %}
+                <option value="{{ s.id_servicio }}">{{ s.nombre_servicio }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <h5>Datos de Usuario</h5>
+    <div class="mb-3">
+    <label>Usuario asociado</label>
+    {% if usuario_asociado %}
+        <input type="text" class="form-control" value="{{ usuario_asociado.usuario }}" readonly>
+        <div class="form-text">Este empleado ya tiene un usuario asignado.</div>
+    {% else %}
+        <select name="usuario_id" class="form-select">
+            <option value="">Selecciona un usuario existente</option>
+            {% for u in usuarios_disponibles %}
+                <option value="{{ u.id_usuario }}">{{ u.usuario }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Solo se listan usuarios sin empleado asignado.</div>
+    {% endif %}
+</div>
+
+    <button type="submit" class="btn btn-success">Guardar</button>
+    <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

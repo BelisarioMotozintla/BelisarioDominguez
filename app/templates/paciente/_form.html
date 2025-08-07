@@ -1,0 +1,66 @@
+{# templates/paciente/_form.html #}
+<div class="mb-3">
+  <label for="nombre" class="form-label">Nombre</label>
+  <input type="text" name="nombre" class="form-control" value="{{ paciente.nombre if paciente else '' }}" required>
+</div>
+<div class="mb-3">
+  <label for="curp" class="form-label">CURP</label>
+  <input type="text" name="curp" class="form-control" value="{{ paciente.curp if paciente else '' }}" required>
+</div>
+<div class="mb-3">
+  <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
+  <input type="date" name="fecha_nacimiento" class="form-control" value="{{ paciente.fecha_nacimiento if paciente and paciente.fecha_nacimiento else '' }}">
+</div>
+<div class="mb-3">
+  <label for="sexo" class="form-label">Sexo</label>
+  <select name="sexo" class="form-control" id="sexo" required>
+    <option value="M" {% if paciente and paciente.sexo == 'M' %}selected{% endif %}>Masculino</option>
+    <option value="F" {% if paciente and paciente.sexo == 'F' %}selected{% endif %}>Femenino</option>
+    <option value="Otro" {% if paciente and paciente.sexo == 'Otro' %}selected{% endif %}>Otro</option>
+  </select>
+</div>
+<div class="mb-3">
+  <label for="direccion" class="form-label">Dirección</label>
+  <input type="text" name="direccion" class="form-control" value="{{ paciente.direccion if paciente else '' }}">
+</div>
+<div class="mb-3">
+  <label for="es_cronico" class="form-label" >¿Paciente crónico?</label>
+  <select name="es_cronico" class="form-control" id="es_cronico">
+    <option value="No" {% if paciente and paciente.es_cronico == 'No' %}selected{% endif %}>No</option>
+    <option value="Sí" {% if paciente and paciente.es_cronico == 'Sí' %}selected{% endif %}>Sí</option>
+  </select>
+</div>
+<div class="mb-3">
+  <label for="tipo_cronicidad" class="form-label">Tipo de cronicidad</label>
+  <select name="tipo_cronicidad" class="form-control" id="tipo_cronicidad">
+    <option value="" {% if not paciente or paciente.tipo_cronicidad == '' %}selected{% endif %}>-- Selecciona --</option>
+    <option value="Diabético" {% if paciente and paciente.tipo_cronicidad == 'Diabético' %}selected{% endif %}>Diabético</option>
+    <option value="Hipertenso" {% if paciente and paciente.tipo_cronicidad == 'Hipertenso' %}selected{% endif %}>Hipertenso</option>
+    <option value="Metabólico" {% if paciente and paciente.tipo_cronicidad == 'Metabólico' %}selected{% endif %}>Metabólico</option>
+    <option value="Otro" {% if paciente and paciente.tipo_cronicidad == 'Otro' %}selected{% endif %}>Otro</option>
+  </select>
+</div>
+<div class="mb-3">
+  <label for="esta_embarazada" class="form-label">¿Está embarazada?</label>
+  <select name="esta_embarazada" class="form-control"  id="esta_embarazada" >
+    <option value="No" {% if paciente and paciente.esta_embarazada == 'No' %}selected{% endif %}>No</option>
+    <option value="Sí" {% if paciente and paciente.esta_embarazada == 'Sí' %}selected{% endif %}>Sí</option>
+  </select>
+</div>
+<div class="mb-3">
+  <label for="id_unidad">Unidad de Salud:</label>
+  <select name="id_unidad" id="id_unidad" class="form-select" required>
+    {% for unidad in unidades %}
+    <option value="{{ unidad.id_unidad }}">{{ unidad.nombre }} ({{ unidad.clues }})</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Tipo de Relación -->
+<div class="mb-3">
+  <label for="tipo_relacion">Tipo de Relación:</label>
+  <select name="tipo_relacion" id="tipo_relacion" class="form-select" required>
+    <option value="Universo">Universo</option>
+    <option value="Foráneo">Foráneo</option>
+  </select>
+</div>

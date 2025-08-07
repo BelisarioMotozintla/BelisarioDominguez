@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
     <title>{% block title %}IMSS BIENESTAR{% endblock %}</title>
     <style>
         body {
@@ -10,7 +13,6 @@
             margin: 0;
             padding: 0;
         }
-
         header {
             background-color: #006341;
             color: white;
@@ -19,23 +21,19 @@
             justify-content: space-between;
             align-items: center;
         }
-
         header h1 {
             margin: 0;
             font-size: 1.5rem;
         }
-
         nav a {
             color: #ffffff;
             margin-left: 1.5rem;
             text-decoration: none;
             font-weight: 500;
         }
-
         nav a:hover {
             text-decoration: underline;
         }
-
         .container {
             max-width: 1000px;
             margin: 2rem auto;
@@ -43,11 +41,9 @@
             padding: 2rem;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-
         h2 {
             color: #006341;
         }
-
         .btn {
             display: inline-block;
             margin-top: 1rem;
@@ -58,40 +54,32 @@
             border-radius: 4px;
             font-size: 0.95rem;
         }
-
         .btn:hover {
             background-color: #004d32;
         }
-
         .btn-danger {
             background-color: #b50000;
         }
-
         .btn-danger:hover {
             background-color: #850000;
         }
-
         .volver {
             background-color: #555;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 1rem;
         }
-
         table, th, td {
             border: 1px solid #ccc;
         }
-
         th {
             background-color: #e6f2ef;
             color: #003b29;
             padding: 0.75rem;
             text-align: left;
         }
-
         td {
             padding: 0.75rem;
         }
@@ -101,13 +89,51 @@
     <header>
         <h1>{% block encabezado %}Sistema IMSS-BIENESTAR{% endblock %}</h1>
         <nav>
-            <span>Bienvenido, {{ usuario }}</span>
-            <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+            <span>Bienvenido, {{ usuario or 'Invitado' }}</span>
+            {% if usuario %}
+                <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+		<a href="{{ url_for('main.home') }}">Principal</a>
+
+            {% else %}
+                <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+            {% endif %}
         </nav>
     </header>
-
-    <div class="container">
-        {% block contenido %}{% endblock %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
     </div>
+  {% endif %}
+{% endwith %}
+	
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Facebook SDK -->
+    <div id="fb-root"></div>
+    <script async defer crossorigin="anonymous"
+      src="https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v17.0"
+      nonce="FbSdkAccess"></script>
+<script>
+  // Oculta automáticamente las alertas después de 4 segundos
+  setTimeout(function () {
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(function (alert) {
+      let bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+      bsAlert.close();
+    });
+  }, 1000); // 4000 milisegundos = 4 segundos
+</script>
+<!-- Bootstrap JS bundle con Popper (requerido para cerrar alerts) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
 </body>
 </html>

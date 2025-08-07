@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Acceso Archivo Clínico</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.usuario.label }} {{ form.usuario() }}<br>
+    {{ form.password.label }} {{ form.password() }}<br>
+    {{ form.submit() }}
+</form>
+{% endblock %}

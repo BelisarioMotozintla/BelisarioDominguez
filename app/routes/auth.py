@@ -6,7 +6,7 @@ bp = Blueprint('auth', __name__)
 
 @bp.route('/', methods=['GET'])
 def home():
-    return redirect(url_for('auth.login'))
+    return render_template('home.html')  # Cambiado para mostrar una página de inicio
 
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -19,13 +19,26 @@ def login():
 
             if user and user.check_password(contrasena):
                 session['usuario'] = usuario
-                session['rol'] = user.rol
-                flash('Inicio de sesión exitoso', 'info')
+                session['rol'] = user.rol.nombre_rol  # Guarda solo el nombre del rol
 
-                if user.rol == 'admin':
+                # Redirección según rol
+                if user.rol.nombre_rol == 'Administrador':
                     return redirect(url_for('admin.panel'))
+                elif user.rol.nombre_rol == 'UsuarioEnfermeria':
+                    return redirect(url_for('enfermeria.index'))
+                elif user.rol.nombre_rol == 'UsuarioAdministrativo':
+                    return redirect(url_for('archivo_clinico.index'))
+                elif user.rol.nombre_rol == 'UsuarioAdmin':
+                    return redirect(url_for('personal.index'))
+                elif user.rol.nombre_rol == 'SuperUsuario':
+                    return redirect(url_for('admin.panel'))  # O la ruta para superusuario
                 else:
-                    return redirect(url_for('formulario.formulario'))
+                    flash('Rol no definido para redirección', 'warning')
+                    return redirect(url_for('auth.login'))
+
+                # Opcional: si quieres manejar next_page para redirección posterior,
+                # colócalo antes de return
+
             else:
                 flash('Credenciales incorrectas', 'error')
                 return redirect(url_for('auth.login'))
@@ -41,7 +54,7 @@ def login():
 def logout():
     session.clear()
     flash('Sesión cerrada', 'info')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('auth.home'))
 
 @bp.route('/registrar_usuario', methods=['GET', 'POST'])
 def registrar_usuario():

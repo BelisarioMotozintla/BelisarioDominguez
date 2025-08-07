@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Solicitudes de Expedientes</h2>
+  <a href="{{ url_for('archivo_clinico.nueva_solicitud') }}" class="btn btn-success mb-3">
+    <i class="bi bi-plus-circle"></i> Nueva Solicitud
+  </a>
+
+  <table class="table table-bordered table-hover">
+    <thead class="table-success">
+      <tr>
+        <th>ID</th>
+        <th>Paciente</th>
+        <th>Solicita</th>
+        <th>Autoriza</th>
+        <th>Fecha Solicitud</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for solicitud in solicitudes %}
+      <tr>
+        <td>{{ solicitud.id_solicitud }}</td>
+        <td>{{ solicitud.paciente.nombre }}</td>
+        <td>{{ solicitud.usuario_solicita.nombre }}</td>
+        <td>{{ solicitud.usuario_autoriza.nombre if solicitud.usuario_autoriza else 'Pendiente' }}</td>
+        <td>{{ solicitud.fecha_solicitud.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <span class="badge bg-{{ 'secondary' if solicitud.estado_solicitud == 'pendiente' else 'warning' if solicitud.estado_solicitud == 'entregado' else 'success' if solicitud.estado_solicitud == 'devuelto' else 'danger' }}">
+            {{ solicitud.estado_solicitud }}
+          </span>
+        </td>
+        <td>
+          {% if solicitud.estado_solicitud == 'pendiente' %}
+            <form method="POST" action="{{ url_for('archivo_clinico.entregar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-outline-warning">Entregar</button>
+            </form>
+          {% elif solicitud.estado_solicitud == 'entregado' %}
+            <form method="POST" action="{{ url_for('archivo_clinico.devolver_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-outline-success">Devolver</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+ <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+</div>
+{% endblock %}

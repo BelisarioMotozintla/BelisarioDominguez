@@ -1,4 +1,36 @@
+# utils/validaciones.py
 from datetime import datetime
+
+def get_str(form, key):
+    return form.get(key, '').strip().upper()
+
+def get_date(form, key):
+    val = form.get(key, '').strip()
+    if not val:
+        return None
+    try:
+        return datetime.strptime(val, '%Y-%m-%d').date()
+    except:
+        return None
+
+def get_int(form, key):
+    val = form.get(key, '').strip()
+    try:
+        return int(val)
+    except:
+        return None
+
+def get_float(form, key):
+    val = form.get(key, '').strip()
+    try:
+        return float(val)
+    except:
+        return None
+
+def get_list_as_str(form, key):
+    vals = form.getlist(key)
+    return ','.join([v.upper() for v in vals]) if vals else ''
+
 
 def campos_validos(form):
     # Campos que no pueden estar vacíos

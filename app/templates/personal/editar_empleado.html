@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Empleado{% endblock %}
+{% block encabezado %}Editar Empleado{% endblock %}
+
+{% block content %}
+<form method="post">
+    <h5>Datos del Empleado</h5>
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label>Tipo de trabajador</label>
+            <input type="text" name="tipo_trabajador" class="form-control" required value="{{ empleado.tipo_trabajador }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>CURP</label>
+            <input type="text" name="curp" class="form-control" required value="{{ empleado.curp }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>RFC</label>
+            <input type="text" name="rfc" class="form-control" value="{{ empleado.rfc }}">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <label>No. biométrico</label>
+            <input type="text" name="no_biometrico" class="form-control" value="{{ empleado.no_biometrico }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Nombre</label>
+            <input type="text" name="nombre" class="form-control" required value="{{ empleado.nombre }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Apellido paterno</label>
+            <input type="text" name="apellido_paterno" class="form-control" value="{{ empleado.apellido_paterno }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Apellido materno</label>
+            <input type="text" name="apellido_materno" class="form-control" value="{{ empleado.apellido_materno }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Título</label>
+            <input type="text" name="titulo" class="form-control" value="{{ empleado.titulo }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Cédula</label>
+            <input type="text" name="cedula" class="form-control" value="{{ empleado.cedula }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Fecha de ingreso</label>
+            <input type="date" name="fecha_ingreso" class="form-control" value="{{ empleado.fecha_ingreso }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Horario</label>
+            <input type="text" name="horario" class="form-control" value="{{ empleado.horario }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Días laborables</label>
+            <input type="text" name="dias_laborables" class="form-control" value="{{ empleado.dias_laborables }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Horas laborales</label>
+            <input type="number" name="horas_laborales" class="form-control" value="{{ empleado.horas_laborales }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Correo electrónico</label>
+            <input type="email" name="email" class="form-control" value="{{ empleado.email }}">
+        </div>
+        <div class="col-md-4 mb-3">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" class="form-control" value="{{ empleado.telefono }}">
+        </div>
+        <div class="col-md-12 mb-3">
+            <label>Dirección</label>
+            <input type="text" name="direccion" class="form-control" value="{{ empleado.direccion }}">
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label>Puesto</label>
+        <select name="id_puesto" class="form-select" required>
+            <option value="">Selecciona un puesto</option>
+            {% for p in puestos %}
+                <option value="{{ p.id_puesto }}" {% if empleado.id_puesto == p.id_puesto %}selected{% endif %}>{{ p.descripcion }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Turno</label>
+        <select name="id_turno" class="form-select" required>
+            <option value="">Selecciona un turno</option>
+            {% for t in turnos %}
+                <option value="{{ t.id_turno }}" {% if empleado.id_turno == t.id_turno %}selected{% endif %}>{{ t.nombre_turno }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Adscripción</label>
+        <select name="id_adscripcion" class="form-select" required>
+            <option value="">Selecciona una adscripción</option>
+            {% for a in adscripciones %}
+                <option value="{{ a.id_adscripcion }}" {% if empleado.id_adscripcion == a.id_adscripcion %}selected{% endif %}>{{ a.nombre_adscripcion }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Servicio</label>
+        <select name="id_servicio" class="form-select" required>
+            <option value="">Selecciona un servicio</option>
+            {% for s in servicios %}
+                <option value="{{ s.id_servicio }}" {% if empleado.id_servicio == s.id_servicio %}selected{% endif %}>{{ s.nombre_servicio }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <hr>
+    <h5>Datos de Usuario</h5>
+    <div class="mb-3">
+        <label>Nombre de usuario</label>
+        <input type="text" name="usuario" class="form-control" required value="{{ usuario.usuario }}">
+    </div>
+    <div class="mb-3">
+        <label>Nueva contraseña (dejar en blanco para no cambiar)</label>
+        <input type="password" name="contrasena" class="form-control" minlength="4" placeholder="Nueva contraseña">
+    </div>
+    <div class="mb-3">
+        <label>Rol</label>
+        <select name="rol_id" class="form-select" required>
+            <option value="">Selecciona un rol</option>
+            {% for r in roles %}
+                <option value="{{ r.id_rol }}" {% if usuario.rol_id == r.id_rol %}selected{% endif %}>{{ r.nombre_rol }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+    <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
