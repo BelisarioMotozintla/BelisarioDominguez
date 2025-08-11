@@ -7,7 +7,7 @@ def create_app():
     # 🔁 Importar todos los modelos para registrarlos
     from app import models
     from app.models.archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
-    from app.models.personal import Usuario, Roles, Empleado, Adscripcion, Turno, Puesto, Servicio, Estudios
+    from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia, RangoFolios, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario

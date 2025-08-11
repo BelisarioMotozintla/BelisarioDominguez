@@ -96,10 +96,10 @@
     </div>
     <div class="mb-3">
         <label>Adscripción</label>
-        <select name="id_adscripcion" class="form-select" required>
+        <select name="id_unidad" class="form-select" required>
             <option value="">Selecciona una adscripción</option>
-            {% for a in adscripciones %}
-                <option value="{{ a.id_adscripcion }}" {% if empleado.id_adscripcion == a.id_adscripcion %}selected{% endif %}>{{ a.nombre_adscripcion }}</option>
+            {% for a in unidadsalud %}
+                <option value="{{ a.id_unidad }}" {% if empleado.id_unidad == a.id_unidad %}selected{% endif %}>{{ a.nombre }}</option>
             {% endfor %}
         </select>
     </div>

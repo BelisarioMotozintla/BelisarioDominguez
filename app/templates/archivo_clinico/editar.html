@@ -2,18 +2,81 @@
 {% block content %}
 <h2>Editar Archivo Clínico</h2>
 <form method="POST">
-    <label>Ubicación física:</label> <input type="text" name="ubicacion_fisica" value="{{ archivo.ubicacion_fisica }}"><br>
-    <label>Estado:</label>
-    <select name="estado">
+
+    <div class="mb-3">
+  <label for="numero_expediente">Número de Expediente:</label>
+  <input type="text" name="numero_expediente" id="numero_expediente" class="form-control" value="{{ archivo.numero_expediente }}" required>
+  <div id="error_numero" style="color: red; display: none; margin-top: 5px;">
+    Este número ya existe, por favor elige otro.
+  </div>
+</div>
+
+
+    <div class="mb-3">
+      <label for="ubicacion_fisica">Ubicación física:</label>
+      <input type="text" name="ubicacion_fisica" id="ubicacion_fisica" class="form-control" value="{{ archivo.ubicacion_fisica }}">
+    </div>
+
+    <div class="mb-3">
+      <label for="estado">Estado:</label>
+      <select name="estado" id="estado" class="form-select">
         <option value="disponible" {% if archivo.estado == 'disponible' %}selected{% endif %}>Disponible</option>
         <option value="prestado" {% if archivo.estado == 'prestado' %}selected{% endif %}>Prestado</option>
         <option value="extraviado" {% if archivo.estado == 'extraviado' %}selected{% endif %}>Extraviado</option>
-    </select><br>
-    <label>Tipo de archivo:</label> <input type="text" name="tipo_archivo" value="{{ archivo.tipo_archivo }}"><br>
-    <label>Fecha de creación:</label> <input type="date" name="fecha_creacion" value="{{ archivo.fecha_creacion }}"><br>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="tipo_archivo">Tipo de archivo:</label>
+      <input type="text" name="tipo_archivo" id="tipo_archivo" class="form-control" value="{{ archivo.tipo_archivo }}">
+    </div>
+
+    <div class="mb-3">
+      <label for="fecha_creacion">Fecha de creación:</label>
+      <input type="date" name="fecha_creacion" id="fecha_creacion" class="form-control" value="{{ archivo.fecha_creacion|default('', true) }}">
+    </div>
+
     <button type="submit" class="btn btn-primary">Actualizar</button>
     <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+    <script>
+async function validarNumeroExpediente() {
+  const numeroInput = document.getElementById('numero_expediente');
+  const errorDiv = document.getElementById('error_numero');
+  const numero = numeroInput.value.trim();
+  const idArchivo = {{ archivo.id_archivo }};  // pasamos el id para excluirlo en la validación
 
+  if (!numero) {
+    errorDiv.style.display = 'none';
+    return true;  // required maneja vacío
+  }
+
+  try {
+    const response = await fetch(`/validar_numero_expediente_edit?numero=${encodeURIComponent(numero)}&id=${idArchivo}`);
+    const data = await response.json();
+
+    if (data.existe) {
+      errorDiv.style.display = 'block';
+      numeroInput.focus();
+      return false; // evita enviar formulario
+    } else {
+      errorDiv.style.display = 'none';
+      return true; // permite enviar
+    }
+  } catch (error) {
+    console.error('Error validando número:', error);
+    return true;
+  }
+}
+
+document.querySelector('form').addEventListener('submit', function(event) {
+  event.preventDefault();
+  validarNumeroExpediente().then(valido => {
+    if (valido) {
+      this.submit();
+    }
+  });
+});
+</script>
 
 </form>
 {% endblock %}

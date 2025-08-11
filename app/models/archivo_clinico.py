@@ -6,6 +6,7 @@ from app.utils.db import db
 from app.models.personal import Usuario,Servicio
 
 
+
 # Modelo Unidad de Salud 009
 class UnidadSalud(db.Model):
     __tablename__ = 'UnidadSalud'
@@ -16,7 +17,8 @@ class UnidadSalud(db.Model):
     tipo_unidad = Column(Text)
     
     pacientes_unidad = relationship('PacienteUnidad', back_populates='unidad')  # ✅ STRING segura	
-    
+    empleados = relationship('Empleado', back_populates='unidad')
+
 # Modelo Paciente 010
 class Paciente(db.Model):
     __tablename__ = 'Paciente'
@@ -62,7 +64,7 @@ class ArchivoClinico(db.Model):
     estado = Column(Text)  # disponible, prestado, extraviado
     tipo_archivo = Column(Text)
     fecha_creacion = Column(Date)
-
+    numero_expediente = db.Column(db.String, unique=True)  # nuevo campo único editable
     __table_args__ = (
         CheckConstraint("estado IN ('disponible', 'prestado', 'extraviado')", name='chk_estado_archivo'),
     )

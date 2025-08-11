@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function actualizarEmbarazo() {
-        if (sexo.value === 'H') {
-            embarazada.value = 'No';
-            embarazada.disabled = true;
+        if (sexo.value === 'M') {
+            esta_embarazada.value = 'No';
+            esta_embarazada.disabled = true;
         } else {
-            embarazada.disabled = false;
+            esta_embarazada.disabled = false;
         }
     }
 
@@ -42,6 +42,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
+    function actualizarEstado() {
+        if (esCronico.value === "No") {
+            tipoCronicidad.value = "Otro";
+            tipoCronicidad.disabled = true;
+        } else {
+            tipoCronicidad.disabled = false;
+        }
+    }
+
+    // Evento al cambiar la selección
+    esCronico.addEventListener("change", actualizarEstado);
+
+    // Ejecutar al cargar la página
+    actualizarEstado();
 
     // Eventos
     esCronico.addEventListener('change', actualizarTipoCronicidad);

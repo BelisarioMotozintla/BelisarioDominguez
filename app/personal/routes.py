@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from app.models.personal import Empleado, Usuario, Roles, Puesto, Turno, Adscripcion, Servicio
+from app.models.personal import Empleado, Usuario, Roles, Puesto, Turno, Servicio
+from app.models.archivo_clinico import UnidadSalud
 from app.utils.db import db
 from werkzeug.security import generate_password_hash
 from app.utils.helpers import login_required
@@ -22,7 +23,7 @@ def agregar():
     roles = Roles.query.all()
     puestos = Puesto.query.all()
     turnos = Turno.query.all()
-    adscripciones = Adscripcion.query.all()
+    unidadsalud = UnidadSalud.query.all()
     servicios = Servicio.query.all()
 
     # Usuarios que aún no están asignados a un empleado
@@ -50,7 +51,7 @@ def agregar():
             direccion=request.form['direccion'],
             id_puesto=request.form['id_puesto'],
             id_turno=request.form['id_turno'],
-            id_adscripcion=request.form['id_adscripcion'],
+            id_unidad=request.form['id_unidad'],
             id_servicio=request.form['id_servicio']
         )
         db.session.add(empleado)
@@ -70,7 +71,7 @@ def agregar():
                            roles=roles,
                            puestos=puestos,
                            turnos=turnos,
-                           adscripciones=adscripciones,
+                           unidadsalud=unidadsalud,
                            servicios=servicios,
                            usuarios_disponibles=usuarios_disponibles,
                            usuario_asociado=usuario_asociado)
@@ -83,7 +84,7 @@ def editar(id_empleado):
     roles = Roles.query.all()
     puestos = Puesto.query.all()
     turnos = Turno.query.all()
-    adscripciones = Adscripcion.query.all()
+    unidadsalud = UnidadSalud.query.all()
     servicios = Servicio.query.all()
 
     if request.method == 'POST':
@@ -106,7 +107,7 @@ def editar(id_empleado):
         empleado.direccion = request.form['direccion']
         empleado.id_puesto = request.form['id_puesto']
         empleado.id_turno = request.form['id_turno']
-        empleado.id_adscripcion = request.form['id_adscripcion']
+        empleado.id_unidad = request.form['id_unidad']
         empleado.id_servicio = request.form['id_servicio']
 
         # Actualizar campos del usuario asociado
@@ -127,7 +128,7 @@ def editar(id_empleado):
                            roles=roles,
                            puestos=puestos,
                            turnos=turnos,
-                           adscripciones=adscripciones,
+                           unidadsalud=unidadsalud,
                            servicios=servicios)
 
 @bp.route('/eliminar/<int:id_empleado>', methods=['POST'])
@@ -149,7 +150,7 @@ def editar_empleado(id_empleado):
     usuario = Usuario.query.filter_by(id_empleado=id_empleado).first()
     puestos = Puesto.query.all()
     turnos = Turno.query.all()
-    adscripciones = Adscripcion.query.all()
+    unidadsalud = UnidadSalud.query.all()
     servicios = Servicio.query.all()
     roles = Roles.query.all()
 
@@ -177,6 +178,6 @@ def editar_empleado(id_empleado):
                            usuario=usuario,
                            puestos=puestos,
                            turnos=turnos,
-                           adscripciones=adscripciones,
+                           unidadsalud=unidadsalud,
                            servicios=servicios,
                            roles=roles)

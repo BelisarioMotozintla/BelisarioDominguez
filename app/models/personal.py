@@ -3,6 +3,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Date,Time
 from sqlalchemy.orm import relationship
 from app.utils.db import db
+#from app.models.archivo_clinico import UnidadSalud
 from datetime import date, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -34,15 +35,14 @@ class Turno(db.Model):
     def __repr__(self):
         return f"<Turno {self.nombre_turno} {self.horario_entrada}-{self.horario_salida}>"
 
-# Modelo Adscripción 003
-class Adscripcion(db.Model):
-    __tablename__ = 'Adscripcion'
-    id_adscripcion = Column(Integer, primary_key=True)
-    clues = Column(String(12), unique=True, nullable=False)
-    nombre_adscripcion = Column(String(100))
-    direccion = Column(String(150))
-
-    empleados = relationship('Empleado', back_populates='adscripcion')
+# Modelo Adscripción 003- se elimina esta tabla por que ya se tiene en archivo clinico un 
+#class Adscripcion(db.Model):
+#   __tablename__ = 'Adscripcion'
+#  id_adscripcion = Column(Integer, primary_key=True)
+# clues = Column(String(12), unique=True, nullable=False)
+#nombre_adscripcion = Column(String(100))
+#direccion = Column(String(150))
+#empleados = relationship('Empleado', back_populates='adscripcion')
 
 # Modelo Servicio 004
 class Servicio(db.Model):
@@ -77,13 +77,14 @@ class Empleado(db.Model):
 
     id_puesto = Column(Integer, ForeignKey('Puesto.id_puesto'))
     id_turno = Column(Integer, ForeignKey('Turno.id_turno'))
-    id_adscripcion = Column(Integer, ForeignKey('Adscripcion.id_adscripcion'))
+    id_unidad = Column(Integer, ForeignKey('UnidadSalud.id_unidad'))
     id_servicio = Column(Integer, ForeignKey('Servicio.id_servicio'))
 
     # Relaciones
     puesto = relationship('Puesto', back_populates='empleados')
     turno = relationship('Turno', back_populates='empleados')
-    adscripcion = relationship('Adscripcion', back_populates='empleados')
+    #unidadsalud = relationship('UnidadSalud', back_populates='empleados')
+    unidad = relationship('UnidadSalud', back_populates='empleados')
     servicio = relationship('Servicio', back_populates='empleados')
     estudios = relationship('Estudios', back_populates='empleado')
     usuarios = relationship('Usuario', back_populates='empleado')

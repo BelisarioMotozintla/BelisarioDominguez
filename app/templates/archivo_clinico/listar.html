@@ -28,7 +28,7 @@
 </table>
 <table border="1">
     <tr>
-        <th>ID</th><th>Paciente</th><th>Ubicación</th><th>Estado</th><th>Tipo</th><th>Fecha</th><th>Acciones</th>
+        <th>ID</th><th>Paciente</th><th>Ubicación</th><th>Estado</th><th>numero_expediente</th><th>Fecha</th><th>Acciones</th>
     </tr>
     {% for archivo in archivos %}
     <tr>
@@ -36,7 +36,7 @@
         <td>{{ archivo.paciente.nombre }}</td>
         <td>{{ archivo.ubicacion_fisica }}</td>
         <td>{{ archivo.estado }}</td>
-        <td>{{ archivo.tipo_archivo }}</td>
+        <td>{{ archivo.numero_expediente }}</td>
         <td>{{ archivo.fecha_creacion }}</td>
         
         <td>
