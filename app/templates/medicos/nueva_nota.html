@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h3>Nueva Nota de Consulta</h3>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      <div class="col-md-6">{{ form.id_paciente.label }} {{ form.id_paciente(class="form-control") }}</div>
+      <div class="col-md-6">{{ form.id_expediente.label }} {{ form.id_expediente(class="form-control") }}</div>
+    </div>
+    <div class="row mt-2">
+      <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control") }}</div>
+      <div class="col-md-3">{{ form.hora.label }} {{ form.hora(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.peso.label }} {{ form.peso(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.talla.label }} {{ form.talla(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.imc.label }} {{ form.imc(class="form-control") }}</div>
+    </div>
+
+    <hr>
+    <div class="form-group">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}</div>
+    <div class="form-group">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}</div>
+    <div class="form-group">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}</div>
+    <div class="form-group">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}</div>
+
+    <button class="btn btn-primary" type="submit">{{ form.submit.label.text }}</button>
+  </form>
+</div>
+{% endblock %}

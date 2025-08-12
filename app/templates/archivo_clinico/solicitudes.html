@@ -32,15 +32,19 @@
           </span>
         </td>
         <td>
-          {% if solicitud.estado_solicitud == 'pendiente' %}
-            <form method="POST" action="{{ url_for('archivo_clinico.entregar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-outline-warning">Entregar</button>
-            </form>
-          {% elif solicitud.estado_solicitud == 'entregado' %}
-            <form method="POST" action="{{ url_for('archivo_clinico.devolver_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-outline-success">Devolver</button>
-            </form>
-          {% endif %}
+        {% if solicitud.estado_solicitud == 'pendiente' %}
+        <form method="POST" action="{{ url_for('archivo_clinico.entregar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-outline-warning">Entregar</button>
+        </form>
+        <form method="POST" action="{{ url_for('archivo_clinico.cancelar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+        </form>
+
+      {% elif solicitud.estado_solicitud == 'entregado' %}
+        <form method="POST" action="{{ url_for('archivo_clinico.devolver_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-outline-success">Devolver</button>
+        </form>
+      {% endif %}
         </td>
       </tr>
       {% endfor %}

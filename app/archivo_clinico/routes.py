@@ -207,3 +207,11 @@ def devolver_solicitud(id):
     flash("Expediente devuelto correctamente", "success")
     return redirect(url_for('archivo_clinico.lista_solicitudes'))
 
+@bp.route('/cancelar_solicitud/<int:id>', methods=['POST'])
+@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+def cancelar_solicitud(id):
+    solicitud = SolicitudExpediente.query.get_or_404(id)
+    solicitud.estado_solicitud = 'cancelado'
+    db.session.commit()
+    flash('Solicitud cancelada correctamente', 'info')
+    return redirect(url_for('archivo_clinico.lista_solicitudes'))

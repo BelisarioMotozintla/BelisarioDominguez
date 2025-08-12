@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; margin: 20px; }
+      .header { text-align: center; margin-bottom: 10px; }
+      .section { margin-bottom: 8px; }
+      .label { font-weight: bold; width: 140px; display:inline-block; vertical-align: top; }
+      .value { display:inline-block; width: calc(100% - 150px); }
+      pre { white-space: pre-wrap; }
+      table { width:100%; border-collapse: collapse; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h4>Nota de Consulta Externa</h4>
+      <div>Paciente: {{ nota.paciente.nombre }} {{ nota.paciente.apellido_paterno }}</div>
+      <div>Fecha: {{ nota.fecha }} Hora: {{ nota.hora or '' }}</div>
+    </div>
+
+    <div class="section">
+      <div><span class="label">Peso:</span><span class="value">{{ nota.peso or '' }} kg</span></div>
+      <div><span class="label">Talla:</span><span class="value">{{ nota.talla or '' }} m</span></div>
+      <div><span class="label">T.A.:</span><span class="value">{{ nota.ta or '' }}</span></div>
+      <div><span class="label">FC / FR / Spo2:</span><span class="value">{{ nota.fc or '' }} / {{ nota.fr or '' }} / {{ nota.spo2 or '' }}</span></div>
+      <div><span class="label">Temp / Glicemia:</span><span class="value">{{ nota.temp or '' }} °C / {{ nota.glicemia or '' }}</span></div>
+    </div>
+
+    <div class="section">
+      <div class="label">Exploración física:</div>
+      <div class="value"><pre>{{ nota.exploracion_fisica or '' }}</pre></div>
+    </div>
+
+    <div class="section">
+      <div class="label">Diagnóstico:</div>
+      <div class="value"><pre>{{ nota.diagnostico or '' }}</pre></div>
+    </div>
+
+    <div class="section">
+      <div class="label">Plan:</div>
+      <div class="value"><pre>{{ nota.plan or '' }}</pre></div>
+    </div>
+
+    <div class="section">
+      <div class="label">Pronóstico:</div>
+      <div class="value"><pre>{{ nota.pronostico or '' }}</pre></div>
+    </div>
+
+    <footer style="position: fixed; bottom: 20px; right: 20px; font-size: 10px;">
+      Generado por {{ nota.usuario.nombre or nota.usuario.username }}
+    </footer>
+  </body>
+</html>

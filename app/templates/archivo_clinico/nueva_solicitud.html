@@ -12,12 +12,7 @@
         <ul id="sugerencias" class="list-group mt-2"></ul>
       </div>
 
-    <select name="id_paciente" id="id_paciente" class="form-select" required>
-      <option value="">Seleccione un paciente</option>
-      {% for paciente in pacientes %}
-      <option value="{{ paciente.id_paciente }}">{{ paciente.nombre }}</option>
-      {% endfor %}
-    </select>
+   
   </div>
   
   <!-- Campo oculto que llenas automáticamente en el backend -->
