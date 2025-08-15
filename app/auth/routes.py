@@ -3,6 +3,7 @@ from app.utils.db import db
 from app.models.personal import Usuario, Roles
 from . import auth_bp as bp
 #from werkzeug.security import check_password_hash
+from flask_login import login_user
 
 
 @bp.route('/', methods=['GET'])
@@ -27,6 +28,7 @@ def login():
 
             rol = user.rol.nombre_rol
             next_page = request.args.get('next')
+            login_user(user)
             print("Ruta next_page recibida:", next_page)
 
             rutas_seguras = {
@@ -44,7 +46,9 @@ def login():
                 'Administrador': 'admin.panel',
                 'UsuarioEnfermeria': 'enfermeria.formulario',
                 'UsuarioAdmin': 'personal.index',
-                'SuperUsuario': 'formatos.formatos'
+                'SuperUsuario': 'formatos.formatos',
+                'USUARIOMEDICO': 'medicos.listar_notas'
+
             }
 
             ruta = rol_rutas.get(rol)

@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from app.models.enfermeria import RegistroAdultoMayor
 from app.utils.db import db
 from app.utils.validaciones import campos_validos,get_str, get_int, get_date
-from app.utils.helpers import login_required
+from app.utils.helpers import roles_required
 from . import enfermeria_bp as bp
 from io import BytesIO
 import pandas as pd
@@ -12,7 +12,7 @@ from sqlalchemy import desc, func
 
 
 @bp.route('/formulario', methods=['GET', 'POST'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def formulario():
     if 'usuario' not in session:
         flash('Debes iniciar sesión', 'error')
@@ -126,7 +126,7 @@ def formulario():
     return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
 
 @bp.route('/guardar', methods=['POST'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def guardar():
     try:
         nuevo_registro = RegistroAdultoMayor(
@@ -190,7 +190,7 @@ def guardar():
     return redirect(url_for('enfermeria.formulario'))
 
 @bp.route('/exportar', methods=['POST'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def exportar():
     ids = request.form.getlist('ids')
     registros = RegistroAdultoMayor.query.filter(RegistroAdultoMayor.id.in_(ids)).all()
@@ -215,7 +215,7 @@ def exportar():
     return send_file(output, as_attachment=True, download_name="registros.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @bp.route('/eliminar', methods=['POST'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def eliminar():
     ids = request.form.getlist('ids')
     if not ids:
@@ -229,7 +229,7 @@ def eliminar():
     return redirect(url_for('enfermeria.formulario'))
 
 @bp.route('/consultar', methods=['GET', 'POST'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def consultar():
     resultados = []
     if request.method == 'POST':
@@ -240,13 +240,13 @@ def consultar():
     return render_template('enfermeria/consulta_nombre.html', resultados=resultados)
 
 @bp.route('/detalle/<int:registro_id>')
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def detalle(registro_id):
     registro = RegistroAdultoMayor.query.get_or_404(registro_id)
     return render_template('enfermeria/detalle.html', registro=registro)
 
 @bp.route('/api/total_capturados_mes', methods=['GET'])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def total_capturados_mes():
     try:
         usua = session.get('usuario')
@@ -268,7 +268,7 @@ def total_capturados_mes():
         return jsonify({'total': 0, 'error': f'Error al obtener datos: {e}'}), 500
 
 @bp.route("/api/reporte", methods=["GET"])
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def reporte_capturas():
     inicio_str = request.args.get("inicio")
     fin_str = request.args.get("fin")
@@ -298,7 +298,7 @@ def reporte_capturas():
     return jsonify(resultado), 200
 
 @bp.route('/tutorial')
-@login_required(roles=['UsuarioEnfermeria', 'Administrador', 'SuperUsuario'])
+@roles_required(['UsuarioEnfermeria', 'Administrador'])
 def tutorial():
     if 'usuario' not in session:
         flash('Inicia sesión para acceder al tutorial.', 'warning')

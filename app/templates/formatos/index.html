@@ -44,7 +44,7 @@
 
     <!-- Formulario de carga -->
 {% if session.usuario %}
-    {% if session.rol == 'admin' %}
+    {% if session.rol == 'SuperUsuario' %}
         <form action="{{ url_for('formatos.upload') }}" method="post" enctype="multipart/form-data">    
             <div class="mb-3">
                 <label>Nombre del Formato:</label>
@@ -80,10 +80,10 @@
             <a href="/logout" class="btn btn-outline-danger btn-sm">Cerrar sesión</a>
         </form>
     {% else %}
-        <a href="auth/login" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
     {% endif %}
 {% else %}
-    <a href="auth/login" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
 {% endif %}
 
 

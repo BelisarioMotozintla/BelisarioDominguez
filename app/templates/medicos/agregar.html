@@ -1,20 +1,69 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Agregar Registro Clínico</h2>
-<form method="POST">
-    <label>Nombre:</label> <input type="text" name="nombre"><br>
-    <label>CURP:</label> <input type="text" name="curp"><br>
-    <label>Edad:</label> <input type="number" name="edad"><br>
-    <label>Sexo:</label> 
-    <select name="sexo">
-        <option value="F">Femenino</option>
-        <option value="M">Masculino</option>
-    </select><br>
-    <label>Motivo de consulta:</label><br><textarea name="motivo"></textarea><br>
-    <label>Antecedentes:</label><br><textarea name="antecedentes"></textarea><br>
-    <label>Diagnóstico:</label><br><textarea name="diagnostico"></textarea><br>
-    <label>Tratamiento:</label><br><textarea name="tratamiento"></textarea><br>
-    <label>Fecha de consulta:</label> <input type="date" name="fecha"><br><br>
-    <button type="submit">Guardar</button>
-</form>
+  <h2>Agregar Registro Clínico</h2>
+  <form method="POST" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.id_paciente.label(class="form-label") }}
+      {{ form.id_paciente(class="form-select") }}
+      {% for error in form.id_paciente.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.id_expediente.label(class="form-label") }}
+      {{ form.id_expediente(class="form-select") }}
+      {% for error in form.id_expediente.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.fecha.label(class="form-label") }}
+      {{ form.fecha(class="form-control") }}
+      {% for error in form.fecha.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.hora.label(class="form-label") }}
+      {{ form.hora(class="form-control") }}
+      {% for error in form.hora.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Campos numéricos -->
+    <div class="mb-3">
+      {{ form.peso.label(class="form-label") }}
+      {{ form.peso(class="form-control") }}
+      {% for error in form.peso.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.talla.label(class="form-label") }}
+      {{ form.talla(class="form-control") }}
+      {% for error in form.talla.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Continúa con los demás campos de forma similar -->
+
+    <div class="mb-3">
+      {{ form.antecedentes.label(class="form-label") }}
+      {{ form.antecedentes(class="form-control", rows="3") }}
+      {% for error in form.antecedentes.errors %}
+        <div class="text-danger">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Termina con el botón de enviar -->
+    <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+  </form>
 {% endblock %}

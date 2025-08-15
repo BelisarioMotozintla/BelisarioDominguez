@@ -2,6 +2,8 @@ from flask import Flask,session
 import os
 from config import DevelopmentConfig
 from .utils.db import db, crear_base_datos
+from app.utils.extensions import login_manager
+
 
 def create_app():
     # 🔁 Importar todos los modelos para registrarlos
@@ -11,12 +13,22 @@ def create_app():
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia, RangoFolios, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
+    from app.models.medicos import NotaConsultaExterna
 
     app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config.from_object(DevelopmentConfig)
+    
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'  # Ruta para login si usuario no autenticado
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return Usuario.query.get(int(user_id))
+    
     @app.context_processor
     def inject_usuario():
         return dict(usuario=session.get('usuario'))
+
     # ✅ Inicializar SQLAlchemy con la app
     db.init_app(app)
 

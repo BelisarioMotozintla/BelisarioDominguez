@@ -1,44 +1,46 @@
-{% extends 'base.html' %}
-
+{% extends "base.html" %}
 {% block content %}
-<h2>Archivo Clínico</h2>
+<div class="container">
+    <h3>Notas de Consulta</h3>
 
-<!-- Mostrar quién está logueado -->
-{% if session.usuario %}
-  <p>Sesión activa como: <strong>{{ session['archivo_user'] }}</strong></p>
-  <a href="{{ url_for('medicos.agregar') }}">Agregar nuevo</a>
-  <br><br>
-{% else %}
-  <p><em>No has iniciado sesión. Inicia sesión para agregar registros.</em></p>
-{% endif %}
+    <!-- Mostrar quién está logueado -->
+    {% if session.usuario %}
+                <a href="{{ url_for('medicos.nueva_nota') }}" class="btn btn-primary mb-3">Agregar nueva nota</a>
+    {% else %}
+        <p><em>No has iniciado sesión. Inicia sesión para agregar registros.</em></p>
+    {% endif %}
 
-<!-- Mostrar tabla si hay registros -->
-{% if registros %}
-  <table border="1" cellpadding="5" cellspacing="0">
-      <thead>
-          <tr>
-              <th>Paciente</th>
-              <th>CURP</th>
-              <th>Edad</th>
-              <th>Sexo</th>
-              <th>Fecha</th>
-          </tr>
-      </thead>
-      <tbody>
-          {% for r in registros %}
-          <tr>
-              <td>{{ r.nombre_paciente }}</td>
-              <td>{{ r.curp }}</td>
-              <td>{{ r.edad }}</td>
-              <td>{{ r.sexo }}</td>
-              <td>{{ r.fecha_consulta }}</td>
-          </tr>
-          {% endfor %}
-      </tbody>
-  </table>
-{% else %}
-  <p>No hay registros clínicos aún.</p>
-{% endif %}
-
+    <!-- Tabla de notas -->
+    {% if notas %}
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Paciente</th>
+                    <th>CURP</th>
+                    <th>Edad</th>
+                    <th>Sexo</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nota in notas %}
+                <tr>
+                    <td>{{ nota.paciente.nombre }}</td>
+		    <td>{{ nota.paciente.curp }}</td>
+		    <td>{{ nota.edad if nota.edad else '-' }} años</td>
+		    <td>{{ nota.paciente.sexo }}</td>
+                    <td>{{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</td>
+                    <td>
+                        <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-info">Ver</a>
+                        <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-warning">Editar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No hay notas registradas aún.</p>
+    {% endif %}
+</div>
 {% endblock %}
-

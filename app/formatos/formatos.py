@@ -1,15 +1,14 @@
 from flask import Blueprint, current_app, render_template, request, redirect, send_from_directory, session, flash, url_for
 import os
 from werkzeug.utils import secure_filename
-from app.utils.helpers import allowed_file, login_required 
 from app.utils.db import db
 from app.models.enfermeria import Archivo
-#from app.utils.auth import login_required  # Asegúrate de que esté importado correctamente
+from app.utils.helpers import roles_required, usuarios_con_rol_requerido,allowed_file
 from . import formatos_bp as bp
 
 
 @bp.route('/', methods=['GET', 'POST'])
-@login_required()
+@usuarios_con_rol_requerido
 def formatos():
     archivos = Archivo.query.order_by(Archivo.fecha_subida.desc()).all()
     return render_template(
@@ -21,16 +20,21 @@ def formatos():
     )
 
 
-@bp.route('/upload', methods=['POST'])
-@login_required(roles=['SuperUsuario'])
+@bp.route('/upload', methods=['GET', 'POST'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def upload():
+    if request.method == 'GET':
+        # Renderiza la plantilla con el formulario para subir archivos
+        return render_template('formatos/upload.html')
+
+    # Si es POST, procesa la subida
     file = request.files.get('file')
     nombre_formato = request.form.get('nombre_formato')
     area = request.form.get('area')
 
     if not file or not nombre_formato or not area:
         flash('Todos los campos son obligatorios.', 'warning')
-        return redirect(url_for('formatos.formatos'))
+        return redirect(url_for('formatos.upload'))
 
     if allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -51,11 +55,11 @@ def upload():
     else:
         flash('Tipo de archivo no permitido.', 'danger')
 
-    return redirect(url_for('formatos.formatos'))
+    return redirect(url_for('formatos.upload'))
 
 
 @bp.route('/download/<filename>')
-@login_required(roles=['UsuarioEnfermeria', 'UsuarioAdministrativo'])
+@usuarios_con_rol_requerido
 def download_file(filename):
     try:
         filename = secure_filename(filename)
@@ -80,7 +84,7 @@ def download_file(filename):
 
 
 @bp.route('/delete/<int:file_id>', methods=['POST'])
-@login_required(roles=['SuperUsuario'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def delete_file(file_id):
     try:
         archivo = Archivo.query.get(file_id)

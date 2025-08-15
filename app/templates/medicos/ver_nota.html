@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h3>Detalle de Nota de Consulta</h3>
+
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Paciente:</strong> {{ nota.paciente.nombre }} 
+            | <strong>CURP:</strong> {{ nota.paciente.curp }}
+            | <strong>Edad:</strong> {{ nota.paciente.edad }}
+            | <strong>Sexo:</strong> {{ nota.paciente.sexo }}
+        </div>
+        <div class="card-body">
+            <p><strong>Fecha de Consulta:</strong> {{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</p>
+            <p><strong>Hora:</strong> {{ nota.hora.strftime('%H:%M') if nota.hora else '' }}</p>
+
+            <hr>
+            <h5>Signos vitales</h5>
+            <p><strong>Peso:</strong> {{ nota.peso }} kg</p>
+            <p><strong>Talla:</strong> {{ nota.talla }} cm</p>
+            <p><strong>IMC:</strong> {{ nota.imc }}</p>
+            <p><strong>Tensión arterial:</strong> {{ nota.ta }}</p>
+            <p><strong>Frecuencia cardiaca (FC):</strong> {{ nota.fc }}</p>
+            <p><strong>Frecuencia respiratoria (FR):</strong> {{ nota.fr }}</p>
+            <p><strong>Temperatura:</strong> {{ nota.temp }}</p>
+            <p><strong>Circunferencia cefálica (CC):</strong> {{ nota.cc }}</p>
+            <p><strong>SpO₂:</strong> {{ nota.spo2 }}%</p>
+            <p><strong>Glicemia:</strong> {{ nota.glicemia }}</p>
+
+            <hr>
+            <h5>Antecedentes</h5>
+            <p>{{ nota.antecedentes }}</p>
+
+            <h5>Exploración Física</h5>
+            <p>{{ nota.exploracion_fisica }}</p>
+
+            <h5>Diagnóstico</h5>
+            <p>{{ nota.diagnostico }}</p>
+
+            <h5>Plan</h5>
+            <p>{{ nota.plan }}</p>
+
+            <h5>Pronóstico</h5>
+            <p>{{ nota.pronostico }}</p>
+
+            <h5>Laboratorio</h5>
+            <p>{{ nota.laboratorio }}</p>
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-warning">Editar</a>
+	    <a href="{{ url_for('medicos.generar_nota_pdf', id_nota=nota.id_nota) }}" class="btn btn-warning">PDF</a>
+            <a href="{{ url_for('medicos.listar_notas') }}" class="btn btn-secondary">Volver</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

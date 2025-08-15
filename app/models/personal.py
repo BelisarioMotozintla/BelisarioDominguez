@@ -6,6 +6,7 @@ from app.utils.db import db
 #from app.models.archivo_clinico import UnidadSalud
 from datetime import date, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
 # Modelo Puesto 001
 class Puesto(db.Model):
@@ -110,7 +111,7 @@ class Roles(db.Model):
     usuarios = relationship('Usuario', back_populates='rol')
 
 # Modelo Usuario 008
-class Usuario(db.Model):
+class Usuario(db.Model, UserMixin):
     __tablename__ = 'Usuario'
     id_usuario = Column(Integer, primary_key=True)
     usuario = Column(Text, unique=True, nullable=False)
@@ -150,3 +151,6 @@ class Usuario(db.Model):
 
     def __repr__(self):
         return f'<Usuario {self.usuario}>'
+    
+    def get_id(self):
+    	return str(self.id_usuario)

@@ -2,12 +2,12 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from app.models.personal import Usuario
 from app.models.comentario import Comentario
 from app.utils.db import db
-from app.utils.helpers import login_required  # tu decorador para control de acceso
+from app.utils.helpers import usuarios_con_rol_requerido,roles_required  # tu decorador para control de acceso
 
 bp = Blueprint('comentario', __name__)
 
 @bp.route('/comentario', methods=['GET', 'POST'])
-@login_required(roles=['Usuario', 'Administrador'])
+@usuarios_con_rol_requerido
 def comentarios():
     if request.method == 'POST':
         usuario = Usuario.query.filter_by(usuario=session['usuario']).first()
@@ -29,7 +29,7 @@ def comentarios():
     return render_template('comentario/comentarios.html', comentarios=comentarios)
 
 @bp.route('/comentario/eliminar/<int:id>', methods=['POST'])
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def eliminar_comentario(id):
     comentario = Comentario.query.get_or_404(id)
     db.session.delete(comentario)

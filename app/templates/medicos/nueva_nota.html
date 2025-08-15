@@ -4,10 +4,21 @@
   <h3>Nueva Nota de Consulta</h3>
   <form method="POST">
     {{ form.hidden_tag() }}
-    <div class="row">
-      <div class="col-md-6">{{ form.id_paciente.label }} {{ form.id_paciente(class="form-control") }}</div>
-      <div class="col-md-6">{{ form.id_expediente.label }} {{ form.id_expediente(class="form-control") }}</div>
+
+    <!-- Buscador de paciente -->
+    <div class="mb-3">
+      <label>Buscar paciente (por nombre o CURP):</label>
+      <input type="text" id="buscar_paciente" class="form-control" placeholder="Ej. Juan Pérez o CURP" autocomplete="off">
+      <input type="hidden" name="id_paciente" id="id_paciente">
+      <ul id="sugerencias" class="list-group mt-2"></ul>
     </div>
+
+    <!-- Formulario principal -->
+    <div class="row">
+      <div class="col-md-6">{{ form.id_paciente.label }} {{ form.id_paciente(class="form-control", readonly=True) }}</div>
+      <div class="col-md-6">{{ form.id_expediente.label }} {{ form.id_expediente(class="form-control", id="id_expediente") }}</div>
+    </div>
+
     <div class="row mt-2">
       <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control") }}</div>
       <div class="col-md-3">{{ form.hora.label }} {{ form.hora(class="form-control") }}</div>
@@ -16,13 +27,65 @@
       <div class="col-md-2">{{ form.imc.label }} {{ form.imc(class="form-control") }}</div>
     </div>
 
-    <hr>
-    <div class="form-group">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}</div>
-    <div class="form-group">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}</div>
-    <div class="form-group">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}</div>
-    <div class="form-group">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}</div>
+    <div class="row mt-2">
+      <div class="col-md-2">{{ form.ta.label }} {{ form.ta(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.fc.label }} {{ form.fc(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.fr.label }} {{ form.fr(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.temp.label }} {{ form.temp(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.spo2.label }} {{ form.spo2(class="form-control") }}</div>
+      <div class="col-md-2">{{ form.glicemia.label }} {{ form.glicemia(class="form-control") }}</div>
+    </div>
 
-    <button class="btn btn-primary" type="submit">{{ form.submit.label.text }}</button>
+    <div class="form-group mt-2">{{ form.cc.label }} {{ form.cc(class="form-control") }}</div>
+    <div class="form-group mt-2">{{ form.antecedentes.label }} {{ form.antecedentes(class="form-control", rows=3) }}</div>
+    <div class="form-group mt-2">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}</div>
+    <div class="form-group mt-2">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}</div>
+    <div class="form-group mt-2">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}</div>
+    <div class="form-group mt-2">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}</div>
+    <div class="form-group mt-2">{{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3) }}</div>
+
+    <button class="btn btn-primary mt-3" type="submit">{{ form.submit.label.text }}</button>
   </form>
 </div>
+
+<!-- Script para autocompletado y selección automática de expediente -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputBuscar = document.getElementById('buscar_paciente');
+    const inputIdPaciente = document.getElementById('id_paciente');
+    const inputIdExpediente = document.getElementById('id_expediente');
+    const sugerencias = document.getElementById('sugerencias');
+
+    inputBuscar.addEventListener('input', async () => {
+        const query = inputBuscar.value.trim();
+        if (query.length < 2) {
+            sugerencias.innerHTML = '';
+            return;
+        }
+
+        const res = await fetch(`/medicos/buscar_paciente?q=${encodeURIComponent(query)}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        sugerencias.innerHTML = '';
+
+        data.forEach(p => {
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'list-group-item-action');
+            li.textContent = `${p.nombre} | ${p.curp}`;
+            li.dataset.id = p.id_paciente;
+            li.dataset.expediente = p.id_expediente;
+
+            li.addEventListener('click', () => {
+                inputIdPaciente.value = li.dataset.id;
+                inputBuscar.value = li.textContent;
+                inputIdExpediente.value = li.dataset.expediente || '';
+                sugerencias.innerHTML = '';
+            });
+
+            sugerencias.appendChild(li);
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, session, redirect, url_for, flash,
 from app.utils.db import db
 from app.models.personal import Usuario, Roles  # Correcto: import desde models
 from werkzeug.security import generate_password_hash
-from app.utils.helpers import login_required
+from app.utils.helpers import roles_required
 from sqlalchemy.exc import SQLAlchemyError
 
 #bp = Blueprint('admin', __name__, template_folder='templates/admin')
@@ -19,20 +19,20 @@ def obtener_id_usuario_actual():
 
 # Panel de administración
 @bp.route('/')
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def panel():
     return render_template('admin/admin.html', usuario=session['usuario'])
 
 
 @bp.route('/usuarios')
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def lista_usuarios():
     usuarios = Usuario.query.order_by(Usuario.id_usuario).all()  # Cambia 'id_usuario' por el nombre correcto
     return render_template('admin/lista_usuarios.html', usuarios=usuarios)
 
 # Editar usuario específico
 @bp.route('/editar_usuario/<int:usuario_id>', methods=['GET', 'POST'])
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def editar_usuario(usuario_id):
     id_actual = obtener_id_usuario_actual()
     if usuario_id == id_actual:
@@ -70,7 +70,7 @@ def editar_usuario(usuario_id):
 
 # Eliminar usuario
 @bp.route('/eliminar_usuario/<int:usuario_id>', methods=['POST'])
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def eliminar_usuario(usuario_id):
     id_actual = obtener_id_usuario_actual()
     if usuario_id == id_actual:
@@ -93,7 +93,7 @@ def eliminar_usuario(usuario_id):
 
 #registrar los usuarios
 @bp.route('/registrar_usuario', methods=['GET', 'POST'])
-@login_required(roles='Administrador')
+@roles_required(['Administrador'])
 def registrar_usuario():
     if 'usuario' not in session or session.get('rol') != 'Administrador':
         flash('Acceso no autorizado', 'danger')

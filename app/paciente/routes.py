@@ -1,19 +1,19 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
 from app.models.archivo_clinico import Paciente,UnidadSalud,PacienteUnidad
-from app.utils.helpers import login_required
+from app.utils.helpers import roles_required
 from app import db
 from datetime import date
 
 bp = Blueprint('paciente', __name__, template_folder='templates/paciente')
 
 @bp.route('/')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_pacientes():
     pacientes = Paciente.query.all()
     return render_template('paciente/listar.html', pacientes=pacientes)
 
 @bp.route('/alta', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def alta_paciente():
     if request.method == 'POST':
         curp = request.form['curp'].strip().upper()
@@ -60,7 +60,7 @@ def alta_paciente():
     return render_template('paciente/alta.html', unidades=unidades)
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def editar_paciente(id):
     paciente = Paciente.query.get_or_404(id)
     relacion = PacienteUnidad.query.filter_by(id_paciente=paciente.id_paciente).first()
@@ -98,7 +98,7 @@ def editar_paciente(id):
     return render_template('paciente/editar.html', paciente=paciente, relacion=relacion, unidades=unidades)
 
 @bp.route('/buscar')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def buscar_paciente():
     query = request.args.get('query', '').strip()
     resultados = []
@@ -114,7 +114,7 @@ def buscar_paciente():
     ])
 
 @bp.route('/eliminar/<int:id>', methods=['POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def eliminar_paciente(id):
     paciente = Paciente.query.get_or_404(id)
     db.session.delete(paciente)

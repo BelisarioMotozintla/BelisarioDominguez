@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <h3>Editar Nota de Consulta</h3>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+
+    <!-- Paciente y expediente -->
+    <div class="row mb-2">
+      <div class="col-md-6">
+        {{ form.id_paciente.label }}
+        {{ form.id_paciente(class="form-control", readonly=True) }}
+      </div>
+      <div class="col-md-6">
+        {{ form.id_expediente.label }}
+        {{ form.id_expediente(class="form-control", readonly=True) }}
+      </div>
+    </div>
+
+    <!-- Fecha, hora, peso, talla, IMC -->
+    <div class="row mb-2">
+      <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control", placeholder="dd/mm/aaaa") }}</div>
+      <div class="col-md-3">{{ form.hora.label }} {{ form.hora(class="form-control", placeholder="hh:mm") }}</div>
+      <div class="col-md-2">{{ form.peso.label }} {{ form.peso(class="form-control", placeholder="kg") }}</div>
+      <div class="col-md-2">{{ form.talla.label }} {{ form.talla(class="form-control", placeholder="m") }}</div>
+      <div class="col-md-2">{{ form.imc.label }} {{ form.imc(class="form-control", placeholder="IMC") }}</div>
+    </div>
+
+    <!-- Signos vitales y CC -->
+    <div class="row mb-2">
+      <div class="col-md-2">{{ form.ta.label }} {{ form.ta(class="form-control", placeholder="Ej. 120/80") }}</div>
+      <div class="col-md-2">{{ form.fc.label }} {{ form.fc(class="form-control", placeholder="lat/min") }}</div>
+      <div class="col-md-2">{{ form.fr.label }} {{ form.fr(class="form-control", placeholder="resp/min") }}</div>
+      <div class="col-md-2">{{ form.temp.label }} {{ form.temp(class="form-control", placeholder="°C") }}</div>
+      <div class="col-md-2">{{ form.cc.label }} {{ form.cc(class="form-control", placeholder="Motivo principal de la consulta") }}</div>
+      <div class="col-md-2">{{ form.spo2.label }} {{ form.spo2(class="form-control", placeholder="%") }}</div>
+    </div>
+
+    <div class="row mb-2">
+      <div class="col-md-2">{{ form.glicemia.label }} {{ form.glicemia(class="form-control", placeholder="mg/dL") }}</div>
+    </div>
+
+    <hr>
+
+    <!-- Texto largo: antecedentes, exploración física, diagnóstico, plan, pronóstico, laboratorio -->
+    <div class="form-group mb-2">{{ form.antecedentes.label }} {{ form.antecedentes(class="form-control", rows=4, placeholder="Antecedentes relevantes") }}</div>
+    <div class="form-group mb-2">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6, placeholder="Observaciones de exploración física") }}</div>
+    <div class="form-group mb-2">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3, placeholder="Diagnóstico clínico") }}</div>
+    <div class="form-group mb-2">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3, placeholder="Plan de manejo") }}</div>
+    <div class="form-group mb-2">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2, placeholder="Pronóstico") }}</div>
+    <div class="form-group mb-3">{{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3, placeholder="Estudios de laboratorio") }}</div>
+
+    <!-- Botones -->
+    <div class="mt-3">
+      <button class="btn btn-success" type="submit">Guardar cambios</button>
+      <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

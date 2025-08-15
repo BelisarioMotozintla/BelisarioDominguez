@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Visor de Coordenadas PDF</title>
+    <style>
+        :root {
+            --bg: #0b0c10; --fg: #c5c6c7; --accent: #45a29e;
+        }
+        body {
+            margin: 0; background: var(--bg); color: var(--fg);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
+        header {
+            padding: 12px 16px; border-bottom: 1px solid #1f2833;
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .badge {
+            background: #1f2833; padding: 6px 10px; border-radius: 999px; font-size: 12px;
+        }
+        #wrap {
+            display: grid; place-items: center; padding: 16px;
+        }
+        #pdf-canvas {
+            border: 1px solid #1f2833; max-width: 100%; height: auto; display: block;
+            background: #fff;
+        }
+        .coords {
+            color: var(--accent); font-weight: 600;
+        }
+        a.button {
+            text-decoration: none; background: var(--accent); color: #0b0c10;
+            padding: 8px 12px; border-radius: 10px; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="badge">Plantilla:</div>
+        <div>/static/medicos/plantilla_nota.pdf</div>
+        <div class="badge">Acción:</div>
+        <a class="button" href="/medicos/nota/1?debug=1&dl=0" target="_blank">Probar PDF (debug=1)</a>
+        <div id="coords" class="coords">Coordenadas: —</div>
+    </header>
+    <div id="wrap">
+        <canvas id="pdf-canvas"></canvas>
+    </div>
+
+    <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+    <script>
+        const url = '/static/medicos/plantilla_nota.pdf';
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const coordsDiv = document.getElementById('coords');
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://mozilla.github.io/pdf.js/build/pdf.worker.js';
+
+        pdfjsLib.getDocument(url).promise.then(function(pdf) {
+            pdf.getPage(1).then(function(page) {
+                const viewport = page.getViewport({scale: 1.5});
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = { canvasContext: ctx, viewport: viewport };
+                page.render(renderContext);
+            });
+        });
+
+        canvas.addEventListener('click', function(event) {
+            const rect = canvas.getBoundingClientRect();
+            const xCanvas = event.clientX - rect.left;
+            const yCanvasTopOrigin = event.clientY - rect.top;
+
+            // Convertimos a origen abajo-izquierda (como ReportLab)
+            const x = Math.round(xCanvas);
+            const y = Math.round(canvas.height - yCanvasTopOrigin);
+
+            coordsDiv.textContent = `Coordenadas: (${x}, ${y})`;
+            console.log(`(${x}, ${y})`);
+        });
+    </script>
+</body>
+</html>

@@ -1,25 +1,29 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, SelectField
-from wtforms.validators import DataRequired
+from wtforms import StringField, TextAreaField, DecimalField, IntegerField, DateField, TimeField, SubmitField, SelectField
+from wtforms.validators import DataRequired, Optional
 
-class LoginForm(FlaskForm):
-    usuario = StringField('Usuario', validators=[DataRequired()])
-    password = PasswordField('Contraseña', validators=[DataRequired()])
-    submit = SubmitField('Iniciar sesión')
+class NotaConsultaForm(FlaskForm):
+    id_paciente = SelectField('Paciente', coerce=int, validators=[DataRequired()])
+    id_expediente = SelectField('ArchivoClinico', coerce=int, validators=[Optional()])
+    fecha = DateField('Fecha', validators=[DataRequired()])
+    hora = TimeField('Hora', validators=[Optional()])
 
-class SolicitudForm(FlaskForm):
-    nombre = StringField('Nombre del paciente', validators=[DataRequired()])
-    tipo = SelectField('Tipo de paciente', choices=[('foraneo', 'Foráneo'), ('universo', 'Universo')])
-    programa = SelectField('Programa', choices=[
-        ('planificacion', 'Planificación Familiar'),
-        ('hipertensos', 'Hipertensos'),
-        ('diabeticos', 'Diabéticos'),
-        ('metabolico', 'Metabólico'),
-        ('embarazadas', 'Embarazadas')
-    ])
-    solicitado_por = SelectField('Solicitado por', choices=[
-        ('paciente', 'Paciente'),
-        ('medico', 'Médico'),
-        ('gestion', 'Gestión de Calidad')
-    ])
-    submit = SubmitField('Registrar solicitud')
+    peso = DecimalField('Peso (kg)', places=2, validators=[Optional()])
+    talla = DecimalField('Talla (m)', places=2, validators=[Optional()])
+    ta = StringField('Tensión arterial', validators=[Optional()])
+    fc = IntegerField('FC', validators=[Optional()])
+    fr = IntegerField('FR', validators=[Optional()])
+    temp = DecimalField('Temp (°C)', places=1, validators=[Optional()])
+    cc = StringField('C.C.', validators=[Optional()])
+    spo2 = IntegerField('SpO2', validators=[Optional()])
+    glicemia = IntegerField('Glicemia', validators=[Optional()])
+    imc = DecimalField('IMC', places=2, validators=[Optional()])
+
+    antecedentes = TextAreaField('Antecedentes', validators=[Optional()])
+    exploracion_fisica = TextAreaField('Exploración física', validators=[Optional()])
+    diagnostico = TextAreaField('Diagnóstico', validators=[Optional()])
+    plan = TextAreaField('Plan', validators=[Optional()])
+    pronostico = TextAreaField('Pronóstico', validators=[Optional()])
+    laboratorio = TextAreaField('Laboratorio', validators=[Optional()])
+
+    submit = SubmitField('Guardar')

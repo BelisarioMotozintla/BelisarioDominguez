@@ -3,20 +3,20 @@ from sqlite3 import IntegrityError
 from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
 from app.models.personal import Usuario,Servicio
-from app.utils.helpers import login_required
+from app.utils.helpers import roles_required
 from app import db
 from datetime import datetime
 
 bp = Blueprint('archivo_clinico', __name__, template_folder='templates/archivo_clinico')
 
 @bp.route('/')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def index():
     archivos = ArchivoClinico.query.all()
     return render_template('archivo_clinico/listar.html', archivos=archivos)
 
 @bp.route('/alta', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def agregar_archivo():
     if request.method == 'POST':
         id_paciente = request.form.get('id_paciente')
@@ -48,7 +48,7 @@ def agregar_archivo():
 
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def editar_archivo(id):
     archivo = ArchivoClinico.query.get_or_404(id)
 
@@ -84,7 +84,7 @@ def editar_archivo(id):
     return render_template('archivo_clinico/editar.html', archivo=archivo)
 
 @bp.route('/editarvalidar_numero_expediente_edit')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def validar_numero_expediente_edit():
     numero = request.args.get('numero', '').strip()
     id_actual = request.args.get('id', type=int)
@@ -98,7 +98,7 @@ def validar_numero_expediente_edit():
 
 
 @bp.route('/eliminar/<int:id>', methods=['POST'])
-@login_required(roles=['Administrador'])
+@roles_required([ 'Administrador'])
 def eliminar_archivo(id):
     archivo = ArchivoClinico.query.get_or_404(id)
     db.session.delete(archivo)
@@ -107,7 +107,7 @@ def eliminar_archivo(id):
     return redirect(url_for('archivo_clinico.index'))
 
 @bp.route('/validar_numero_expediente')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def validar_numero_expediente():
     numero = request.args.get('numero', '').strip()  # Valor por defecto '' si no existe
     existe = False
@@ -116,13 +116,13 @@ def validar_numero_expediente():
     return jsonify({'existe': existe})
 #===========================================================================================Solicitudes de Expedientes
 @bp.route('/archivo/solicitudes')
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def lista_solicitudes():
     solicitudes = SolicitudExpediente.query.order_by(SolicitudExpediente.fecha_solicitud.desc()).all()
     return render_template('archivo_clinico/solicitudes.html', solicitudes=solicitudes)
 
 @bp.route('/archivo/solicitudes/nueva', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def nueva_solicitud():
     pacientes = Paciente.query.all()
     usuarios = Usuario.query.all()
@@ -166,7 +166,7 @@ def nueva_solicitud():
 
 
 @bp.route('/archivo/solicitudes/<int:id>/entregar', methods=['POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def entregar_solicitud(id):
     solicitud = SolicitudExpediente.query.get_or_404(id)
     
@@ -194,7 +194,7 @@ def entregar_solicitud(id):
     return redirect(url_for('archivo_clinico.lista_solicitudes'))
 
 @bp.route('/archivo/solicitudes/<int:id>/devolver', methods=['POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def devolver_solicitud(id):
     solicitud = SolicitudExpediente.query.get_or_404(id)
     if solicitud.estado_solicitud != 'entregado':
@@ -208,7 +208,7 @@ def devolver_solicitud(id):
     return redirect(url_for('archivo_clinico.lista_solicitudes'))
 
 @bp.route('/cancelar_solicitud/<int:id>', methods=['POST'])
-@login_required(roles=['Administrador', 'UsuarioAdministrativo'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def cancelar_solicitud(id):
     solicitud = SolicitudExpediente.query.get_or_404(id)
     solicitud.estado_solicitud = 'cancelado'

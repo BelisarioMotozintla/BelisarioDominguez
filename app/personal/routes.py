@@ -3,7 +3,7 @@ from app.models.personal import Empleado, Usuario, Roles, Puesto, Turno, Servici
 from app.models.archivo_clinico import UnidadSalud
 from app.utils.db import db
 from werkzeug.security import generate_password_hash
-from app.utils.helpers import login_required
+from app.utils.helpers import roles_required
 from . import personal_bp as bp
 
 
@@ -12,13 +12,13 @@ def obtener_id_usuario_actual():
     return usuario.id_usuario if usuario else None
 
 @bp.route('/')
-@login_required(roles=['Administrador', 'SuperUsuario'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def index():
     empleados = Empleado.query.all()
     return render_template('personal/lista_empleados.html', empleados=empleados)
 
 @bp.route('/agregar', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'SuperUsuario'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def agregar():
     roles = Roles.query.all()
     puestos = Puesto.query.all()
@@ -77,7 +77,7 @@ def agregar():
                            usuario_asociado=usuario_asociado)
 
 @bp.route('/editar/<int:id_empleado>', methods=['GET', 'POST'])
-@login_required(roles=['Administrador', 'SuperUsuario'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def editar(id_empleado):
     empleado = Empleado.query.get_or_404(id_empleado)
     usuario = Usuario.query.filter_by(id_empleado=id_empleado).first()
@@ -132,7 +132,7 @@ def editar(id_empleado):
                            servicios=servicios)
 
 @bp.route('/eliminar/<int:id_empleado>', methods=['POST'])
-@login_required(roles=['Administrador', 'SuperUsuario'])
+@roles_required(['SuperUsuario', 'Administrador'])
 def eliminar(id_empleado):
     empleado = Empleado.query.get_or_404(id_empleado)
     usuario = Usuario.query.filter_by(id_empleado=id_empleado).first()
@@ -144,7 +144,7 @@ def eliminar(id_empleado):
     return redirect(url_for('personal.index'))
 
 @bp.route('/editar_empleado/<int:id_empleado>', methods=['GET', 'POST'])
-@login_required(roles='Administrador')
+@roles_required([ 'Administrador'])
 def editar_empleado(id_empleado):
     empleado = Empleado.query.get_or_404(id_empleado)
     usuario = Usuario.query.filter_by(id_empleado=id_empleado).first()

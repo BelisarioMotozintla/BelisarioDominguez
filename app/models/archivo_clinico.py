@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKe
 from sqlalchemy.orm import relationship
 from app.utils.db import db
 from app.models.personal import Usuario,Servicio
+from datetime import date
 
 
 
@@ -42,6 +43,13 @@ class Paciente(db.Model):
     archivo_clinico = relationship('ArchivoClinico', back_populates='paciente')
     recetas = relationship('RecetaMedica', back_populates='paciente')  # <- esto puede quedarse como string si viene de otro archivo
     solicitud_expediente = relationship('SolicitudExpediente', back_populates='paciente')
+    
+    @property
+    def edad(self):
+        if self.fecha_nacimiento:
+            return (date.today() - self.fecha_nacimiento).days // 365
+        return None
+    
 
 # Modelo PacienteUnidad 011
 class PacienteUnidad(db.Model):
