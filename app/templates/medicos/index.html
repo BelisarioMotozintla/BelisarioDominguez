@@ -1,46 +1,112 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-    <h3>Notas de Consulta</h3>
+<div class="container mt-4">
+    <h3>Notas de Consulta Externa</h3>
 
-    <!-- Mostrar quién está logueado -->
-    {% if session.usuario %}
-                <a href="{{ url_for('medicos.nueva_nota') }}" class="btn btn-primary mb-3">Agregar nueva nota</a>
-    {% else %}
-        <p><em>No has iniciado sesión. Inicia sesión para agregar registros.</em></p>
-    {% endif %}
+    <!-- Buscador -->
+    <div class="mb-3 position-relative">
+        <label for="buscar_paciente" class="form-label">Buscar paciente</label>
+        <input type="text" id="buscar_paciente" class="form-control" placeholder="Nombre, apellido o CURP" value="{{ query }}">
+        <input type="hidden" id="id_paciente" name="id_paciente" value="{{ id_paciente }}">
+        <ul id="sugerencias" class="list-group position-absolute w-50" style="z-index:1000;"></ul>
+    </div>
+
+    <!-- Botón agregar nota -->
+    <div class="mb-3">
+        <a href="{% if id_paciente %}/medicos/nueva_nota/{{ id_paciente }}{% else %}#{% endif %}" 
+           id="btnAgregarNota" class="btn btn-primary {% if not id_paciente %}disabled{% endif %}">Agregar Nota</a>
+    </div>
 
     <!-- Tabla de notas -->
-    {% if notas %}
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Paciente</th>
-                    <th>CURP</th>
-                    <th>Edad</th>
-                    <th>Sexo</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for nota in notas %}
-                <tr>
-                    <td>{{ nota.paciente.nombre }}</td>
-		    <td>{{ nota.paciente.curp }}</td>
-		    <td>{{ nota.edad if nota.edad else '-' }} años</td>
-		    <td>{{ nota.paciente.sexo }}</td>
-                    <td>{{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</td>
-                    <td>
-                        <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-info">Ver</a>
-                        <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-warning">Editar</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No hay notas registradas aún.</p>
-    {% endif %}
+    <table id="tablaNotas" class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Médico</th>
+                <th>Edad</th>
+                <th>Sexo</th>
+                <th>CURP</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for nota in notas %}
+            <tr>
+                <td>{{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</td>
+                <td>
+                    {% if nota.usuario and nota.usuario.empleado %}
+                        {{ nota.usuario.empleado.nombre }} {{ nota.usuario.empleado.apellido_paterno }} {{ nota.usuario.empleado.apellido_materno }}
+                    {% else %}
+                        Sin asignar
+                    {% endif %}
+                </td>
+                <td>{{ nota.edad or '' }}</td>
+                <td>{{ nota.paciente.sexo if nota.paciente else '' }}</td>
+                <td>{{ nota.paciente.curp if nota.paciente else '' }}</td>
+                <td>
+                    <a href="/medicos/ver_nota/{{ nota.id_nota }}" class="btn btn-sm btn-info">Ver Nota</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputBuscar = document.getElementById('buscar_paciente');
+    const inputIdPaciente = document.getElementById('id_paciente');
+    const sugerencias = document.getElementById('sugerencias');
+    const btnAgregarNota = document.getElementById('btnAgregarNota');
+
+    let resultadosActuales = [];
+
+    // Función de búsqueda
+    inputBuscar.addEventListener('input', async () => {
+        const query = inputBuscar.value.trim();
+        if (query.length < 2) {
+            sugerencias.innerHTML = '';
+            resultadosActuales = [];
+            return;
+        }
+
+        const res = await fetch(`/medicos/buscarpaciente?q=${encodeURIComponent(query)}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        resultadosActuales = data;
+        sugerencias.innerHTML = '';
+
+        data.forEach(p => {
+            const li = document.createElement('li');
+            li.classList.add('list-group-item', 'list-group-item-action');
+            li.textContent = `${p.nombre} | ${p.curp}`;
+            li.dataset.id = p.id_paciente;
+
+            li.addEventListener('click', () => seleccionarPaciente(p.id_paciente, li.textContent));
+            sugerencias.appendChild(li);
+        });
+    });
+
+    // Selección con Enter
+    inputBuscar.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && resultadosActuales.length > 0) {
+            e.preventDefault();
+            const p = resultadosActuales[0];
+            seleccionarPaciente(p.id_paciente, `${p.nombre} | ${p.curp}`);
+        }
+    });
+
+    function seleccionarPaciente(idPaciente, texto) {
+        inputIdPaciente.value = idPaciente;
+        inputBuscar.value = texto;
+        sugerencias.innerHTML = '';
+        btnAgregarNota.href = `/medicos/nueva_nota/${idPaciente}`;
+        btnAgregarNota.classList.remove('disabled');
+
+        // Recargar la página con query string para mantener búsqueda al volver
+        window.location.href = `/medicos/?id_paciente=${idPaciente}&query=${encodeURIComponent(texto)}`;
+    }
+});
+</script>
 {% endblock %}

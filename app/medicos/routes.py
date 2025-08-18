@@ -3,8 +3,11 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from PyPDF2 import PdfReader, PdfWriter
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_, desc
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
 from app.models.personal import Usuario,Servicio
 from app.utils.helpers import roles_required
@@ -28,34 +31,41 @@ bp = Blueprint('medicos', __name__, template_folder='templates/medicos')
 @bp.route('/')
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def listar_notas():
-    notas = NotaConsultaExterna.query.order_by(NotaConsultaExterna.fecha.desc()).all()
+    id_paciente = request.args.get('id_paciente', type=int)
+    query = request.args.get('query', default='')
 
-    # Calcular edad de cada paciente
+    notas = NotaConsultaExterna.query.order_by(NotaConsultaExterna.fecha.desc())
+
+    if id_paciente:
+        notas = notas.filter_by(id_paciente=id_paciente)
+
+    notas = notas.all()
+
     for nota in notas:
         if nota.paciente and nota.paciente.fecha_nacimiento:
             nota.edad = (date.today() - nota.paciente.fecha_nacimiento).days // 365
         else:
             nota.edad = None
 
-    return render_template('medicos/index.html', notas=notas)
+    return render_template('medicos/index.html',
+                           notas=notas,
+                           id_paciente=id_paciente,
+                           query=query)
 
-@bp.route('/nueva', methods=['GET', 'POST'])
+
+@bp.route('/nueva_nota/<int:id_paciente>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
-def nueva_nota():
+def nueva_nota(id_paciente):
     form = NotaConsultaForm()
-    # cargar choices para pacientes
-    form.id_paciente.choices = [(p.id_paciente, f"{p.nombre} {p.curp}") for p in Paciente.query.order_by(Paciente.nombre).all()]
-    
-    # cargar choices para expedientes
-    expedientes = ArchivoClinico.query.all()
-    form.id_expediente.choices = [(e.id_archivo, f"{e.id_archivo} - {e.ubicacion_fisica[:40]}") for e in expedientes]
-    form.id_expediente.choices.insert(0, (0, ' -- Ninguno -- '))
+
+    paciente = Paciente.query.get_or_404(id_paciente)
+    form.id_paciente.data = paciente.id_paciente  # Preseleccionado
+
+    # Obtener expediente único del paciente
+    expediente = ArchivoClinico.query.filter_by(id_paciente=id_paciente).first()
+    id_expediente = expediente.id_archivo if expediente else None
 
     if form.validate_on_submit():
-        id_expediente = form.id_expediente.data or None
-        if id_expediente == 0:
-            id_expediente = None
-
         nota = NotaConsultaExterna(
             id_paciente=form.id_paciente.data,
             id_expediente=id_expediente,
@@ -84,35 +94,91 @@ def nueva_nota():
         flash('Nota registrada correctamente', 'success')
         return redirect(url_for('medicos.ver_nota', id_nota=nota.id_nota))
 
-    # default fecha a hoy si es GET y no tiene fecha
     if request.method == 'GET' and not form.fecha.data:
         form.fecha.data = datetime.utcnow().date()
 
-    return render_template('medicos/nueva_nota.html', form=form)
+    return render_template('medicos/nueva_nota.html', form=form, paciente=paciente, expediente=expediente)
 
 @bp.route('/editar/<int:id_nota>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def editar_nota(id_nota):
+    # Obtener la nota
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
 
-    # Crear el formulario precargado con los datos de la nota
-    form = NotaConsultaForm(obj=nota)
+    # Obtener paciente y expediente relacionados
+    paciente = nota.paciente
+    expediente = ArchivoClinico.query.get(nota.id_expediente) if nota.id_expediente else None
+
+    # Inicializar formulario
+    form = NotaConsultaForm(obj=nota)  # carga datos de la nota automáticamente
+
+    # Cargar choices de pacientes
+    form.id_paciente.choices = [(p.id_paciente, f"{p.nombre} {p.curp}") for p in Paciente.query.order_by(Paciente.nombre).all()]
+
+    # Cargar choices de expedientes
+    expedientes = ArchivoClinico.query.all()
+    form.id_expediente.choices = [(e.id_archivo, f"{e.id_archivo} - {e.ubicacion_fisica[:40]}") for e in expedientes]
+    form.id_expediente.choices.insert(0, (0, ' -- Ninguno -- '))
 
     if form.validate_on_submit():
-        # Rellenar el objeto nota con los datos del formulario
-        form.populate_obj(nota)
+        # Guardar cambios en la nota
+        nota.id_paciente = form.id_paciente.data
+        id_expediente = form.id_expediente.data or None
+        nota.id_expediente = id_expediente if id_expediente != 0 else None
+
+        nota.fecha = form.fecha.data
+        nota.hora = form.hora.data
+        nota.peso = form.peso.data
+        nota.talla = form.talla.data
+        nota.ta = form.ta.data
+        nota.fc = form.fc.data
+        nota.fr = form.fr.data
+        nota.temp = form.temp.data
+        nota.cc = form.cc.data
+        nota.spo2 = form.spo2.data
+        nota.glicemia = form.glicemia.data
+        nota.imc = form.imc.data
+        nota.antecedentes = form.antecedentes.data
+        nota.exploracion_fisica = form.exploracion_fisica.data
+        nota.diagnostico = form.diagnostico.data
+        nota.plan = form.plan.data
+        nota.pronostico = form.pronostico.data
+        nota.laboratorio = form.laboratorio.data
+
         db.session.commit()
         flash('Nota actualizada correctamente', 'success')
         return redirect(url_for('medicos.ver_nota', id_nota=nota.id_nota))
 
-    return render_template('medicos/editar_nota.html', form=form, nota=nota)
+    # Si es GET, prellenar paciente y expediente en el formulario
+    if request.method == 'GET':
+        form.id_paciente.data = nota.id_paciente
+        form.id_expediente.data = nota.id_expediente or 0
 
-@bp.route('/ver/<int:id_nota>')
+        if not form.fecha.data:
+            form.fecha.data = nota.fecha or datetime.utcnow().date()
+
+    return render_template(
+        'medicos/editar_nota.html',
+        form=form,
+        paciente=paciente,
+        expediente=expediente,
+        nota=nota
+    )
+
+#@bp.route("/medicos/ver_nota/<int:id_nota>")
+@bp.route("/ver_nota/<int:id_nota>")
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def ver_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
-
-    return render_template('medicos/ver_nota.html', nota=nota)
+    paciente = nota.paciente
+    medico = nota.usuario
+    return render_template(
+        'medicos/ver_nota.html',
+        nota=nota,
+        paciente=paciente,
+        medico=medico,
+        volver_url=request.referrer or url_for('medicos.listar_notas')
+    )
 
 @bp.route('/pdf/<int:id_nota>/pdf')
 @roles_required(['USUARIOMEDICO', 'Administrador'])
@@ -125,7 +191,7 @@ def nota_pdf(id_nota):
                      mimetype='application/pdf',
                      as_attachment=True,
                      download_name=f'nota_{nota.id_nota}.pdf')
-
+""
 @bp.route('/buscar_paciente')
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def buscar_paciente():
@@ -151,16 +217,98 @@ def buscar_paciente():
 
     return jsonify(pacientes)
 
+@bp.route('/notas_paciente/<int:id_paciente>')
+@roles_required(['USUARIOMEDICO', 'Administrador'])
+def notas_paciente(id_paciente):
+    notas = (NotaConsultaExterna.query
+             .filter_by(id_paciente=id_paciente)
+             .order_by(NotaConsultaExterna.fecha.desc())
+             .all())
+
+    data = []
+    for n in notas:
+        edad = None
+        if n.paciente and n.paciente.fecha_nacimiento:
+            edad = (date.today() - n.paciente.fecha_nacimiento).days // 365
+
+        # Médico: Nota → Usuario → Empleado
+        nombre_medico = "Sin asignar"
+        if n.usuario and n.usuario.empleado:
+            nombre_medico = f"{n.usuario.empleado.nombre} {n.usuario.empleado.apellido_paterno} {n.usuario.empleado.apellido_materno}"
+
+        data.append({
+            "id_nota": n.id_nota,  # 👈 Esto es clave para el botón "Ver Nota"
+            "fecha": n.fecha.strftime("%d/%m/%Y") if n.fecha else "",
+            "medico": nombre_medico,
+            "contenido": getattr(n, "contenido", getattr(n, "nota", "")),
+            "edad": edad,
+            "sexo": n.paciente.sexo if n.paciente else "",
+            "curp": n.paciente.curp if n.paciente else ""
+        })
+    
+    return jsonify(data)
+#def notas_paciente(id_paciente):
+#    notas = NotaConsultaExterna.query.filter_by(id_paciente=id_paciente).order_by(NotaConsultaExterna.fecha.desc()).all()
+#    
+#    data = [
+#        {
+#            "fecha": nota.fecha.strftime("%d/%m/%Y"),
+#            "medico": nota.usuario.empleado.nombre if nota.usuario and nota.usuario.empleado else "Desconocido",
+#            "diagnostico": nota.diagnostico
+#        }
+#        for nota in notas
+#    ]
+#    return jsonify(data)
+
+
+@bp.route('/buscarpaciente')
+@roles_required(['USUARIOMEDICO', 'Administrador'])
+def buscarpaciente():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+
+    pacientes = Paciente.query.filter(
+        or_(
+            Paciente.nombre.ilike(f'%{query}%'),
+            Paciente.curp.ilike(f'%{query}%')
+        )
+    ).all()
+
+    data = []
+    for p in pacientes:
+        # Obtener la última nota para mostrar nombre de médico en notas (si quieres)
+        ultima_nota = NotaConsultaExterna.query.filter_by(id_paciente=p.id_paciente)\
+                        .order_by(desc(NotaConsultaExterna.fecha)).first()
+
+        nombre_medico = ""
+        if ultima_nota:
+            usuario = Usuario.query.get(ultima_nota.id_usuario)
+            if usuario and usuario.empleado:
+                nombre_medico = usuario.empleado.nombre
+
+        data.append({
+            "id_paciente": p.id_paciente,
+            "nombre": p.nombre,
+            "curp": p.curp,
+            "medico": nombre_medico  # opcional, tu script no lo usa ahora
+        })
+
+    return jsonify(data)
+
 def _plantilla_path():
     return os.path.join(current_app.root_path, "static", "medicos", "plantilla_nota.pdf")
 
 def _build_coords():
     return {
         "nombre_paciente": (150, 655),
+        "curp": (250, 638),
+        "fecha_nacimiento": (500, 638),
+        "direccion": (100, 625),
+        "sexo": (550, 655),
         "edad": (440, 655),
-        "diagnostico": (150, 390),
-        "expediente": (150, 635),
-        "fecha": (85, 590),
+        "expediente": (150, 638),
+        "fecha": (80, 590),
         "hora": (85, 570),
         "peso": (85, 550),
         "talla": (85, 530),
@@ -174,37 +322,37 @@ def _build_coords():
         "imc": (85, 390),
         "medico": (350, 180),
         "cedula": (350, 160),
-        "antecedentes": (150, 590),
-        "exploracion_fisica": (150, 515),
-        "plan": (150, 300),
-        "pronostico": (150, 250),
-        "laboratorio": (150, 200),
-        
-        
     }
+
+def ajustar_lineas(texto, max_caracteres):
+    if not texto:
+        return []
+    return textwrap.wrap(texto, max_caracteres)
+
 
 @bp.route("/nota/<int:id_nota>")
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def generar_nota_pdf(id_nota: int):
-    """
-    Genera el PDF de la nota:
-      - Usa plantilla como fondo.
-      - Dibuja datos por encima.
-      - ?debug=1 para malla de coordenadas.
-      - ?dl=0 para mostrar en navegador (inline), por defecto descarga (?dl=1).
-    """
-    
     debug = request.args.get("debug", "0") == "1"
     download = request.args.get("dl", "1") != "0"  # dl=0 => mostrar inline
 
-    # -------- 1) Consulta con joins
+    # -------- Registrar fuentes Montserrat --------
+    font_dir = os.path.join(current_app.root_path, "static", "fonts")
+    montserrat_regular = os.path.join(font_dir, "Montserrat-Regular.ttf")
+    montserrat_bold = os.path.join(font_dir, "Montserrat-Bold.ttf")
+
+    if not os.path.exists(montserrat_regular) or not os.path.exists(montserrat_bold):
+        abort(500, description="No se encontraron los archivos de fuente Montserrat en static/fonts")
+
+    pdfmetrics.registerFont(TTFont("Montserrat", montserrat_regular))
+    pdfmetrics.registerFont(TTFont("Montserrat-Bold", montserrat_bold))
+
+    # -------- 1) Consulta con joins --------
     nota = (
         db.session.query(NotaConsultaExterna)
         .options(
-            joinedload(NotaConsultaExterna.paciente)
-            .joinedload(Paciente.archivo_clinico),
-            joinedload(NotaConsultaExterna.usuario)
-            .joinedload(Usuario.empleado),
+            joinedload(NotaConsultaExterna.paciente).joinedload(Paciente.archivo_clinico),
+            joinedload(NotaConsultaExterna.usuario).joinedload(Usuario.empleado),
         )
         .filter(NotaConsultaExterna.id_nota == id_nota)
         .first()
@@ -222,22 +370,16 @@ def generar_nota_pdf(id_nota: int):
         abort(400, description="El paciente no tiene expediente asociado")
     if usuario_medico is None or medico_emp is None:
         abort(400, description="La nota no tiene médico (Usuario/Empleado) asociado")
-    
-    def ajustar_lineas(texto, max_caracteres):
-        """
-        Recorta o divide el texto en líneas de máximo `max_caracteres` caracteres
-        respetando palabras completas.
-        """
-        if not texto:
-            return ""
-        import textwrap
-    return "\n".join(textwrap.wrap(texto, max_caracteres))
-    
-    # -------- 2) Datos a imprimir
+
+    # -------- 2) Datos a imprimir --------
+    # -------- 2) Datos a imprimir --------
     datos = {
         "nombre_paciente": paciente.nombre or "",
+        "curp": paciente.curp or "",
+        "fecha_nacimiento": paciente.fecha_nacimiento.strftime("%d/%m/%Y") if paciente.fecha_nacimiento else "",
+        "direccion": paciente.direccion or "",
+        "sexo": paciente.sexo or "",
         "edad": str(paciente.edad) if paciente.edad else "",
-        "diagnostico": nota.diagnostico or "",
         "expediente": archivo.numero_expediente or "",
         "fecha": nota.fecha.strftime("%d/%m/%Y") if nota.fecha else "",
         "hora": nota.hora.strftime("%H:%M") if nota.hora else "",
@@ -260,20 +402,22 @@ def generar_nota_pdf(id_nota: int):
             ] if x
         ),
         "cedula": medico_emp.cedula or "",
-        "antecedentes": ajustar_lineas(nota.antecedentes, 90),
-        "exploracion_fisica": ajustar_lineas(nota.exploracion_fisica, 90),
-        "plan": ajustar_lineas(nota.plan, 90),
+        "antecedentes": ajustar_lineas(nota.antecedentes, 65),
+        "exploracion_fisica": ajustar_lineas(nota.exploracion_fisica, 65),
+        "diagnostico": ajustar_lineas(nota.diagnostico, 90),
+        "plan": ajustar_lineas(nota.plan, 60),
         "pronostico": ajustar_lineas(nota.pronostico, 90),
         "laboratorio": ajustar_lineas(nota.laboratorio, 90),
     }
 
 
-    # -------- 3) Crear overlay con ReportLab
+    # -------- 3) Crear overlay con ReportLab --------
     packet = io.BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
 
+    # debug grid opcional
     if debug:
-        can.setFont("Helvetica", 6)
+        can.setFont("Montserrat", 10)
         can.line(0, 0, letter[0], 0)
         can.line(0, 0, 0, letter[1])
         step = 20
@@ -282,30 +426,52 @@ def generar_nota_pdf(id_nota: int):
         for x in range(0, int(letter[0]), step):
             can.drawString(x + 2, 2, str(x))
 
+    # -------- 3a) Dibujar bloque concatenado --------
+    campos_a_concatenar = [
+        "antecedentes",
+        "exploracion_fisica",
+        "diagnostico",
+        "plan",
+        "pronostico",
+        "laboratorio",
+    ]
+
+    texto_concatenado = []
+    for campo in campos_a_concatenar:
+        valor = datos.get(campo, [])
+        if isinstance(valor, list):
+            texto_concatenado.extend(valor)
+        elif isinstance(valor, str) and valor.strip():
+            texto_concatenado.append(valor.strip())
+        texto_concatenado.append("")  # separador
+
+    x, y = 150, 590
+    line_height = 14
+    can.setFont("Montserrat", 10)
+    for i, linea in enumerate(texto_concatenado):
+        can.drawString(x, y - i*line_height, linea)
+
+    # -------- 3b) Dibujar los campos restantes --------
     coords = _build_coords()
-    can.setFont("Helvetica", 12)
 
     def put(field_key, text):
         if field_key not in coords:
             return
         x, y = coords[field_key]
-        
-        if isinstance(text, list):  # varias líneas
-            line_height = 14  # separación vertical entre líneas
-            
+        if isinstance(text, list):
             for i, line in enumerate(text):
-                can.drawString(float(x), float(y - (i * line_height)), line)
+                can.drawString(float(x), float(y - i*line_height), line)
         else:
-            can.drawString(float(x), float(y), str(text) if text is not None else "")
-
+            can.drawString(float(x), float(y), str(text) if text else "")
 
     for key, value in datos.items():
-        put(key, value)
+        if key not in campos_a_concatenar:
+            put(key, value)
 
     can.save()
     packet.seek(0)
 
-    # -------- 4) Mezclar overlay con la plantilla
+    # -------- 4) Mezclar overlay con la plantilla --------
     plantilla_path = os.path.join(current_app.root_path, "static", "medicos", "plantilla_nota.pdf")
     if not os.path.exists(plantilla_path):
         abort(500, description=f"No se encontró la plantilla en: {plantilla_path}")
@@ -323,11 +489,11 @@ def generar_nota_pdf(id_nota: int):
         output.write(output_stream)
         output_stream.seek(0)
 
-    # -------- 5) Enviar PDF al navegador o descargar
+    # -------- 5) Enviar PDF al navegador o descargar --------
     filename = f"nota_{id_nota}.pdf"
     return send_file(
         output_stream,
-        as_attachment=download,          # True = descargar, False = mostrar en navegador
+        as_attachment=download,
         download_name=filename,
         mimetype="application/pdf",
     )

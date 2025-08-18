@@ -5,19 +5,19 @@
   <form method="POST">
     {{ form.hidden_tag() }}
 
-    <!-- Buscador de paciente -->
+    <!-- Paciente fijo -->
     <div class="mb-3">
-      <label>Buscar paciente (por nombre o CURP):</label>
-      <input type="text" id="buscar_paciente" class="form-control" placeholder="Ej. Juan Pérez o CURP" autocomplete="off">
-      <input type="hidden" name="id_paciente" id="id_paciente">
-      <ul id="sugerencias" class="list-group mt-2"></ul>
+      <label class="form-label">Paciente</label>
+      <input type="text" class="form-control" value="{{ paciente.nombre }} ({{ paciente.curp }})" readonly>
+      {{ form.id_paciente(class="d-none") }}
     </div>
 
-    <!-- Formulario principal -->
-    <div class="row">
-      <div class="col-md-6">{{ form.id_paciente.label }} {{ form.id_paciente(class="form-control", readonly=True) }}</div>
-      <div class="col-md-6">{{ form.id_expediente.label }} {{ form.id_expediente(class="form-control", id="id_expediente") }}</div>
-    </div>
+    <!-- Expediente -->
+    <div class="mb-3">
+  <label class="form-label">Expediente</label>
+  <input type="text" class="form-control" value="{{ expediente.id_archivo }} - {{ expediente.ubicacion_fisica }}" readonly>
+  {{ form.id_expediente(class="d-none") }} {# Campo oculto para enviar al guardar #}
+</div>
 
     <div class="row mt-2">
       <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control") }}</div>
@@ -45,47 +45,9 @@
     <div class="form-group mt-2">{{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3) }}</div>
 
     <button class="btn btn-primary mt-3" type="submit">{{ form.submit.label.text }}</button>
+    
+    <a href="{{ url_for('medicos.listar_notas', id_paciente=paciente.id_paciente, query=request.args.get('query', '')) }}" class="btn btn-secondary">Volver</a>
+
   </form>
 </div>
-
-<!-- Script para autocompletado y selección automática de expediente -->
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const inputBuscar = document.getElementById('buscar_paciente');
-    const inputIdPaciente = document.getElementById('id_paciente');
-    const inputIdExpediente = document.getElementById('id_expediente');
-    const sugerencias = document.getElementById('sugerencias');
-
-    inputBuscar.addEventListener('input', async () => {
-        const query = inputBuscar.value.trim();
-        if (query.length < 2) {
-            sugerencias.innerHTML = '';
-            return;
-        }
-
-        const res = await fetch(`/medicos/buscar_paciente?q=${encodeURIComponent(query)}`);
-        if (!res.ok) return;
-
-        const data = await res.json();
-        sugerencias.innerHTML = '';
-
-        data.forEach(p => {
-            const li = document.createElement('li');
-            li.classList.add('list-group-item', 'list-group-item-action');
-            li.textContent = `${p.nombre} | ${p.curp}`;
-            li.dataset.id = p.id_paciente;
-            li.dataset.expediente = p.id_expediente;
-
-            li.addEventListener('click', () => {
-                inputIdPaciente.value = li.dataset.id;
-                inputBuscar.value = li.textContent;
-                inputIdExpediente.value = li.dataset.expediente || '';
-                sugerencias.innerHTML = '';
-            });
-
-            sugerencias.appendChild(li);
-        });
-    });
-});
-</script>
 {% endblock %}
