@@ -1,10 +1,12 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, DecimalField, IntegerField, DateField, TimeField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Optional
+from wtforms import HiddenField
 
 class NotaConsultaForm(FlaskForm):
-    id_paciente = SelectField('Paciente', coerce=int, validators=[DataRequired()])
-    id_expediente = SelectField('ArchivoClinico', coerce=int, validators=[Optional()])
+    id_paciente = HiddenField('Paciente', validators=[DataRequired()])
+    id_expediente = HiddenField('ArchivoClinico', validators=[Optional()])
+
     fecha = DateField('Fecha', validators=[DataRequired()])
     hora = TimeField('Hora', validators=[Optional()])
 

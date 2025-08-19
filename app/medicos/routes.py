@@ -59,11 +59,11 @@ def nueva_nota(id_paciente):
     form = NotaConsultaForm()
 
     paciente = Paciente.query.get_or_404(id_paciente)
-    form.id_paciente.data = paciente.id_paciente  # Preseleccionado
+    form.id_paciente.data = paciente.id_paciente
 
-    # Obtener expediente único del paciente
     expediente = ArchivoClinico.query.filter_by(id_paciente=id_paciente).first()
     id_expediente = expediente.id_archivo if expediente else None
+    form.id_expediente.data = id_expediente  # ✅ llenar campo oculto
 
     if form.validate_on_submit():
         nota = NotaConsultaExterna(
@@ -94,11 +94,13 @@ def nueva_nota(id_paciente):
         flash('Nota registrada correctamente', 'success')
         return redirect(url_for('medicos.ver_nota', id_nota=nota.id_nota))
 
+    if request.method == 'POST':
+        print(form.errors)  # 🔍 Depuración si no pasa validate
+
     if request.method == 'GET' and not form.fecha.data:
         form.fecha.data = datetime.utcnow().date()
 
     return render_template('medicos/nueva_nota.html', form=form, paciente=paciente, expediente=expediente)
-
 @bp.route('/editar/<int:id_nota>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def editar_nota(id_nota):
@@ -320,8 +322,8 @@ def _build_coords():
         "spo2": (85, 430),
         "glicemia": (85, 410),
         "imc": (85, 390),
-        "medico": (350, 180),
-        "cedula": (350, 160),
+        "medico": (400, 40),
+        "cedula": (400, 35),
     }
 
 def ajustar_lineas(texto, max_caracteres):
@@ -404,10 +406,10 @@ def generar_nota_pdf(id_nota: int):
         "cedula": medico_emp.cedula or "",
         "antecedentes": ajustar_lineas(nota.antecedentes, 65),
         "exploracion_fisica": ajustar_lineas(nota.exploracion_fisica, 65),
-        "diagnostico": ajustar_lineas(nota.diagnostico, 90),
+        "diagnostico": ajustar_lineas(nota.diagnostico, 65),
         "plan": ajustar_lineas(nota.plan, 60),
-        "pronostico": ajustar_lineas(nota.pronostico, 90),
-        "laboratorio": ajustar_lineas(nota.laboratorio, 90),
+        "pronostico": ajustar_lineas(nota.pronostico, 65),
+        "laboratorio": ajustar_lineas(nota.laboratorio, 65),
     }
 
 
@@ -434,6 +436,8 @@ def generar_nota_pdf(id_nota: int):
         "plan",
         "pronostico",
         "laboratorio",
+        
+        
     ]
 
     texto_concatenado = []
@@ -450,6 +454,7 @@ def generar_nota_pdf(id_nota: int):
     can.setFont("Montserrat", 10)
     for i, linea in enumerate(texto_concatenado):
         can.drawString(x, y - i*line_height, linea)
+        
 
     # -------- 3b) Dibujar los campos restantes --------
     coords = _build_coords()
