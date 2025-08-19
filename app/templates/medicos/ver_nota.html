@@ -33,6 +33,8 @@
 
             <h5>Exploración Física</h5>
             <p>{{ nota.exploracion_fisica }}</p>
+            <h5>    Laboratorio</h5>
+            <p>{{" " + nota.laboratorio }}</p>
 
             <h5>Diagnóstico</h5>
             <p>{{ nota.diagnostico }}</p>
@@ -43,8 +45,7 @@
             <h5>Pronóstico</h5>
             <p>{{ nota.pronostico }}</p>
 
-            <h5>Laboratorio</h5>
-            <p>{{ nota.laboratorio }}</p>
+            
         </div>
         <div class="card-footer">
             <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-warning">Editar</a>

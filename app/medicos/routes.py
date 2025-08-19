@@ -21,6 +21,7 @@ import io
 import os
 # Para generar PDF con WeasyPrint:
 from weasyprint import HTML
+from app.utils.validaciones_nota import campos_validos_nota_medica, get_float, get_str, get_date, get_time,calcular_imc
 
     
  
@@ -56,51 +57,77 @@ def listar_notas():
 @bp.route('/nueva_nota/<int:id_paciente>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def nueva_nota(id_paciente):
-    form = NotaConsultaForm()
-
     paciente = Paciente.query.get_or_404(id_paciente)
-    form.id_paciente.data = paciente.id_paciente
-
     expediente = ArchivoClinico.query.filter_by(id_paciente=id_paciente).first()
-    id_expediente = expediente.id_archivo if expediente else None
-    form.id_expediente.data = id_expediente  # ✅ llenar campo oculto
+
+    form = NotaConsultaForm()
+    form.id_paciente.data = paciente.id_paciente
+    if expediente:
+        form.id_expediente.data = expediente.id_archivo
 
     if form.validate_on_submit():
+        # Campos numéricos que aceptan cero si el usuario lo coloca
+        def get_val(field):
+            val = form.data.get(field)
+            return float(val) if val not in [None, ''] else None
+
+        peso = get_val('peso') or 0
+        talla = get_val('talla') or 0
+        imc = calcular_imc(peso, talla) if peso and talla else 0
+
+        ta = form.ta.data.strip() or "0"
+        fc = int(form.fc.data or 0)
+        fr = int(form.fr.data or 0)
+        temp = float(form.temp.data or 0)
+        spo2 = int(form.spo2.data or 0)
+        glicemia = int(form.glicemia.data or 0)
+
+        # Crear nota
         nota = NotaConsultaExterna(
-            id_paciente=form.id_paciente.data,
-            id_expediente=id_expediente,
+            id_paciente=paciente.id_paciente,
+            id_expediente=expediente.id_archivo if expediente else None,
             id_usuario=current_user.id_usuario,
             fecha=form.fecha.data,
             hora=form.hora.data,
-            peso=form.peso.data,
-            talla=form.talla.data,
-            ta=form.ta.data,
-            fc=form.fc.data,
-            fr=form.fr.data,
-            temp=form.temp.data,
-            cc=form.cc.data,
-            spo2=form.spo2.data,
-            glicemia=form.glicemia.data,
-            imc=form.imc.data,
-            antecedentes=form.antecedentes.data,
-            exploracion_fisica=form.exploracion_fisica.data,
-            diagnostico=form.diagnostico.data,
-            plan=form.plan.data,
-            pronostico=form.pronostico.data,
-            laboratorio=form.laboratorio.data,
+            peso=peso,
+            talla=talla,
+            imc=imc,
+            ta=ta,
+            fc=fc,
+            fr=fr,
+            temp=temp,
+            spo2=spo2,
+            glicemia=glicemia,
+            cc=form.cc.data.strip() or "",
+            antecedentes=form.antecedentes.data.strip() or "",
+            exploracion_fisica=form.exploracion_fisica.data.strip() or "",
+            diagnostico=form.diagnostico.data.strip() or "",
+            plan=form.plan.data.strip() or "",
+            pronostico=form.pronostico.data.strip() or "",
+            laboratorio=form.laboratorio.data.strip() or "",
         )
         db.session.add(nota)
         db.session.commit()
         flash('Nota registrada correctamente', 'success')
         return redirect(url_for('medicos.ver_nota', id_nota=nota.id_nota))
 
+    # Mostrar errores si hay POST inválido
     if request.method == 'POST':
-        print(form.errors)  # 🔍 Depuración si no pasa validate
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"Error en {getattr(form, field).label.text}: {error}", 'danger')
 
     if request.method == 'GET' and not form.fecha.data:
+        from datetime import datetime
         form.fecha.data = datetime.utcnow().date()
 
-    return render_template('medicos/nueva_nota.html', form=form, paciente=paciente, expediente=expediente)
+    return render_template(
+        'medicos/nueva_nota.html',
+        form=form,
+        paciente=paciente,
+        expediente=expediente
+    )
+
 @bp.route('/editar/<int:id_nota>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def editar_nota(id_nota):
@@ -111,47 +138,55 @@ def editar_nota(id_nota):
     paciente = nota.paciente
     expediente = ArchivoClinico.query.get(nota.id_expediente) if nota.id_expediente else None
 
-    # Inicializar formulario
-    form = NotaConsultaForm(obj=nota)  # carga datos de la nota automáticamente
+    # Inicializar formulario con datos existentes
+    form = NotaConsultaForm(obj=nota)
 
-    # Cargar choices de pacientes
+    # Choices (si realmente los necesitas en este formulario)
     form.id_paciente.choices = [(p.id_paciente, f"{p.nombre} {p.curp}") for p in Paciente.query.order_by(Paciente.nombre).all()]
-
-    # Cargar choices de expedientes
     expedientes = ArchivoClinico.query.all()
     form.id_expediente.choices = [(e.id_archivo, f"{e.id_archivo} - {e.ubicacion_fisica[:40]}") for e in expedientes]
     form.id_expediente.choices.insert(0, (0, ' -- Ninguno -- '))
 
     if form.validate_on_submit():
-        # Guardar cambios en la nota
-        nota.id_paciente = form.id_paciente.data
-        id_expediente = form.id_expediente.data or None
-        nota.id_expediente = id_expediente if id_expediente != 0 else None
+        # Validar con la función reutilizable
+        datos = form.data
+        errores, datos_validados = campos_validos_nota_medica(datos)
 
-        nota.fecha = form.fecha.data
-        nota.hora = form.hora.data
-        nota.peso = form.peso.data
-        nota.talla = form.talla.data
-        nota.ta = form.ta.data
-        nota.fc = form.fc.data
-        nota.fr = form.fr.data
-        nota.temp = form.temp.data
-        nota.cc = form.cc.data
-        nota.spo2 = form.spo2.data
-        nota.glicemia = form.glicemia.data
-        nota.imc = form.imc.data
-        nota.antecedentes = form.antecedentes.data
-        nota.exploracion_fisica = form.exploracion_fisica.data
-        nota.diagnostico = form.diagnostico.data
-        nota.plan = form.plan.data
-        nota.pronostico = form.pronostico.data
-        nota.laboratorio = form.laboratorio.data
+        if errores:
+            for e in errores:
+                flash(e, "danger")
+        else:
+            # Guardar cambios
+            nota.id_paciente = form.id_paciente.data
+            id_expediente = form.id_expediente.data or None
+            nota.id_expediente = id_expediente if id_expediente != 0 else None
 
-        db.session.commit()
-        flash('Nota actualizada correctamente', 'success')
-        return redirect(url_for('medicos.ver_nota', id_nota=nota.id_nota))
+            nota.fecha = datos_validados['fecha']
+            nota.hora = form.hora.data
+            nota.peso = datos_validados['peso']
+            nota.talla = datos_validados['talla']
+            nota.imc = calcular_imc(nota.peso, nota.talla)
+            nota.ta = datos_validados['ta']
+            nota.fc = datos_validados['fc']
+            nota.fr = datos_validados['fr']
+            nota.temp = datos_validados['temp']
+            nota.spo2 = datos_validados['spo2']
+            nota.glicemia = datos_validados['glicemia']
+            nota.cc = form.cc.data.strip()
 
-    # Si es GET, prellenar paciente y expediente en el formulario
+            # Texto largo
+            nota.antecedentes = datos_validados['antecedentes']
+            nota.exploracion_fisica = datos_validados['exploracion_fisica']
+            nota.diagnostico = datos_validados['diagnostico']
+            nota.plan = datos_validados['plan']
+            nota.pronostico = datos_validados['pronostico']
+            nota.laboratorio = datos_validados['laboratorio']
+
+            db.session.commit()
+            flash("Nota actualizada correctamente", "success")
+            return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
+
+    # Prellenar en GET
     if request.method == 'GET':
         form.id_paciente.data = nota.id_paciente
         form.id_expediente.data = nota.id_expediente or 0
@@ -160,12 +195,13 @@ def editar_nota(id_nota):
             form.fecha.data = nota.fecha or datetime.utcnow().date()
 
     return render_template(
-        'medicos/editar_nota.html',
+        "medicos/editar_nota.html",
         form=form,
         paciente=paciente,
         expediente=expediente,
         nota=nota
     )
+
 
 #@bp.route("/medicos/ver_nota/<int:id_nota>")
 @bp.route("/ver_nota/<int:id_nota>")
@@ -249,18 +285,23 @@ def notas_paciente(id_paciente):
         })
     
     return jsonify(data)
-#def notas_paciente(id_paciente):
-#    notas = NotaConsultaExterna.query.filter_by(id_paciente=id_paciente).order_by(NotaConsultaExterna.fecha.desc()).all()
-#    
-#    data = [
-#        {
-#            "fecha": nota.fecha.strftime("%d/%m/%Y"),
-#            "medico": nota.usuario.empleado.nombre if nota.usuario and nota.usuario.empleado else "Desconocido",
-#            "diagnostico": nota.diagnostico
-#        }
-#        for nota in notas
-#    ]
-#    return jsonify(data)
+@bp.route('/eliminar_nota/<int:id_nota>', methods=['POST'])
+@roles_required(['USUARIOMEDICO', 'Administrador'])
+def eliminar_nota(id_nota):
+    # Buscar la nota
+    nota = NotaConsultaExterna.query.get_or_404(id_nota)
+
+    try:
+        db.session.delete(nota)
+        db.session.commit()
+        flash('Nota eliminada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar la nota: {str(e)}', 'danger')
+
+    # Redirigir a la lista de notas del paciente
+    id_paciente = nota.id_paciente
+    return redirect(url_for('medicos.listar_notas', id_paciente=id_paciente))
 
 
 @bp.route('/buscarpaciente')
@@ -322,8 +363,8 @@ def _build_coords():
         "spo2": (85, 430),
         "glicemia": (85, 410),
         "imc": (85, 390),
-        "medico": (400, 40),
-        "cedula": (400, 35),
+        "medico": (400, 45),
+        "cedula": (400, 40),
     }
 
 def ajustar_lineas(texto, max_caracteres):
@@ -404,12 +445,13 @@ def generar_nota_pdf(id_nota: int):
             ] if x
         ),
         "cedula": medico_emp.cedula or "",
-        "antecedentes": ajustar_lineas(nota.antecedentes, 65),
-        "exploracion_fisica": ajustar_lineas(nota.exploracion_fisica, 65),
-        "diagnostico": ajustar_lineas(nota.diagnostico, 65),
-        "plan": ajustar_lineas(nota.plan, 60),
+        "antecedentes": ajustar_lineas("S.- " + (nota.antecedentes or ""), 65),
+        "exploracion_fisica": ajustar_lineas("O.- " + (nota.exploracion_fisica or ""), 65),
+        "laboratorio": ajustar_lineas("    " + (nota.laboratorio or ""), 65),
+        "diagnostico": ajustar_lineas("A.- " + (nota.diagnostico or ""), 65),
+        "plan": ajustar_lineas("P.- " + (nota.plan or ""), 65),
         "pronostico": ajustar_lineas(nota.pronostico, 65),
-        "laboratorio": ajustar_lineas(nota.laboratorio, 65),
+       
     }
 
 
@@ -419,7 +461,7 @@ def generar_nota_pdf(id_nota: int):
 
     # debug grid opcional
     if debug:
-        can.setFont("Montserrat", 10)
+        can.setFont("Montserrat", 8)
         can.line(0, 0, letter[0], 0)
         can.line(0, 0, 0, letter[1])
         step = 20
@@ -432,10 +474,11 @@ def generar_nota_pdf(id_nota: int):
     campos_a_concatenar = [
         "antecedentes",
         "exploracion_fisica",
+        "laboratorio",
         "diagnostico",
         "plan",
         "pronostico",
-        "laboratorio",
+        
         
         
     ]

@@ -1,58 +1,146 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container">
-  <h3>Nueva Nota de Consulta</h3>
-  <form method="POST">
-    {{ form.hidden_tag() }}
+<div class="container mt-4">
+    <h3>Nueva Nota de Consulta</h3>
+    <form method="POST">
+        {{ form.hidden_tag() }}
 
-    <!-- Paciente fijo -->
-    <div class="mb-3">
-      <label class="form-label">Paciente</label>
-     <input type="text" class="form-control" value="{{ paciente.nombre }} ({{ paciente.curp }})" readonly>
-{{ form.id_paciente(type="hidden") }}
-    </div>
+        <!-- Paciente -->
+        <div class="mb-3">
+            <label class="form-label">Paciente</label>
+            <input type="text" class="form-control" value="{{ paciente.nombre }} ({{ paciente.curp }})" readonly>
+            {{ form.id_paciente(type="hidden") }}
+        </div>
 
+        <!-- Expediente -->
+        <div class="mb-3">
+            <label class="form-label">Expediente</label>
+            <input type="text" class="form-control" value="{{ expediente.id_archivo }} - {{ expediente.ubicacion_fisica }}" readonly>
+            {{ form.id_expediente(type="hidden") }}
+        </div>
 
+        <!-- Signos vitales / datos -->
+        <div class="row mt-2">
+            <div class="col-md-3">
+                {{ form.fecha.label }} {{ form.fecha(class="form-control") }}
+                {% for error in form.fecha.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-3">
+                {{ form.hora.label }} {{ form.hora(class="form-control") }}
+                {% for error in form.hora.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.peso.label }} {{ form.peso(class="form-control", placeholder="Escriba 0 si no aplica", id="peso") }}
+                {% for error in form.peso.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.talla.label }} {{ form.talla(class="form-control", placeholder="Escriba 0 si no aplica", id="talla") }}
+                {% for error in form.talla.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.imc.label }} {{ form.imc(class="form-control", readonly=True, id="imc") }}
+            </div>
+        </div>
 
+        <div class="row mt-2">
+            <div class="col-md-2">
+                {{ form.ta.label }} {{ form.ta(class="form-control", placeholder="Ej. 120/80 o 0") }}
+                {% for error in form.ta.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.fc.label }} {{ form.fc(class="form-control", placeholder="0") }}
+                {% for error in form.fc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.fr.label }} {{ form.fr(class="form-control", placeholder="0") }}
+                {% for error in form.fr.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.temp.label }} {{ form.temp(class="form-control", placeholder="0") }}
+                {% for error in form.temp.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.spo2.label }} {{ form.spo2(class="form-control", placeholder="0") }}
+                {% for error in form.spo2.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+                {{ form.glicemia.label }} {{ form.glicemia(class="form-control", placeholder="0") }}
+                {% for error in form.glicemia.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="col-md-2">
+            {{ form.cc.label("C.C.:Circunferencia") }} 
+            {{ form.cc(class="form-control", placeholder="0") }}
+            {% for error in form.cc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+        </div>
 
+        
 
-    <!-- Expediente -->
-    <div class="mb-3">
-  <label class="form-label">Expediente</label>
- <input type="text" class="form-control" value="{{ expediente.id_archivo }} - {{ expediente.ubicacion_fisica }}" readonly>
-{{ form.id_expediente(type="hidden") }}
+        <!-- Sección SOAP con descripciones completas -->
+        <div class="form-group mt-2">
+            {{ form.antecedentes.label }}
+            {{ form.antecedentes(class="form-control", rows=3) }}
+            {% for error in form.antecedentes.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group mt-2">
+            {{ form.exploracion_fisica.label }}
+            {{ form.exploracion_fisica(class="form-control", rows=6) }}
+            {% for error in form.exploracion_fisica.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group mt-2">
+            {{ form.laboratorio.label }}
+            {{ form.laboratorio(class="form-control", rows=3) }}
+            {% for error in form.laboratorio.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group mt-2">
+            {{ form.diagnostico.label }}
+            {{ form.diagnostico(class="form-control", rows=3) }}
+            {% for error in form.diagnostico.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group mt-2">
+            {{ form.plan.label("P-(Plan) Conducta a seguir: estudios, tratamientos, interconsultas, seguimiento.") }}
+            {{ form.plan(class="form-control", rows=3) }}
+            {% for error in form.plan.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group mt-2">
+            {{ form.pronostico.label("Pronóstico: Predicción o estimación sobre la evolución y desenlace de la enfermedad de un paciente.") }}
+            {{ form.pronostico(class="form-control", rows=2) }}
+            {% for error in form.pronostico.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <!-- Botones -->
+        <div class="mt-3">
+            {{ form.submit(class="btn btn-primary") }}
+            <a href="{{ url_for('medicos.listar_notas', id_paciente=paciente.id_paciente, query=request.args.get('query', '')) }}" class="btn btn-secondary">Volver</a>
+        </div>
+    </form>
 </div>
 
-    <div class="row mt-2">
-      <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control") }}</div>
-      <div class="col-md-3">{{ form.hora.label }} {{ form.hora(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.peso.label }} {{ form.peso(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.talla.label }} {{ form.talla(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.imc.label }} {{ form.imc(class="form-control") }}</div>
-    </div>
+<!-- Script para calcular IMC en tiempo real -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const peso = document.getElementById('peso');
+    const talla = document.getElementById('talla');
+    const imc = document.getElementById('imc');
 
-    <div class="row mt-2">
-      <div class="col-md-2">{{ form.ta.label }} {{ form.ta(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.fc.label }} {{ form.fc(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.fr.label }} {{ form.fr(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.temp.label }} {{ form.temp(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.spo2.label }} {{ form.spo2(class="form-control") }}</div>
-      <div class="col-md-2">{{ form.glicemia.label }} {{ form.glicemia(class="form-control") }}</div>
-    </div>
+    function calcularIMC() {
+        const p = parseFloat(peso.value) || 0;
+        const t = parseFloat(talla.value) || 0;
+        if(t > 0) {
+            imc.value = (p / (t*t)).toFixed(2);
+        } else {
+            imc.value = 0;
+        }
+    }
 
-    <div class="form-group mt-2">{{ form.cc.label }} {{ form.cc(class="form-control") }}</div>
-    <div class="form-group mt-2">{{ form.antecedentes.label }} {{ form.antecedentes(class="form-control", rows=3) }}</div>
-    <div class="form-group mt-2">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}</div>
-    <div class="form-group mt-2">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}</div>
-    <div class="form-group mt-2">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}</div>
-    <div class="form-group mt-2">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}</div>
-    <div class="form-group mt-2">{{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3) }}</div>
-    <div class="mt-3">
-    {{ form.submit(class="btn btn-primary") }}
-    <a href="{{ url_for('medicos.listar_notas', id_paciente=paciente.id_paciente, query=request.args.get('query', '')) }}" class="btn btn-secondary">Volver</a>
-</div>
-   
+    peso.addEventListener('input', calcularIMC);
+    talla.addEventListener('input', calcularIMC);
+});
+</script>
 
-  </form>
-</div>
 {% endblock %}

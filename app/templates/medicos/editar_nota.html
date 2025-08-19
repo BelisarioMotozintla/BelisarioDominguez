@@ -9,59 +9,107 @@
     <div class="row mb-2">
       <div class="col-md-6">
         {{ form.id_paciente.label }}
-        <!-- Mostrar nombre paciente deshabilitado -->
         <input type="text" class="form-control" value="{{ paciente.nombre }}" disabled>
-        <!-- Enviar ID paciente al servidor -->
         {{ form.id_paciente(type="hidden") }}
       </div>
       <div class="col-md-6">
         {{ form.id_expediente.label }}
-        <!-- Mostrar número expediente deshabilitado -->
         <input type="text" class="form-control" value="{{ expediente.numero_expediente if expediente else '' }}" disabled>
-        <!-- Enviar ID expediente al servidor -->
         {{ form.id_expediente(type="hidden") }}
       </div>
     </div>
 
     <!-- Fecha, hora, peso, talla, IMC -->
     <div class="row mb-2">
-      <div class="col-md-3">{{ form.fecha.label }} {{ form.fecha(class="form-control", placeholder="dd/mm/aaaa") }}</div>
-      <div class="col-md-3">{{ form.hora.label }} {{ form.hora(class="form-control", placeholder="hh:mm") }}</div>
-      <div class="col-md-2">{{ form.peso.label }} {{ form.peso(class="form-control", placeholder="kg") }}</div>
-      <div class="col-md-2">{{ form.talla.label }} {{ form.talla(class="form-control", placeholder="m") }}</div>
-      <div class="col-md-2">{{ form.imc.label }} {{ form.imc(class="form-control", placeholder="IMC") }}</div>
+      <div class="col-md-3">
+        {{ form.fecha.label }} {{ form.fecha(class="form-control", placeholder="dd/mm/aaaa") }}
+        {% for error in form.fecha.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-3">
+        {{ form.hora.label }} {{ form.hora(class="form-control", placeholder="hh:mm") }}
+        {% for error in form.hora.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.peso.label }} {{ form.peso(class="form-control", placeholder="kg") }}
+        {% for error in form.peso.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.talla.label }} {{ form.talla(class="form-control", placeholder="m") }}
+        {% for error in form.talla.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.imc.label }} {{ form.imc(class="form-control", placeholder="IMC") }}
+        {% for error in form.imc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
     </div>
 
     <!-- Signos vitales y CC -->
     <div class="row mb-2">
-      <div class="col-md-2">{{ form.ta.label }} {{ form.ta(class="form-control", placeholder="Ej. 120/80") }}</div>
-      <div class="col-md-2">{{ form.fc.label }} {{ form.fc(class="form-control", placeholder="lat/min") }}</div>
-      <div class="col-md-2">{{ form.fr.label }} {{ form.fr(class="form-control", placeholder="resp/min") }}</div>
-      <div class="col-md-2">{{ form.temp.label }} {{ form.temp(class="form-control", placeholder="°C") }}</div>
-      <div class="col-md-2">{{ form.cc.label }} {{ form.cc(class="form-control", placeholder="Motivo principal de la consulta") }}</div>
-      <div class="col-md-2">{{ form.spo2.label }} {{ form.spo2(class="form-control", placeholder="%") }}</div>
+      <div class="col-md-2">
+        {{ form.ta.label }} {{ form.ta(class="form-control", placeholder="Ej. 120/80") }}
+        {% for error in form.ta.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.fc.label }} {{ form.fc(class="form-control", placeholder="lat/min") }}
+        {% for error in form.fc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.fr.label }} {{ form.fr(class="form-control", placeholder="resp/min") }}
+        {% for error in form.fr.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.temp.label }} {{ form.temp(class="form-control", placeholder="°C") }}
+        {% for error in form.temp.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.cc.label }} {{ form.cc(class="form-control", placeholder="Motivo principal de la consulta") }}
+        {% for error in form.cc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="col-md-2">
+        {{ form.spo2.label }} {{ form.spo2(class="form-control", placeholder="%") }}
+        {% for error in form.spo2.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
     </div>
 
     <div class="row mb-2">
-      <div class="col-md-2">{{ form.glicemia.label }} {{ form.glicemia(class="form-control", placeholder="mg/dL") }}</div>
+      <div class="col-md-2">
+        {{ form.glicemia.label }} {{ form.glicemia(class="form-control", placeholder="mg/dL") }}
+        {% for error in form.glicemia.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </div>
     </div>
 
     <hr>
 
     <!-- Texto largo -->
-    <div class="form-group mb-2">{{ form.antecedentes.label }} {{ form.antecedentes(class="form-control", rows=4) }}</div>
-    <div class="form-group mb-2">{{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}</div>
-    <div class="form-group mb-2">{{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}</div>
-    <div class="form-group mb-2">{{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}</div>
-    <div class="form-group mb-2">{{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}</div>
-    <div class="form-group mb-3">{{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3) }}</div>
+    <div class="form-group mb-2">
+      {{ form.antecedentes.label }} {{ form.antecedentes(class="form-control", rows=4) }}
+      {% for error in form.antecedentes.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
+    <div class="form-group mb-2">
+      {{ form.exploracion_fisica.label }} {{ form.exploracion_fisica(class="form-control", rows=6) }}
+      {% for error in form.exploracion_fisica.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
+    <div class="form-group mb-2">
+      {{ form.diagnostico.label }} {{ form.diagnostico(class="form-control", rows=3) }}
+      {% for error in form.diagnostico.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
+    <div class="form-group mb-2">
+      {{ form.plan.label }} {{ form.plan(class="form-control", rows=3) }}
+      {% for error in form.plan.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
+    <div class="form-group mb-2">
+      {{ form.pronostico.label }} {{ form.pronostico(class="form-control", rows=2) }}
+      {% for error in form.pronostico.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
+    <div class="form-group mb-3">
+      {{ form.laboratorio.label }} {{ form.laboratorio(class="form-control", rows=3) }}
+      {% for error in form.laboratorio.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    </div>
 
     <!-- Botones -->
     <div class="mt-3">
       <button class="btn btn-success" type="submit">Guardar cambios</button>
       <a href="/medicos/ver_nota/{{ nota.id_nota }}?query={{ request.args.get('query', '') }}" class="btn btn-info btn-sm">Ver Nota</a>
-
-
     </div>
   </form>
 </div>
