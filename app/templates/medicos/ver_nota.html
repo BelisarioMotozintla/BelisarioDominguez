@@ -50,6 +50,11 @@
         <div class="card-footer">
             <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-warning">Editar</a>
 	    <a href="{{ url_for('medicos.generar_nota_pdf', id_nota=nota.id_nota) }}" class="btn btn-warning">PDF</a>
+    {% if session.rol == 'SuperUsuario' or session.rol == 'Administrador' %}
+        <form action="/medicos/eliminar_nota/{{ nota.id_nota }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta nota?');">
+            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+    {% endif %}
            <a href="{{ url_for('medicos.listar_notas', id_paciente=nota.id_paciente, query=request.args.get('query', '')) }}" class="btn btn-secondary">Volver</a>
 
            

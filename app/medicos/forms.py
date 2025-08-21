@@ -21,11 +21,11 @@ class NotaConsultaForm(FlaskForm):
     glicemia = IntegerField('Glicemia', validators=[Optional(), NumberRange(min=0)])
     cc = StringField('C.C.', validators=[Optional()])
 
-    antecedentes = TextAreaField('("O-(Objetivo) Lo que el médico observa y mide (signos vitales, exploración física, resultados de estudios).")', validators=[DataRequired()])
-    exploracion_fisica = TextAreaField('Exploración física', validators=[DataRequired()])
-    diagnostico = TextAreaField('Diagnóstico', validators=[DataRequired()])
-    plan = TextAreaField('Plan', validators=[DataRequired()])
-    pronostico = TextAreaField('Pronóstico', validators=[DataRequired()])
-    laboratorio = TextAreaField('Laboratorio', validators=[Optional()])
+    antecedentes = TextAreaField('S-(Subjetivo) Lo que el paciente refiere (síntomas, motivo de consulta, antecedentes relevantes).', validators=[DataRequired()])
+    exploracion_fisica = TextAreaField('O-(Objetivo) Lo que el médico observa y mide (signos vitales, exploración física, resultados de estudios).', validators=[DataRequired()])
+    diagnostico = TextAreaField('A-Analisis. Impresión diagnóstica, diagnósticos diferenciales.', validators=[DataRequired()])
+    plan = TextAreaField('P-(Plan) Conducta a seguir: estudios, tratamientos, interconsultas, seguimiento.', validators=[DataRequired()])
+    pronostico = TextAreaField('Pronóstico: Predicción o estimación sobre la evolución y desenlace de la enfermedad de un paciente.', validators=[DataRequired()])
+    laboratorio = TextAreaField('Resultados de estudios de laboratorio o gabinete.', validators=[Optional()])
 
     submit = SubmitField('Guardar')

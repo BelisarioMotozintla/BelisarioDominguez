@@ -5,7 +5,8 @@ from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpedien
 from app.models.personal import Usuario,Servicio
 from app.utils.helpers import roles_required
 from app import db
-from datetime import datetime
+from datetime import date, datetime
+from sqlalchemy import func
 
 bp = Blueprint('archivo_clinico', __name__, template_folder='templates/archivo_clinico')
 
@@ -20,12 +21,12 @@ def index():
 def agregar_archivo():
     if request.method == 'POST':
         id_paciente = request.form.get('id_paciente')
-        numero = request.form.get('numero_expediente', '').strip()  # asigna valor seguro
-        
+        numero = request.form.get('numero_expediente', '').strip()
+
         existe = ArchivoClinico.query.filter_by(numero_expediente=numero).first()
         if existe:
             flash('El número de expediente ya existe. Por favor, usa otro.', 'danger')
-            return redirect(request.url)  # O renderiza con error el formulario
+            return redirect(request.url)
         else:
             if not id_paciente:
                 flash("Debes seleccionar un paciente válido.", "danger")
@@ -44,7 +45,14 @@ def agregar_archivo():
             flash("Archivo clínico guardado correctamente", "success")
             return redirect(url_for('archivo_clinico.index'))
     
-    return render_template('archivo_clinico/agregar.html')
+    # Calcular siguiente número candidato
+    max_numero = db.session.query(func.max(ArchivoClinico.numero_expediente)).scalar()
+    siguiente_numero = (int(max_numero) + 1) if max_numero else 1
+
+    return render_template(
+        'archivo_clinico/agregar.html',
+        candidato_numero=siguiente_numero,fecha_hoy=date.today().strftime("%Y-%m-%d")  # <-- pasar fecha al template
+    )
 
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])

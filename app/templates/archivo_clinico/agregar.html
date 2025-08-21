@@ -7,12 +7,13 @@
   <form method="POST" onsubmit="return validarNumeroExpediente()">
 
     <div class="mb-3">
-      <label for="numero_expediente">Número de Expediente:</label>
-      <input type="text" name="numero_expediente" id="numero_expediente" class="form-control" required>
-      <div id="error_numero" style="color: red; display: none; margin-top: 5px;">
-        Este número ya existe, por favor elige otro.
-      </div>
-    </div>
+  <label for="numero_expediente">Número de Expediente:</label>
+  <input type="text" name="numero_expediente" id="numero_expediente"
+         class="form-control" required value="{{ candidato_numero }}">
+  <div id="error_numero" style="color: red; display: none; margin-top: 5px;">
+    Este número ya existe, por favor elige otro.
+  </div>
+</div>
 
     <div class="mb-3">
       <label>Buscar paciente (por nombre o CURP):</label>
@@ -23,7 +24,7 @@
 
     <div class="mb-3">
       <label>Ubicación física:</label>
-      <input type="text" name="ubicacion_fisica" class="form-control">
+      <input type="text" name="ubicacion_fisica" class="form-control" placeholder="ARCHIVERO 1, GAVETA 2, FINAL,MEDIO O PRINCIPIO ">
     </div>
 
     <div class="mb-3">
@@ -37,13 +38,14 @@
 
     <div class="mb-3">
       <label>Tipo de archivo:</label>
-      <input type="text" name="tipo_archivo" class="form-control">
+      <input type="text" name="tipo_archivo" class="form-control" value="FISICO"> 
     </div>
 
     <div class="mb-3">
-      <label>Fecha de creación:</label>
-      <input type="date" name="fecha_creacion" class="form-control">
-    </div>
+  <label for="fecha_creacion">Fecha de creación:</label>
+  <input type="date" id="fecha_creacion" name="fecha_creacion"
+         class="form-control" value="{{ fecha_hoy }}" readonly>
+</div>
 
     <button type="submit" class="btn btn-primary">Guardar</button>
     <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
