@@ -24,6 +24,12 @@ def alta_paciente():
             flash('Ya existe un paciente registrado con ese CURP.', 'danger')
             return redirect(url_for('paciente.alta_paciente'))
 
+        es_cronico = request.form.get('es_cronico', 'No')
+        tipo_cronicidad = request.form.get('tipo_cronicidad')
+        # Si no es crónico, asignar "No aplica"
+        if es_cronico != "Sí":
+            tipo_cronicidad = "Otro"
+
         # Crear nuevo paciente
         nuevo = Paciente(
             nombre=request.form['nombre'].strip(),
@@ -31,8 +37,8 @@ def alta_paciente():
             fecha_nacimiento=request.form.get('fecha_nacimiento') or None,
             sexo=request.form['sexo'],
             direccion=request.form.get('direccion'),
-            es_cronico=request.form.get('es_cronico', 'No'),
-            tipo_cronicidad=request.form.get('tipo_cronicidad') or None,
+            es_cronico=es_cronico,
+            tipo_cronicidad=tipo_cronicidad,
             esta_embarazada=request.form.get('esta_embarazada', 'No')
         )
         db.session.add(nuevo)
@@ -58,7 +64,6 @@ def alta_paciente():
     # GET: cargar unidades para el formulario
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     return render_template('paciente/alta.html', unidades=unidades)
-
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def editar_paciente(id):
@@ -121,3 +126,37 @@ def eliminar_paciente(id):
     db.session.commit()
     flash('Paciente eliminado correctamente.', 'success')
     return redirect(url_for('paciente.listar_pacientes'))
+
+def digito_verificador(curp17, anio):
+    """
+    curp17: primeros 17 caracteres de la CURP
+    anio: año de nacimiento (YYYY)
+    """
+    tabla = {
+        '0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9,
+        'A':10,'B':11,'C':12,'D':13,'E':14,'F':15,'G':16,'H':17,'I':18,'J':19,
+        'K':20,'L':21,'M':22,'N':23,'Ñ':24,'O':25,'P':26,'Q':27,'R':28,'S':29,
+        'T':30,'U':31,'V':32,'W':33,'X':34,'Y':35,'Z':36
+    }
+
+    contador = 18
+    sumatoria = 0
+    for c in curp17.upper():
+        valor = tabla.get(c, 0)
+        sumatoria += valor * contador
+        contador -= 1
+
+    numVer = (10 - (sumatoria % 10)) % 10
+
+    if int(anio) < 2000:
+        dig_ver = f"0{numVer}"
+    else:
+        dig_ver = f"A{numVer}"
+
+    return dig_ver
+@bp.route('/calcular_digito', methods=['POST'])
+def calcular_digito():
+    curp17 = request.json.get('curp17')  # primeros 17 caracteres
+    anio = request.json.get('anio')      # año de nacimiento YYYY
+    dig_ver = digito_verificador(curp17, anio)
+    return jsonify({"digito": dig_ver})

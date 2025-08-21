@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session,jsonify
 from app.models.personal import Empleado, Usuario, Roles, Puesto, Turno, Servicio
 from app.models.archivo_clinico import UnidadSalud
 from app.utils.db import db
@@ -181,3 +181,4 @@ def editar_empleado(id_empleado):
                            unidadsalud=unidadsalud,
                            servicios=servicios,
                            roles=roles)
+

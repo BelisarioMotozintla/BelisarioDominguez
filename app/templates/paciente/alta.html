@@ -1,4 +1,3 @@
-{# templates/paciente/alta.html #}
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-4">
@@ -9,6 +8,7 @@
     <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const esCronico = document.getElementById('es_cronico');
@@ -24,10 +24,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function actualizarEmbarazo() {
         if (sexo.value === 'M') {
-            esta_embarazada.value = 'No';
-            esta_embarazada.disabled = true;
+            embarazada.value = 'No';
+            embarazada.disabled = true;
         } else {
-            esta_embarazada.disabled = false;
+            embarazada.disabled = false;
         }
     }
 
@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
+
     function actualizarEstado() {
         if (esCronico.value === "No") {
             tipoCronicidad.value = "Otro";
@@ -51,20 +52,89 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Evento al cambiar la selección
     esCronico.addEventListener("change", actualizarEstado);
-
-    // Ejecutar al cargar la página
-    actualizarEstado();
-
-    // Eventos
     esCronico.addEventListener('change', actualizarTipoCronicidad);
     sexo.addEventListener('change', actualizarEmbarazo);
     tipoRelacion.addEventListener('change', seleccionarUnidadBelisario);
 
-    // Llamadas iniciales por si hay datos cargados
+    actualizarEstado();
     actualizarTipoCronicidad();
     actualizarEmbarazo();
 });
+
+// Función para generar los primeros 17 caracteres de la CURP
+function generarCurp(nombreCompleto, fechaNac, sexo, estado) {
+    nombreCompleto = nombreCompleto.trim().toUpperCase();
+    let partes = nombreCompleto.split(" ");
+    if (partes.length < 3) return "";
+
+    let paterno = partes[partes.length - 2];
+    let materno = partes[partes.length - 1];
+    let nombres = partes.slice(0, -2).join(" ");
+    let primerNombre = nombres.split(" ")[0];
+
+    function primeraVocal(str) {
+        let s = str.slice(1);
+        let match = s.match(/[AEIOU]/);
+        return match ? match[0] : "X";
+    }
+    function primeraConsonante(str) {
+        let s = str.slice(1);
+        let match = s.match(/[^AEIOU]/);
+        return match ? match[0] : "X";
+    }
+
+    let curp = "";
+    curp += paterno[0];
+    curp += primeraVocal(paterno);
+    curp += materno[0] || "X";
+
+    if ((primerNombre === "JOSE" || primerNombre === "MARIA") && nombres.split(" ").length > 1) {
+        curp += nombres.split(" ")[1][0];
+    } else {
+        curp += primerNombre[0];
+    }
+
+    let fecha = fechaNac.replace(/-/g, "");
+    curp += fecha.substring(2, 8); // AAMMDD
+    curp += sexo;                  // H o M
+    curp += estado;                // Estado de nacimiento
+
+    curp += primeraConsonante(paterno);
+    curp += primeraConsonante(materno);
+    curp += primeraConsonante(primerNombre);
+
+    return curp; // Devuelve 17 caracteres
+}
+
+// Evento para actualizar la CURP automáticamente
+document.querySelectorAll('input[name="nombre"], input[name="fecha_nacimiento"], select[name="sexo"], select[name="estado"]')
+.forEach(el => {
+    el.addEventListener("input", () => {
+        let nombre = document.querySelector('input[name="nombre"]').value;
+        let fecha = document.querySelector('input[name="fecha_nacimiento"]').value;
+        let sexoSelect = document.querySelector('select[name="sexo"]').value;
+        let estado = document.querySelector('select[name="estado"]').value;
+
+        if (nombre && fecha && sexoSelect && estado) {
+            let sexoCurp = sexoSelect === "M" ? "H" : "M";
+            let curp17 = generarCurp(nombre, fecha, sexoCurp, estado);
+
+            let anio = fecha.split("-")[0];
+
+            // AJAX para dígito verificador
+            fetch("/paciente/calcular_digito", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({curp17: curp17, anio: anio})
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.querySelector('input[name="curp"]').value = curp17 + data.digito;
+            });
+        }
+    });
+});
 </script>
+
 {% endblock %}

@@ -37,7 +37,7 @@ class Paciente(db.Model):
         CheckConstraint("sexo IN ('M', 'F', 'Otro')", name='chk_sexo'),
         CheckConstraint("es_cronico IN ('Sí', 'No')", name='chk_cronico'),
         CheckConstraint("esta_embarazada IN ('Sí', 'No')", name='chk_embarazo'),
-        CheckConstraint("tipo_cronicidad IN ('Diabético', 'Hipertenso', 'Metabólico', 'Otro', '') OR tipo_cronicidad IS NULL", name='chk_tipo_cronicidad')
+        CheckConstraint("tipo_cronicidad IN ('Diabético', 'Hipertenso', 'Metabólico', 'Otro', ' ') OR tipo_cronicidad IS NULL", name='chk_tipo_cronicidad')
     )	
     paciente_unidad = relationship('PacienteUnidad', back_populates='paciente')
     archivo_clinico = relationship('ArchivoClinico', back_populates='paciente')
