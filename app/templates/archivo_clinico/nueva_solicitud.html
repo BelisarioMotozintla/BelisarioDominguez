@@ -19,13 +19,14 @@
   <!-- <input type="hidden" name="id_archivo" value="..." /> -->
 
   <div class="mb-3">
-    <label for="id_usuario_solicita" class="form-label">Solicitado por</label>
-    <select name="id_usuario_solicita" id="id_usuario_solicita" class="form-select" required>
-      <option value="">Seleccione usuario</option>
-      {% for usuario in usuarios %}
-      <option value="{{ usuario.id_usuario }}">{{ usuario.usuario }}</option>
-      {% endfor %}
-    </select>
+   <label for="id_usuario_solicita">Usuario que solicita</label>
+<select name="id_usuario_solicita" id="id_usuario_solicita" class="form-control">
+  {% for u in usuarios %}
+    <option value="{{ u.id_usuario }}" {% if u.usuario == 'PACIENTE' %}selected{% endif %}>
+      {{ u.usuario }}
+    </option>
+  {% endfor %}
+</select>
   </div>
 <div class="mb-3">
   <label for="id_servicio" class="form-label">Servicio Solicitante</label>
