@@ -55,7 +55,7 @@ def upload():
     else:
         flash('Tipo de archivo no permitido.', 'danger')
 
-    return redirect(url_for('formatos.upload'))
+    return redirect(url_for('formatos.formatos'))
 
 
 @bp.route('/download/<filename>')

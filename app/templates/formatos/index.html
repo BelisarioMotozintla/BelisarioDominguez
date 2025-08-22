@@ -126,13 +126,16 @@
                 <td>
                     <div class="btn-group" role="group" aria-label="Acciones archivo">
                         {% if a['filename'].endswith('.pdf') %}
-                            <a href="{{ url_for('static', filename='uploads/' + a['filename']) }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                Ver / Imprimir
+                          <a href="{{ url_for('static', filename='uploads/' + a['filename']) }}" 
+                            target="_blank" 
+                            class="btn btn-outline-primary btn-sm">
+                            Ver / Imprimir
                             </a>
                         {% endif %}
                         
-                        <a href="/download/{{ a['filename'] }}" class="btn btn-success btn-sm">
-                            Descargar
+                       <a href="{{ url_for('formatos.download_file', filename=a['filename']) }}" 
+                        class="btn btn-success btn-sm">
+                        Descargar
                         </a>
 
                         {% if session.get('usuario') and session.get('rol') == 'admin' %}
