@@ -108,3 +108,4 @@ def delete_file(file_id):
         flash('Error al eliminar el archivo.', 'danger')
 
     return redirect(url_for('formatos.formatos'))
+

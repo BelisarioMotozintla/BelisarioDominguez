@@ -2,78 +2,70 @@
 
 {% block content %}
 
-    <h1 class="text-success">Formatos IMSS Bienestar</h1>
+<h1 class="text-success">Formatos IMSS Bienestar</h1>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-info">{{ messages[0] }}</div>
-      {% endif %}
-    {% endwith %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="alert alert-info">{{ messages[0] }}</div>
+  {% endif %}
+{% endwith %}
 
-    <!-- Formulario de carga -->
-{% if session.usuario %}
-    {% if session.rol == 'SuperUsuario' %}
-        <form action="{{ url_for('formatos.upload') }}" method="post" enctype="multipart/form-data">    
-            <div class="mb-3">
-                <label>Nombre del Formato:</label>
-                <input type="text" name="nombre_formato" class="form-control" required>
-            </div>
-            <div class="mb-3">
-                <label for="area">Área:</label>
-                <select name="area" id="area" class="form-control" required>
-                    <option value="">-- Selecciona un área --</option>
-                    <option value="Consulta Externa">Consulta Externa</option>
-                    <option value="Urgencias">Urgencias</option>
-                    <option value="Hospitalización">Hospitalización</option>
-                    <option value="Trabajo Social">Trabajo Social</option>
-                    <option value="Medicina Preventiva">Medicina Preventiva</option>
-                    <option value="Enfermería">Enfermería</option>
-                    <option value="Archivo Clínico">Archivo Clínico</option>
-                    <option value="Farmacia">Farmacia</option>
-                    <option value="Epidemiología">Epidemiología</option>
-                    <option value="Estomatología">Estomatología</option>
-                    <option value="Nutrición">Nutrición</option>
-                    <option value="Psicología">Psicología</option>
-                    <option value="Rehabilitación">Rehabilitación</option>
-                    <option value="Rayos X">Rayos X</option>
-                    <option value="Laboratorio">Laboratorio</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                    <option value="Administración">Administración</option>
-                </select>  
-            </div>
-            <div class="input-group mb-2">
-                <input type="file" name="file" class="form-control" required>
-                <button type="submit" class="btn btn-success">Subir</button>
-            </div>
-            <a href="/logout" class="btn btn-outline-danger btn-sm">Cerrar sesión</a>
-        </form>
-    {% else %}
-        <a href="{{ url_for('auth.login') }}" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
-    {% endif %}
+<!-- Formulario de carga: solo SuperUsuario puede subir archivos -->
+{% if session.get('usuario') and session.get('rol') == 'SuperUsuario' %}
+<form action="{{ url_for('formatos.upload') }}" method="post" enctype="multipart/form-data">    
+    <div class="mb-3">
+        <label>Nombre del Formato:</label>
+        <input type="text" name="nombre_formato" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="area">Área:</label>
+        <select name="area" id="area" class="form-control" required>
+            <option value="">-- Selecciona un área --</option>
+            <option value="Consulta Externa">Consulta Externa</option>
+            <option value="Urgencias">Urgencias</option>
+            <option value="Hospitalización">Hospitalización</option>
+            <option value="Trabajo Social">Trabajo Social</option>
+            <option value="Medicina Preventiva">Medicina Preventiva</option>
+            <option value="Enfermería">Enfermería</option>
+            <option value="Archivo Clínico">Archivo Clínico</option>
+            <option value="Farmacia">Farmacia</option>
+            <option value="Epidemiología">Epidemiología</option>
+            <option value="Estomatología">Estomatología</option>
+            <option value="Nutrición">Nutrición</option>
+            <option value="Psicología">Psicología</option>
+            <option value="Rehabilitación">Rehabilitación</option>
+            <option value="Rayos X">Rayos X</option>
+            <option value="Laboratorio">Laboratorio</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Administración">Administración</option>
+        </select>  
+    </div>
+    <div class="input-group mb-2">
+        <input type="file" name="file" class="form-control" required>
+        <button type="submit" class="btn btn-success">Subir</button>
+    </div>
+    <a href="/logout" class="btn btn-outline-danger btn-sm">Cerrar sesión</a>
+</form>
 {% else %}
     <a href="{{ url_for('auth.login') }}" class="btn btn-primary mb-3">Iniciar sesión para subir archivos</a>
 {% endif %}
 
+<!-- Buscador -->
+<form method="GET" class="row g-3 align-items-center mb-4">
+    <div class="col-auto">
+        <input type="text" name="filtro_formato" value="{{ filtro_formato }}" placeholder="Buscar por formato" class="form-control">
+    </div>
+    <div class="col-auto">
+        <input type="text" name="filtro_area" value="{{ filtro_area }}" placeholder="Buscar por área" class="form-control">
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+        <a href="/" class="btn btn-secondary">Limpiar</a>
+        <button type="button" class="btn btn-outline-dark" onclick="window.print()">Imprimir tabla</button>
+    </div>
+</form>
 
-    <!-- Buscador -->
-    <form method="GET" class="row g-3 align-items-center mb-4">
-        <div class="col-auto">
-            <input type="text" name="filtro_formato" value="{{ filtro_formato }}" placeholder="Buscar por formato" class="form-control">
-        </div>
-        <div class="col-auto">
-            <input type="text" name="filtro_area" value="{{ filtro_area }}" placeholder="Buscar por área" class="form-control">
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Buscar</button>
-            <a href="/" class="btn btn-secondary">Limpiar</a>
-            <button type="button" class="btn btn-outline-dark" onclick="window.print()">Imprimir tabla</button>
-           
-
-	    
-        </div>
-    </form>
-
-    <!-- Tabla de archivos -->
+<!-- Tabla de archivos -->
 <div class="table-responsive">
     <table class="table table-bordered table-striped align-middle table-sm">
         <thead class="table-success text-center">
@@ -86,7 +78,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for a in archivos %}
+        {% for a in archivos %}
             <tr>
                 <td>{{ a['nombre_formato'] }}</td>
                 <td>{{ a['area'] }}</td>
@@ -96,30 +88,27 @@
                 <td>{{ a['fecha_subida'] }}</td>
                 <td>
                     <div class="btn-group" role="group">
-                        {% if a['filename'].endswith('.pdf') %}
-                          <a href="{{ url_for('static', filename='uploads/' + a['filename']) }}" 
-                             target="_blank" 
-                             class="btn btn-outline-primary btn-sm">
-                             Ver
-                          </a>
-                        {% endif %}
                         <a href="{{ url_for('formatos.download_file', filename=a['filename']) }}" 
                            class="btn btn-success btn-sm">
                            Descargar
                         </a>
-                        {% if session.get('usuario') and session.get('rol') == 'admin' %}
-                            <form action="{{ url_for('formatos.delete_file', file_id=a['id']) }}" method="post" style="display:inline;">
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este archivo?');">
-                                    Eliminar
-                                </button>
-                            </form>
+                        {% if session.get('rol') in ['admin', 'supervisor'] %}
+                        <form action="{{ url_for('formatos.delete_file', file_id=a['id']) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este archivo?');">
+                                Eliminar
+                            </button>
+                        </form>
                         {% endif %}
                     </div>
                 </td>
             </tr>
-            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="5" class="text-center">No se encontraron archivos.</td>
+            </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
-{% endblock %}
 
+{% endblock %}
