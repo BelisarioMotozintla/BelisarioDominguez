@@ -1,39 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Lista de Usuarios{% endblock %}
-
-{% block encabezado %}Gestión de Usuarios{% endblock %}
-
 {% block content %}
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Formatos IMSS Bienestar</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Estilo para impresión -->
-    <style>
-    @media print {
-        body * {
-            visibility: hidden;
-        }
-        table, table * {
-            visibility: visible;
-        }
-        table {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        form, .btn, nav, header, footer {
-            display: none !important;
-        }
-    }
-    </style>
-</head>
-<body class="container mt-4">
     <h1 class="text-success">Formatos IMSS Bienestar</h1>
 
     {% with messages = get_flashed_messages() %}
@@ -106,14 +74,15 @@
     </form>
 
     <!-- Tabla de archivos -->
-    <table class="table table-bordered table-striped">
-        <thead class="table-success">
+<div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle table-sm">
+        <thead class="table-success text-center">
             <tr>
-                <th>Formato</th>
-                <th>Área</th>
-                <th>Archivo</th>
-                <th>Fecha</th>
-                <th>Acciones</th>
+                <th style="width: 20%;">Formato</th>
+                <th style="width: 15%;">Área</th>
+                <th style="width: 25%;">Archivo</th>
+                <th style="width: 15%;">Fecha</th>
+                <th style="width: 25%;">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -121,23 +90,23 @@
             <tr>
                 <td>{{ a['nombre_formato'] }}</td>
                 <td>{{ a['area'] }}</td>
-                <td>{{ a['filename'] }}</td>
+                <td class="text-truncate" style="max-width: 200px;" title="{{ a['filename'] }}">
+                    {{ a['filename'] }}
+                </td>
                 <td>{{ a['fecha_subida'] }}</td>
                 <td>
-                    <div class="btn-group" role="group" aria-label="Acciones archivo">
+                    <div class="btn-group" role="group">
                         {% if a['filename'].endswith('.pdf') %}
                           <a href="{{ url_for('static', filename='uploads/' + a['filename']) }}" 
-                            target="_blank" 
-                            class="btn btn-outline-primary btn-sm">
-                            Ver / Imprimir
-                            </a>
+                             target="_blank" 
+                             class="btn btn-outline-primary btn-sm">
+                             Ver
+                          </a>
                         {% endif %}
-                        
-                       <a href="{{ url_for('formatos.download_file', filename=a['filename']) }}" 
-                        class="btn btn-success btn-sm">
-                        Descargar
+                        <a href="{{ url_for('formatos.download_file', filename=a['filename']) }}" 
+                           class="btn btn-success btn-sm">
+                           Descargar
                         </a>
-
                         {% if session.get('usuario') and session.get('rol') == 'admin' %}
                             <form action="{{ url_for('formatos.delete_file', file_id=a['id']) }}" method="post" style="display:inline;">
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este archivo?');">
@@ -151,6 +120,6 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
 {% endblock %}
-</body>
-</html>
+
