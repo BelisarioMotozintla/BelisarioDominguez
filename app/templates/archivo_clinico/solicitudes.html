@@ -1,55 +1,107 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-4">Solicitudes de Expedientes</h2>
-  <a href="{{ url_for('archivo_clinico.nueva_solicitud') }}" class="btn btn-success mb-3">
-    <i class="bi bi-plus-circle"></i> Nueva Solicitud
-  </a>
+<ul class="nav nav-tabs" id="manualTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="instructivo1-tab" data-bs-toggle="tab" data-bs-target="#instructivo1" type="button" role="tab" aria-controls="instructivo1" aria-selected="true">
+            Solicitud
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="instructivo2-tab" data-bs-toggle="tab" data-bs-target="#instructivo2" type="button" role="tab" aria-controls="instructivo2" aria-selected="false">
+            Reportes
+        </button>
+    </li>
+</ul>
 
-  <table class="table table-bordered table-hover">
-    <thead class="table-success">
-      <tr>
-        <th>ID</th>
-        <th>Paciente</th>
-        <th>Solicita</th>
-        <th>Autoriza</th>
-        <th>Fecha Solicitud</th>
-        <th>Estado</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for solicitud in solicitudes %}
-      <tr>
-        <td>{{ solicitud.id_solicitud }}</td>
-        <td>{{ solicitud.paciente.nombre }}</td>
-        <td>{{ solicitud.usuario_solicita.nombre }}</td>
-        <td>{{ solicitud.usuario_autoriza.nombre if solicitud.usuario_autoriza else 'Pendiente' }}</td>
-        <td>{{ solicitud.fecha_solicitud.strftime('%Y-%m-%d') }}</td>
-        <td>
-          <span class="badge bg-{{ 'secondary' if solicitud.estado_solicitud == 'pendiente' else 'warning' if solicitud.estado_solicitud == 'entregado' else 'success' if solicitud.estado_solicitud == 'devuelto' else 'danger' }}">
-            {{ solicitud.estado_solicitud }}
-          </span>
-        </td>
-        <td>
-        {% if solicitud.estado_solicitud == 'pendiente' %}
-        <form method="POST" action="{{ url_for('archivo_clinico.entregar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
-          <button type="submit" class="btn btn-sm btn-outline-warning">Entregar</button>
-        </form>
-        <form method="POST" action="{{ url_for('archivo_clinico.cancelar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
-          <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+<div class="tab-content mt-4" id="manualTabsContent">
+
+    <!-- PESTAÑA SOLICITUD -->
+    <div class="tab-pane fade show active" id="instructivo1" role="tabpanel" aria-labelledby="instructivo1-tab">  
+        <h2 class="mb-4">Solicitudes de Expedientes</h2>
+        <a href="{{ url_for('archivo_clinico.nueva_solicitud') }}" class="btn btn-success mb-3">
+            <i class="bi bi-plus-circle"></i> Nueva Solicitud
+        </a>
+        <form method="get" action="{{ url_for('archivo_clinico.lista_solicitudes') }}" class="mb-3">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control"
+                       placeholder="Buscar por nombre, CURP o número de expediente"
+                       value="{{ request.args.get('search', '') }}">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
         </form>
 
-      {% elif solicitud.estado_solicitud == 'entregado' %}
-        <form method="POST" action="{{ url_for('archivo_clinico.devolver_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
-          <button type="submit" class="btn btn-sm btn-outline-success">Devolver</button>
+        <table class="table table-bordered table-hover">
+            <thead class="table-success">
+                <tr>
+                    <th>ID</th>
+                    <th>Paciente</th>
+                    <th>Solicita</th>
+                    <th>Autoriza</th>
+                    <th>Fecha Solicitud</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if solicitudes %}
+                    {% for solicitud in solicitudes %}
+                        <tr>
+                            <td>{{ solicitud.id_solicitud }}</td>
+                            <td>{{ solicitud.paciente.nombre }}</td>
+                            <td>{{ solicitud.usuario_solicita.nombre }}</td>
+                            <td>{{ solicitud.usuario_autoriza.nombre if solicitud.usuario_autoriza else 'Pendiente' }}</td>
+                            <td>{{ solicitud.fecha_solicitud.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'secondary' if solicitud.estado_solicitud == 'pendiente' else 'warning' if solicitud.estado_solicitud == 'entregado' else 'success' if solicitud.estado_solicitud == 'devuelto' else 'danger' }}">
+                                    {{ solicitud.estado_solicitud }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if solicitud.estado_solicitud == 'pendiente' %}
+                                    <form method="POST" action="{{ url_for('archivo_clinico.entregar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">Entregar</button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('archivo_clinico.cancelar_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+                                    </form>
+                                {% elif solicitud.estado_solicitud == 'entregado' %}
+                                    <form method="POST" action="{{ url_for('archivo_clinico.devolver_solicitud', id=solicitud.id_solicitud) }}" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Devolver</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No se encontró ningún registro.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PESTAÑA REPORTES -->
+    <div class="tab-pane fade" id="instructivo2" role="tabpanel" aria-labelledby="instructivo2-tab">
+        <h2 class="mb-4">Bitácora de Solicitud de Expedientes</h2>
+        <form method="get" action="{{ url_for('archivo_clinico.imprimir_bitacora_pdf') }}" target="_blank" class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" required>
+            </div>
+            <div class="col-md-3 align-self-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-pdf"></i> Generar PDF
+                </button>
+            </div>
         </form>
-      {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
- <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+
 </div>
 {% endblock %}

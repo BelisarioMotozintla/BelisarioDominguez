@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+    <title>Bitácora de Solicitudes de Expedientes - {{ fecha_inicio }} a {{ fecha_fin }}</title>
+  <style>
+    body {  font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    margin: 20px; }
+    h2 { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+    th { background-color: #d9d9d9; }
+    .center { text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Bitácora de Solicitudes de Expedientes</h2>
+  <p>Período: {{ fecha_inicio }} a {{ fecha_fin }}</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Fecha y Hora</th>
+        <th>Nombre del Paciente</th>
+        <th>No. de Expediente</th>
+        <th>Área Solicitante</th>
+        <th>Nombre de quien Entrega</th>
+        <th>Nombre de quien Recibe</th>
+        <th>Fecha y Hora de Devolución</th>
+        <th>Observaciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for registro in registros %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ registro.fecha_solicitud.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ registro.paciente.nombre }}</td>
+        <td>{{ registro.archivo.numero_expediente }}</td>
+        <td>{{ registro.servicio.nombre_servicio }}</td>
+        <td>{{ registro.usuario_autoriza.usuario if registro.usuario_autoriza else '' }}</td>
+        <td>{{ registro.usuario_solicita.usuario }}</td>
+        <td>{{ registro.fecha_devolucion.strftime('%Y-%m-%d %H:%M') if registro.fecha_devolucion else '' }}</td>
+        <td>{{ registro.estado_solicitud }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="9" class="center">No se encontraron registros</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

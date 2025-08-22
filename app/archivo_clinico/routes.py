@@ -1,21 +1,35 @@
 # app/archivo_clinico/routes.py
 from sqlite3 import IntegrityError
-from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session
+from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session,make_response
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
 from app.models.personal import Usuario,Servicio
 from app.utils.helpers import roles_required
 from app import db
 from datetime import date, datetime
-from sqlalchemy import func
+from sqlalchemy import func,cast, String,or_
+from sqlalchemy.orm import joinedload, aliased
+from weasyprint import HTML
+from flask_login import current_user
 
 bp = Blueprint('archivo_clinico', __name__, template_folder='templates/archivo_clinico')
 
 @bp.route('/')
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def index():
-    archivos = ArchivoClinico.query.all()
-    return render_template('archivo_clinico/listar.html', archivos=archivos)
+    # Obtener término de búsqueda
+    query = request.args.get('q', '').strip()
 
+    archivos = ArchivoClinico.query.options(joinedload(ArchivoClinico.paciente))
+
+    if query:
+        archivos = archivos.join(Paciente).filter(
+            (Paciente.nombre.ilike(f"%{query}%")) |
+            (cast(ArchivoClinico.numero_expediente, String).ilike(f"%{query}%"))
+        )
+
+    archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(10).all()  # limitar a 50 registros
+
+    return render_template('archivo_clinico/listar.html', archivos=archivos, query=query)
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def agregar_archivo():
@@ -126,29 +140,51 @@ def validar_numero_expediente():
 @bp.route('/archivo/solicitudes')
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def lista_solicitudes():
-    solicitudes = SolicitudExpediente.query.order_by(SolicitudExpediente.fecha_solicitud.desc()).all()
+    search = request.args.get('search', '').strip()
+    query = SolicitudExpediente.query.options(
+        joinedload(SolicitudExpediente.paciente),
+        joinedload(SolicitudExpediente.archivo),
+        joinedload(SolicitudExpediente.usuario_solicita),
+        joinedload(SolicitudExpediente.usuario_autoriza)
+    ).order_by(SolicitudExpediente.fecha_solicitud.desc())
+
+    if search:
+        # Buscar por nombre de paciente, CURP o número de expediente
+       query = query.join(Paciente).join(ArchivoClinico, SolicitudExpediente.id_archivo == ArchivoClinico.id_archivo).filter(
+    or_(
+        Paciente.nombre.ilike(f"%{search}%"),
+        Paciente.curp.ilike(f"%{search}%"),
+        cast(ArchivoClinico.numero_expediente, String).ilike(f"%{search}%")
+        )   
+    )
+    
+    solicitudes = query.limit(50).all()  # Limitar resultados
     return render_template('archivo_clinico/solicitudes.html', solicitudes=solicitudes)
+
 
 @bp.route('/archivo/solicitudes/nueva', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def nueva_solicitud():
     pacientes = Paciente.query.all()
-    usuarios = Usuario.query.all()
+    usuarios = Usuario.query.all()   # para llenar el select de "solicitante"
     servicios = Servicio.query.filter_by(area='Paciente').all()
+
     if request.method == 'POST':
-        id_paciente = request.form['id_paciente']
-        id_usuario_solicita = request.form['id_usuario_solicita']
-        id_servicio=request.form['id_servicio']
-       
+        id_paciente = int(request.form['id_paciente'])
+        id_usuario_solicita = int(request.form['id_usuario_solicita'])  # seleccionado en el form
+        id_servicio = int(request.form['id_servicio'])
+        id_usuario_autoriza = current_user.id_usuario  # el usuario logueado autoriza
+
         # Buscar el expediente relacionado al paciente
         expediente = ArchivoClinico.query.filter_by(id_paciente=id_paciente).first()
-
         if not expediente:
             flash('Este paciente no tiene expediente registrado.', 'danger')
             return redirect(request.url)
-        
-        # Verifica si el expediente ya tiene una solicitud activa SolicitudExpediente
-        solicitud_activa = SolicitudExpediente.query.filter_by(id_archivo=expediente.id_archivo).filter(
+
+        # Verificar si ya hay una solicitud activa
+        solicitud_activa = SolicitudExpediente.query.filter_by(
+            id_archivo=expediente.id_archivo
+        ).filter(
             SolicitudExpediente.estado_solicitud.in_(['pendiente', 'entregado'])
         ).first()
 
@@ -159,37 +195,47 @@ def nueva_solicitud():
         nueva = SolicitudExpediente(
             id_paciente=id_paciente,
             id_archivo=expediente.id_archivo,
-            id_usuario_solicita=id_usuario_solicita,
+            id_usuario_solicita=id_usuario_solicita,   # quien pide
+            id_usuario_autoriza=id_usuario_autoriza,   # quien autoriza (logueado)
             fecha_solicitud=datetime.now(),
             estado_solicitud='pendiente',
             id_servicio=id_servicio
         )
 
-        db.session.add(nueva)
-        db.session.commit()
-        flash('Solicitud guardada correctamente.', 'success')
-        return redirect(url_for('archivo_clinico.lista_solicitudes'))
+        try:
+            db.session.add(nueva)
+            db.session.commit()
+            flash('Solicitud guardada correctamente.', 'success')
+            return redirect(url_for('archivo_clinico.lista_solicitudes'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error al guardar la solicitud: {e}", 'danger')
+            return redirect(request.url)
 
-    return render_template('archivo_clinico/nueva_solicitud.html', pacientes=pacientes, usuarios=usuarios,servicios=servicios)
-
+    return render_template(
+        'archivo_clinico/nueva_solicitud.html',
+        pacientes=pacientes,
+        usuarios=usuarios,   # sigue yendo al template para el select de solicitantes
+        servicios=servicios
+    )
 
 @bp.route('/archivo/solicitudes/<int:id>/entregar', methods=['POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def entregar_solicitud(id):
     solicitud = SolicitudExpediente.query.get_or_404(id)
-    
+    id_usuario_autoriza = current_user.id_usuario  # el usuario logueado autoriza
     if solicitud.estado_solicitud != 'pendiente':
         flash("La solicitud no está en estado pendiente", "danger")
         return redirect(url_for('archivo_clinico.lista_solicitudes'))
     
-    id_autoriza = session.get('usuario')
-    if not id_autoriza:
+   # id_autoriza = session.get('usuario')
+    if not id_usuario_autoriza:
         flash("No se detectó usuario en sesión para autorizar", "danger")
         return redirect(url_for('archivo_clinico.lista_solicitudes'))
     
     solicitud.estado_solicitud = 'entregado'
     solicitud.fecha_entrega = datetime.utcnow()
-    solicitud.id_usuario_autoriza = session.get('usuario_id')  # ✅ cambio aquí
+    solicitud.id_usuario_autoriza = id_usuario_autoriza  # ✅ cambio aquí
     
     # ✅ Confirmar que se guarda
     try:
@@ -223,3 +269,52 @@ def cancelar_solicitud(id):
     db.session.commit()
     flash('Solicitud cancelada correctamente', 'info')
     return redirect(url_for('archivo_clinico.lista_solicitudes'))
+
+@bp.route('/archivo/bitacora/pdf')
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+def imprimir_bitacora_pdf():
+    # Obtener rango de fechas desde query string
+    fecha_inicio_str = request.args.get('fecha_inicio')
+    fecha_fin_str = request.args.get('fecha_fin')
+
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date() if fecha_inicio_str else date.today()
+    except ValueError:
+        fecha_inicio = date.today()
+
+    try:
+        fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date() if fecha_fin_str else date.today()
+    except ValueError:
+        fecha_fin = date.today()
+
+    # Alias de usuarios
+    UsuarioSolicita = aliased(Usuario)
+    UsuarioAutoriza = aliased(Usuario)
+
+    # Consulta de registros dentro del rango
+    registros = db.session.query(SolicitudExpediente)\
+        .join(Paciente, Paciente.id_paciente == SolicitudExpediente.id_paciente)\
+        .join(ArchivoClinico, ArchivoClinico.id_archivo == SolicitudExpediente.id_archivo)\
+        .outerjoin(UsuarioSolicita, UsuarioSolicita.id_usuario == SolicitudExpediente.id_usuario_solicita)\
+        .outerjoin(UsuarioAutoriza, UsuarioAutoriza.id_usuario == SolicitudExpediente.id_usuario_autoriza)\
+        .filter(func.date(SolicitudExpediente.fecha_solicitud).between(fecha_inicio, fecha_fin))\
+        .order_by(SolicitudExpediente.fecha_solicitud)\
+        .all()
+
+    # Renderizar plantilla HTML con rango
+    html = render_template(
+        'archivo_clinico/bitacora_pdf.html',
+        registros=registros,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin
+    )
+
+    # Generar PDF con WeasyPrint
+    pdf = HTML(string=html).write_pdf()
+
+    # Respuesta HTTP con el PDF
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=bitacora_{fecha_inicio}_a_{fecha_fin}.pdf'
+
+    return response

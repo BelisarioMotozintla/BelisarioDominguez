@@ -26,29 +26,47 @@
         </td>
     </tr>
 </table>
-<table border="1">
-    <tr>
-        <th>ID</th><th>Paciente</th><th>Ubicación</th><th>Estado</th><th>numero_expediente</th><th>Fecha</th><th>Acciones</th>
-    </tr>
-    {% for archivo in archivos %}
-    <tr>
-        <td>{{ archivo.id_archivo }}</td>
-        <td>{{ archivo.paciente.nombre }}</td>
-        <td>{{ archivo.ubicacion_fisica }}</td>
-        <td>{{ archivo.estado }}</td>
-        <td>{{ archivo.numero_expediente }}</td>
-        <td>{{ archivo.fecha_creacion }}</td>
-        
-        <td>
-          <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-sm btn-outline-primary" title="Editar">
-            <i class="bi bi-pencil"></i>
-          </a>
-          <form method="POST" action="{{ url_for('archivo_clinico.eliminar_archivo', id=archivo.id_archivo) }}" style="display:inline;">
-            <button type="submit" onclick="return confirm('¿Eliminar archivo?')" class="btn btn-sm btn-outline-danger" title="Eliminar">
-              <i class="bi bi-trash"></i></button>      
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
+<form method="get" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Buscar por paciente o número de expediente" value="{{ query }}">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+</form>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Paciente</th>
+            <th>Ubicación</th>
+            <th>Estado</th>
+            <th>Número de Expediente</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for archivo in archivos %}
+        <tr>
+            <td>{{ archivo.id_archivo }}</td>
+            <td>{{ archivo.paciente.nombre }}</td>
+            <td>{{ archivo.ubicacion_fisica }}</td>
+            <td>{{ archivo.estado }}</td>
+            <td>{{ archivo.numero_expediente }}</td>
+            <td>{{ archivo.fecha_creacion.strftime('%Y-%m-%d') }}</td>
+            <td>
+                <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                <form method="POST" action="{{ url_for('archivo_clinico.eliminar_archivo', id=archivo.id_archivo) }}" style="display:inline;">
+                    <button type="submit" onclick="return confirm('¿Eliminar archivo?')" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" class="text-center">No se encontraron registros.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 </table>
 {% endblock %}
