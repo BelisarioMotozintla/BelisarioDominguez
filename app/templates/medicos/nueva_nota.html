@@ -15,7 +15,7 @@
     {% endif %}
   {% endwith %}
 
-  <form method="POST" id="notaForm">
+  <form method="POST" id="notaForm" action="">
     {{ form.hidden_tag() }}
 
     <!-- Fecha y Hora ocultas -->
@@ -58,7 +58,7 @@
     {% endfor %}
 
     <!-- Botones -->
-    <button type="submit" class="btn btn-success">💾 Guardar Nota</button>
+   {{ form.submit(class="btn btn-success") }}
     <a href="{{ url_for('medicos.listar_notas', id_consulta=consulta.id_consulta) }}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>

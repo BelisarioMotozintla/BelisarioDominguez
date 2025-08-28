@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Editar Consulta General</h2>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+  <!-- Paciente -->
+  <div class="form-group">
+    <label>Paciente</label>
+    {% if pacientes %}
+      <select name="id_paciente" class="form-control" required>
+        {% for p in pacientes %}
+        <option value="{{ p.id_paciente }}" {% if p.id_paciente == consulta.paciente.id_paciente %}selected{% endif %}>
+          {{ p.nombre }} ({{ p.curp }}) - Expediente: 
+          {{ p.archivo_clinico[0].numero_expediente if p.archivo_clinico else 'No asignado' }}
+        </option>
+        {% endfor %}
+      </select>
+    {% else %}
+      <div class="alert alert-warning mt-2">
+        No se encontraron pacientes.
+      </div>
+      <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-sm btn-outline-primary mt-2">
+        <i class="bi bi-person-fill"></i> Registrar Paciente
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Servicio -->
+  <div class="form-group mt-3">
+    <label>Servicio</label>
+    <select name="id_servicio" class="form-control" required>
+      {% for s in servicios %}
+      <option value="{{ s.id_servicio }}" {% if s.id_servicio == consulta.servicio.id_servicio %}selected{% endif %}>
+        {{ s.nombre_servicio }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Fecha y Hora -->
+  <div class="row mt-3">
+    <div class="col-md-6">
+      <label>Fecha</label>
+      <input type="date" name="fecha" class="form-control" value="{{ consulta.fecha }}">
+    </div>
+    <div class="col-md-6">
+      <label>Hora</label>
+      <input type="time" name="hora" class="form-control" value="{{ consulta.hora }}">
+    </div>
+  </div>
+
+  <!-- Motivo y Observaciones -->
+  <div class="form-group mt-3">
+    <label>Motivo de Consulta</label>
+    <textarea name="motivo" class="form-control" rows="3">{{ consulta.motivo }}</textarea>
+  </div>
+
+  <div class="form-group mt-3">
+    <label>Observaciones</label>
+    <textarea name="observaciones" class="form-control" rows="3">{{ consulta.observaciones }}</textarea>
+  </div>
+
+  <p class="text-muted mt-3">
+    Médico logueado: {{ current_user.username }}
+  </p>
+
+  <button type="submit" class="btn btn-primary mt-3">Actualizar Consulta</button>
+</form>
+{% endblock %}

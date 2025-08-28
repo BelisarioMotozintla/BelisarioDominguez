@@ -4,9 +4,9 @@ from wtforms import StringField, TextAreaField, SelectField, DecimalField, Integ
 from wtforms.validators import Optional, DataRequired
 
 class NotaConsultaForm(FlaskForm):
-    csrf = False  # 🔹 Desactiva CSRF temporalmente
-    id_consulta = SelectField("Consulta", coerce=int, validators=[DataRequired()])
-    id_servicio = SelectField("Servicio", coerce=int)
+   #id_consulta = SelectField("Consulta", coerce=int, validators=[DataRequired()])
+    id_servicio = SelectField("Servicio", coerce=int, choices=[], validators=[DataRequired()])
+    
 
     # Fecha y hora
     fecha = DateField("Fecha", default=datetime.utcnow, validators=[Optional()])
@@ -51,6 +51,18 @@ class NotaConsultaForm(FlaskForm):
         validators=[Optional()]
     )
 
-    submit = SubmitField("Guardar Nota")
+    submit = SubmitField("💾 Guardar Nota")
 
-  
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            servicios = Servicio.query.filter_by(area='Paciente').all()
+            if servicios:
+                self.id_servicio.choices = [(s.id_servicio, s.nombre_servicio) for s in servicios]
+            else:
+                # placeholder si no hay servicios
+                self.id_servicio.choices = [(0, "No hay servicios disponibles")]
+        except Exception as e:
+            # fallback si falla la query
+            self.id_servicio.choices = [(0, f"Error cargando servicios: {e}")]

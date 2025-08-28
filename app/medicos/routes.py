@@ -1,6 +1,7 @@
 #app/medicos/route.py
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file,jsonify, abort, current_app
 from app import db
+from flask_login import current_user  
 from app.models.medicos import Consulta, NotaConsultaExterna
 from app.models.archivo_clinico import Paciente
 from app.models.personal import Servicio,Usuario
@@ -69,16 +70,30 @@ def safe_str(val):
 @bp.route('/<int:id_consulta>/nota/nueva', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def nueva_nota(id_consulta):
+    # Obtener consulta y paciente
     consulta = Consulta.query.get_or_404(id_consulta)
     paciente = consulta.paciente
+
+    # Bloquear acceso si la consulta no está abierta y el usuario no es admin
+    if consulta.estado != "ABIERTA" and current_user.rol.nombre_rol != "Administrador":
+        flash("Solo se puede agregar nota si la consulta está abierta o eres administrador", "danger")
+        return redirect(url_for("medicos.menu_medico"))
+
+    # Servicios disponibles
     servicios = Servicio.query.filter_by(area='Paciente').all()
+    choices_servicios = [(s.id_servicio, s.nombre_servicio) for s in servicios]
+    if not choices_servicios:
+        choices_servicios = [(0, 'Sin servicio')]
+
+    # Inicializar formulario
+    form = NotaConsultaForm()
+    form.id_servicio.choices = choices_servicios  # importante asignarlo antes de validate_on_submit
+
+    # Última nota para prellenar signos vitales
     notas_anteriores = NotaConsultaExterna.query.filter_by(
         id_consulta=consulta.id_consulta
     ).order_by(NotaConsultaExterna.fecha.desc(), NotaConsultaExterna.hora.desc()).first()
 
-    form = NotaConsultaForm()
-
-    # Prellenar signos vitales si existe nota anterior
     if notas_anteriores and request.method == 'GET':
         form.peso.data = notas_anteriores.peso
         form.talla.data = notas_anteriores.talla
@@ -91,61 +106,6 @@ def nueva_nota(id_consulta):
         form.spo2.data = notas_anteriores.spo2
         form.glicemia.data = notas_anteriores.glicemia
 
-   
-    form.id_servicio.choices = [(s.id_servicio, s.nombre_servicio) for s in servicios]
-
-    if form.validate_on_submit():
-        datos = form.data
-        errores, campos = campos_validos_nota_medica(datos)
-
-        if errores:
-            for e in errores:
-                flash(e, "danger")
-        else:
-            # Calculamos IMC solo si peso y talla son válidos
-            imc = calcular_imc(campos['peso'], campos['talla'])
-
-            # Hora segura
-            hora_val = form.hora.data
-            if not isinstance(hora_val, time):
-                hora_val = get_time(datos, 'hora') or datetime.utcnow().time()
-
-            try:
-                nota = NotaConsultaExterna(
-                    id_consulta=consulta.id_consulta,
-                    id_servicio=form.id_servicio.data,
-                    fecha=form.fecha.data,
-                    hora=form.hora.data,
-                    peso=form.peso.data,
-                    talla=form.talla.data,
-                    imc=form.imc.data,
-                    ta=safe_str(form.ta.data) or None,
-                    fc=form.fc.data,
-                    fr=form.fr.data,
-                    temp=form.temp.data,
-                    cc=form.cc.data,  # 🔹 se guarda ahora
-                    spo2=form.spo2.data,
-                    glicemia=form.glicemia.data,
-                    presentacion=safe_str(form.presentacion.data),  # 🔹 se guarda ahora
-                    antecedentes=safe_str(form.antecedentes.data),
-                    exploracion_fisica=safe_str(form.exploracion_fisica.data),
-                    diagnostico=safe_str(form.diagnostico.data),
-                    plan=safe_str(form.plan.data),
-                    pronostico=safe_str(form.pronostico.data),
-                    laboratorio=safe_str(form.laboratorio.data),
-                )
-
-
-                db.session.add(nota)
-                db.session.commit()
-                flash("Nota registrada correctamente", "success")
-                return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
-
-            except Exception as e:
-                db.session.rollback()
-                flash("Ocurrió un error al guardar la nota", "danger")
-                print("❌ Error al guardar en BD:", e)
-
     # Inicializar fecha y hora en GET
     if request.method == "GET":
         if not form.fecha.data:
@@ -153,12 +113,84 @@ def nueva_nota(id_consulta):
         if not form.hora.data:
             form.hora.data = datetime.utcnow().time()
 
+    # Depuración: imprimir datos POST
+    if request.method == "POST":
+        print("=== Datos POST enviados ===")
+        print("Form crudo:", request.form)
+        print("Form procesado:", form.data)
+        print("Choices de servicio:", form.id_servicio.choices)
+        print("==========================")
+        print("Método:", request.method)
+        print("Datos del formulario:", request.form)
+        print("Choices actuales:", form.id_servicio.choices)
+    # POST: guardar nota
+    if form.validate_on_submit():
+    
+        datos = form.data
+        errores, campos = campos_validos_nota_medica(datos)
+        print("=== Imprimiendo servicio seleccionado ===")
+        print("Servicio seleccionado:", form.id_servicio.data)
+        if errores:
+            for e in errores:
+                flash(e, "danger")
+        else:
+            # Calcular IMC
+            imc_val = calcular_imc(campos['peso'], campos['talla'])
+
+            # Hora segura
+            hora_val = form.hora.data
+            if not isinstance(hora_val, time):
+                hora_val = get_time(datos, 'hora') or datetime.utcnow().time()
+
+            # Evitar guardar un servicio inválido
+            if form.id_servicio.data == 0:
+                flash("Debe seleccionar un servicio válido", "danger")
+            else:
+                try:
+                    nota = NotaConsultaExterna(
+                        id_consulta=consulta.id_consulta,
+                        id_servicio=form.id_servicio.data,
+                        fecha=form.fecha.data,
+                        hora=hora_val,
+                        peso=campos['peso'],
+                        talla=campos['talla'],
+                        imc=imc_val,
+                        ta=campos['ta'],
+                        fc=campos['fc'],
+                        fr=campos['fr'],
+                        temp=campos['temp'],
+                        cc=campos['cc'],
+                        spo2=campos['spo2'],
+                        glicemia=campos['glicemia'],
+                        presentacion=safe_str(form.presentacion.data),
+                        antecedentes=safe_str(form.antecedentes.data),
+                        exploracion_fisica=safe_str(form.exploracion_fisica.data),
+                        diagnostico=safe_str(form.diagnostico.data),
+                        plan=safe_str(form.plan.data),
+                        pronostico=safe_str(form.pronostico.data),
+                        laboratorio=safe_str(form.laboratorio.data),
+                    )
+                    print("Servicio seleccionado:", nota.id_servicio)
+
+                    db.session.add(nota)
+                    db.session.commit()
+
+                    # Cambiar estado del expediente a cerrado
+                   
+                    flash("Nota registrada correctamente", "success")
+                    return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
+
+                except Exception as e:
+                    db.session.rollback()
+                    flash("Ocurrió un error al guardar la nota", "danger")
+                    print("❌ Error al guardar en BD:", e)
+
+    # Renderizar template
     return render_template(
         "medicos/nueva_nota.html",
         form=form,
         consulta=consulta,
-        paciente=paciente,
-        servicios=servicios
+        paciente=paciente
     )
 
 @bp.route("/ver_nota/<int:id_nota>")
@@ -248,9 +280,14 @@ def generar_nota_pdf(id_nota: int):
     archivo = paciente.archivo_clinico[0] if paciente.archivo_clinico else None
     usuario_medico = nota.consulta.usuario
     medico_emp = usuario_medico.empleado if usuario_medico else None
+    
+    if nota.id_servicio == 5:  # URGENCIAS
+        expediente_num = archivo.numero_expediente if archivo is not None else "S/N"
+    else:
+        if archivo is None:
+            abort(400, description="El paciente no tiene expediente asociado")
+        expediente_num = archivo.numero_expediente
 
-    if paciente is None or archivo is None:
-        abort(400, description="El paciente no tiene expediente asociado")
     if usuario_medico is None or medico_emp is None:
         abort(400, description="La nota no tiene médico (Usuario/Empleado) asociado")
 
@@ -268,7 +305,7 @@ def generar_nota_pdf(id_nota: int):
         "direccion": paciente.direccion or "",
         "sexo": paciente.sexo or "",
         "edad": str(paciente.edad) if paciente.edad else "",
-        "expediente": archivo.numero_expediente or "",
+        "expediente":  expediente_num,
         "fecha": nota.fecha.strftime("%d/%m/%Y") if nota.fecha else "",
         "hora": nota.hora.strftime("%H:%M") if nota.hora else "",
         "peso": str(nota.peso) if nota.peso is not None else "",
@@ -393,22 +430,19 @@ def generar_nota_pdf(id_nota: int):
 @bp.route('/editar/<int:id_nota>', methods=['GET', 'POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def editar_nota(id_nota):
-    # Obtener la nota
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
-
-    # Obtener consulta, paciente y servicio relacionados
     consulta = nota.consulta
     paciente = consulta.paciente if consulta else None
-    servicio = nota.servicio
+    
+    servicio_actual = nota.servicio
 
-    # Inicializar formulario con datos existentes
     form = NotaConsultaForm(obj=nota)
 
-    # Choices: Pacientes y Servicios (si el formulario los maneja)
-    form.id_consulta.choices = [(c.id_consulta, f"{c.paciente.nombre} ({c.id_consulta})")
-                                for c in Consulta.query.join(Paciente).order_by(Paciente.nombre).all()]
-    form.id_servicio.choices = [(s.id_servicio, s.nombre_servicio)
-                                for s in Servicio.query.order_by(Servicio.nombre_servicio).all()]
+    # Solo services
+    form.id_servicio.choices = [
+        (s.id_servicio, s.nombre_servicio)
+        for s in Servicio.query.filter_by(area='Paciente').order_by(Servicio.nombre_servicio).all()
+    ]
 
     if form.validate_on_submit():
         datos = form.data
@@ -418,15 +452,9 @@ def editar_nota(id_nota):
             for e in errores:
                 flash(e, "danger")
         else:
-            # Llaves foráneas
-            nota.id_consulta = form.id_consulta.data
             nota.id_servicio = form.id_servicio.data
-
-            # Datos básicos
             nota.fecha = datos_validados['fecha']
             nota.hora = form.hora.data
-
-            # Signos vitales
             nota.peso = datos_validados['peso']
             nota.talla = datos_validados['talla']
             nota.imc = calcular_imc(nota.peso, nota.talla)
@@ -434,13 +462,9 @@ def editar_nota(id_nota):
             nota.fc = datos_validados['fc']
             nota.fr = datos_validados['fr']
             nota.temp = datos_validados['temp']
-            nota.cc=datos_validados['cc']
-            cc=form.cc.data,  # 🔹 se guarda ahora
+            nota.cc = datos_validados['cc']
             nota.spo2 = datos_validados['spo2']
             nota.glicemia = datos_validados['glicemia']
-            nota.cc = datos_validados['cc']
-
-            # Texto largo (SOAP)
             nota.presentacion = datos_validados['presentacion']
             nota.antecedentes = datos_validados['antecedentes']
             nota.exploracion_fisica = datos_validados['exploracion_fisica']
@@ -453,19 +477,18 @@ def editar_nota(id_nota):
             flash("Nota actualizada correctamente", "success")
             return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
 
-    # Prellenar en GET
     if request.method == 'GET':
-        form.id_consulta.data = nota.id_consulta
         form.id_servicio.data = nota.id_servicio
-
         if not form.fecha.data:
             form.fecha.data = nota.fecha or datetime.utcnow().date()
+        if not form.hora.data:
+            form.hora.data = nota.hora or datetime.utcnow().time()
 
     return render_template(
         "medicos/editar_nota.html",
         form=form,
         paciente=paciente,
-        servicio=servicio,
+        servicio=servicio_actual,
         nota=nota
     )
     
@@ -476,11 +499,13 @@ def editar_nota(id_nota):
 def detalle_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
     return render_template('notas_detalle.html', nota=nota)
+
 @bp.route('/eliminar_nota/<int:id_nota>', methods=['POST'])
 @roles_required(['USUARIOMEDICO', 'Administrador'])
 def eliminar_nota(id_nota):
-    # Buscar la nota
+    # Obtener la nota y la consulta asociada
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
+    consulta = nota.consulta
 
     try:
         db.session.delete(nota)
@@ -489,8 +514,21 @@ def eliminar_nota(id_nota):
     except Exception as e:
         db.session.rollback()
         flash(f'Error al eliminar la nota: {str(e)}', 'danger')
+        return redirect(url_for('medicos.menu_medico'))
 
-    # Redirigir a la lista de notas del paciente
-    id_paciente = nota.id_paciente
-    return redirect(url_for('medicos.listar_notas', id_paciente=id_paciente))
+    # Recargar la consulta para evitar DetachedInstanceError
+    if consulta:
+        consulta = Consulta.query.get(consulta.id_consulta)
+        if not consulta.notas:  # No quedan notas
+            try:
+                db.session.delete(consulta)
+                db.session.commit()
+                flash('Consulta eliminada porque no tenía más notas.', 'info')
+                return redirect(url_for('medicos.menu_medico'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error al eliminar la consulta: {str(e)}', 'danger')
+                return redirect(url_for('medicos.menu_medico'))
 
+    # Si aún quedan notas, redirigir a la lista de notas de esa consulta
+    return redirect(url_for('medicos.listar_notas', id_consulta=consulta.id_consulta))
