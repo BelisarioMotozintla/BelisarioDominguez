@@ -148,7 +148,7 @@ def lista_solicitudes():
         joinedload(SolicitudExpediente.archivo),
         joinedload(SolicitudExpediente.usuario_solicita),
         joinedload(SolicitudExpediente.usuario_autoriza)
-    ).filter(SolicitudExpediente.estado_solicitud == 'pendiente') \
+    ).filter(SolicitudExpediente.estado_solicitud.in_(['pendiente', 'entregado'])) \
      .order_by(SolicitudExpediente.fecha_solicitud.desc())
 
     if search:
