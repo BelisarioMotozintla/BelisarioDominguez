@@ -13,7 +13,7 @@ def create_app():
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia, RangoFolios, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
-    from app.models.medicos import NotaConsultaExterna
+    from app.models.medicos import NotaConsultaExterna,Consulta
 
     app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config.from_object(DevelopmentConfig)
@@ -63,6 +63,7 @@ def create_app():
     from app.formatos import formatos_bp
     from app.comentario import comentario_bp
     from app.medicos import medicos_bp
+    from app.consultas import consultas_bp
 
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -75,6 +76,8 @@ def create_app():
     app.register_blueprint(formatos_bp, url_prefix='/formatos')
     app.register_blueprint(comentario_bp, url_prefix='/comentario')
     app.register_blueprint(medicos_bp, url_prefix='/medicos')
+    app.register_blueprint(consultas_bp, url_prefix='/consultas')
+
 
     app.register_blueprint(main_bp)
     

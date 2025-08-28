@@ -3,7 +3,19 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Pacientes Registrados</h2>
+
+  <!-- Buscador -->
+  <form method="get" action="{{ url_for('paciente.listar_pacientes') }}" class="mb-3">
+    <div class="input-group">
+      <input type="text" name="q" class="form-control"
+             placeholder="Buscar por paciente, CURP o número de expediente"
+             value="{{ query }}">
+      <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+  </form>
+
   <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-success mb-3">+ Nuevo Paciente</a>
+
   <table class="table table-striped">
     <thead>
       <tr>
@@ -34,9 +46,14 @@
           </form>
         </td>
       </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" class="text-center text-muted">No se encontraron pacientes</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
+
   <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
 </div>
 {% endblock %}

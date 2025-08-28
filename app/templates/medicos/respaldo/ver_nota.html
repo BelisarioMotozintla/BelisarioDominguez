@@ -5,10 +5,10 @@
 
     <div class="card mt-3">
         <div class="card-header">
-            <strong>Paciente:</strong> {{ nota.consulta.paciente.nombre }} 
-            | <strong>CURP:</strong> {{ nota.consulta.paciente.curp }}
-            | <strong>Edad:</strong> {{ nota.consulta.paciente.edad }}
-            | <strong>Sexo:</strong> {{ nota.consulta.paciente.sexo }}
+            <strong>Paciente:</strong> {{ nota.paciente.nombre }} 
+            | <strong>CURP:</strong> {{ nota.paciente.curp }}
+            | <strong>Edad:</strong> {{ nota.paciente.edad }}
+            | <strong>Sexo:</strong> {{ nota.paciente.sexo }}
         </div>
         <div class="card-body">
             <p><strong>Fecha de Consulta:</strong> {{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</p>
@@ -23,23 +23,18 @@
             <p><strong>Frecuencia cardiaca (FC):</strong> {{ nota.fc }}</p>
             <p><strong>Frecuencia respiratoria (FR):</strong> {{ nota.fr }}</p>
             <p><strong>Temperatura:</strong> {{ nota.temp }}</p>
-	    <p><strong>Cintura:</strong> {{ nota.cc }}</p>
             <p><strong>Circunferencia cefálica (CC):</strong> {{ nota.cc }}</p>
             <p><strong>SpO₂:</strong> {{ nota.spo2 }}%</p>
             <p><strong>Glicemia:</strong> {{ nota.glicemia }}</p>
 
             <hr>
-	    <h5>Presentacion</h5>
-            <p>{{ nota.presentacion }}</p>
-
             <h5>Antecedentes</h5>
             <p>{{ nota.antecedentes }}</p>
 
             <h5>Exploración Física</h5>
             <p>{{ nota.exploracion_fisica }}</p>
-
-            <h5>Laboratorio</h5>
-            <p>{{ nota.laboratorio }}</p>
+            <h5>    Laboratorio</h5>
+            <p>{{" " + nota.laboratorio }}</p>
 
             <h5>Diagnóstico</h5>
             <p>{{ nota.diagnostico }}</p>
@@ -49,19 +44,22 @@
 
             <h5>Pronóstico</h5>
             <p>{{ nota.pronostico }}</p>
+
+            
         </div>
         <div class="card-footer">
             <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-warning">Editar</a>
-            <a href="{{ url_for('medicos.generar_nota_pdf', id_nota=nota.id_nota) }}" class="btn btn-warning">PDF</a>
+	    <a href="{{ url_for('medicos.generar_nota_pdf', id_nota=nota.id_nota) }}" class="btn btn-warning">PDF</a>
+    {% if session.rol == 'SuperUsuario' or session.rol == 'Administrador' %}
+        <form action="/medicos/eliminar_nota/{{ nota.id_nota }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta nota?');">
+            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+    {% endif %}
+           <a href="{{ url_for('medicos.listar_notas', id_paciente=nota.id_paciente, query=request.args.get('query', '')) }}" class="btn btn-secondary">Volver</a>
 
            
-            {% if session.rol in ['SuperUsuario', 'Administrador'] %}
-            <form action="{{ url_for('medicos.eliminar_nota', id_nota=nota.id_nota) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta nota?');">
-                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-            </form>
-            {% endif %}
 
-            <a href="{{ url_for('medicos.listar_notas', id_consulta=nota.id_consulta) }}" class="btn btn-secondary">Volver</a>
+
         </div>
     </div>
 </div>

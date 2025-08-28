@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify,session
 from app.models.archivo_clinico import Paciente,UnidadSalud,PacienteUnidad
 from app.utils.helpers import roles_required
 from app import db
+from sqlalchemy import or_, cast, Date
 from datetime import date
 
 bp = Blueprint('paciente', __name__, template_folder='templates/paciente')
@@ -9,11 +10,28 @@ bp = Blueprint('paciente', __name__, template_folder='templates/paciente')
 @bp.route('/')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_pacientes():
-    pacientes = Paciente.query.all()
-    return render_template('paciente/listar.html', pacientes=pacientes)
+    query = request.args.get("q", "").strip()
+
+    base_query = Paciente.query
+
+    if query:
+        base_query = base_query.filter(
+            or_(
+                Paciente.nombre.ilike(f"%{query}%"),
+                Paciente.curp.ilike(f"%{query}%")
+            )
+        )
+
+    pacientes = base_query.order_by(Paciente.id_paciente.desc()).limit(5).all()  # últimos 5
+
+    return render_template(
+        'paciente/listar.html',
+        pacientes=pacientes,
+        query=query
+    )
 
 @bp.route('/alta', methods=['GET', 'POST'])
-@roles_required(['UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO'])
 def alta_paciente():
     if request.method == 'POST':
         curp = request.form['curp'].strip().upper()
@@ -59,11 +77,17 @@ def alta_paciente():
         db.session.commit()
 
         flash('Paciente registrado correctamente', 'success')
-        return redirect(url_for('paciente.listar_pacientes'))
+        rol = session.get('rol')
+        if rol == 'USUARIOMEDICO':
+            return redirect(url_for('medicos.menu'))
+        else:
+            return redirect(url_for('paciente.listar_pacientes'))
+        
 
     # GET: cargar unidades para el formulario
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     return render_template('paciente/alta.html', unidades=unidades)
+
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def editar_paciente(id):

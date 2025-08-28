@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Detalle de Nota {{ nota.id_nota }}</h3>
+<p><b>Fecha:</b> {{ nota.fecha }}</p>
+<p><b>Peso:</b> {{ nota.peso }} kg</p>
+<p><b>Talla:</b> {{ nota.talla }} m</p>
+<p><b>Diagnóstico:</b> {{ nota.diagnostico }}</p>
+<p><b>Plan:</b> {{ nota.plan }}</p>
+<a href="{{ url_for('medicos.notas_lista', id_consulta=nota.consulta.id_consulta) }}" class="btn btn-secondary">Volver</a>
+{% endblock %}

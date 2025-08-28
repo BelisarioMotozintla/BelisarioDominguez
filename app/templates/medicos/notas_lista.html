@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Notas de la consulta {{ consulta.id_consulta }}, {{ consulta.paciente.nombre }}</h3>
+
+<div class="mb-3">
+    <a href="{{ url_for('medicos.menu_medico') }}" class="btn btn-secondary">Regresar</a>
+    <a href="{{ url_for('medicos.nueva_nota', id_consulta=consulta.id_consulta) }}" class="btn btn-primary">Nueva Nota</a>
+</div>
+
+<table class="table table-striped table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Fecha</th>
+            <th>Servicio</th>
+            <th>Médico</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for nota in notas %}
+        <tr>
+            <td>{{ nota.fecha.strftime('%d/%m/%Y') if nota.fecha else '' }}</td>
+            <td>{{ nota.servicio.nombre_servicio if nota.servicio else 'Sin servicio' }}</td>
+            <td>{{ nota.consulta.usuario.empleado.nombre if nota.consulta and nota.consulta.usuario and nota.consulta.usuario.empleado else 'Sin asignar' }}</td>
+            <td>
+                <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-primary">Detalle</a>
+                <a href="{{ url_for('medicos.editar_nota', id_nota=nota.id_nota) }}" class="btn btn-sm btn-warning">Editar</a>
+                <a href="{{ url_for('medicos.generar_nota_pdf', id_nota=nota.id_nota) }}" class="btn btn-sm btn-secondary">PDF</a>
+                {% if session.rol in ['SuperUsuario', 'Administrador'] %}
+                <form action="{{ url_for('medicos.eliminar_nota', id_nota=nota.id_nota) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta nota?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="4">No hay notas registradas.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

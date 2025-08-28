@@ -138,28 +138,33 @@ def validar_numero_expediente():
     return jsonify({'existe': existe})
 #===========================================================================================Solicitudes de Expedientes
 @bp.route('/archivo/solicitudes')
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def lista_solicitudes():
     search = request.args.get('search', '').strip()
+    
+    # Query base con joins y solo solicitudes pendientes
     query = SolicitudExpediente.query.options(
         joinedload(SolicitudExpediente.paciente),
         joinedload(SolicitudExpediente.archivo),
         joinedload(SolicitudExpediente.usuario_solicita),
         joinedload(SolicitudExpediente.usuario_autoriza)
-    ).order_by(SolicitudExpediente.fecha_solicitud.desc())
+    ).filter(SolicitudExpediente.estado_solicitud == 'pendiente') \
+     .order_by(SolicitudExpediente.fecha_solicitud.desc())
 
     if search:
         # Buscar por nombre de paciente, CURP o número de expediente
-       query = query.join(Paciente).join(ArchivoClinico, SolicitudExpediente.id_archivo == ArchivoClinico.id_archivo).filter(
-    or_(
-        Paciente.nombre.ilike(f"%{search}%"),
-        Paciente.curp.ilike(f"%{search}%"),
-        cast(ArchivoClinico.numero_expediente, String).ilike(f"%{search}%")
-        )   
-    )
-    
+        query = query.join(Paciente) \
+                     .join(ArchivoClinico, SolicitudExpediente.id_archivo == ArchivoClinico.id_archivo) \
+                     .filter(
+                         or_(
+                             Paciente.nombre.ilike(f"%{search}%"),
+                             Paciente.curp.ilike(f"%{search}%"),
+                             cast(ArchivoClinico.numero_expediente, String).ilike(f"%{search}%")
+                         )
+                     )
+
     solicitudes = query.limit(50).all()  # Limitar resultados
-    return render_template('archivo_clinico/solicitudes.html', solicitudes=solicitudes)
+    return render_template('archivo_clinico/solicitudes.html', solicitudes=solicitudes, search=search)
 
 
 @bp.route('/archivo/solicitudes/nueva', methods=['GET', 'POST'])

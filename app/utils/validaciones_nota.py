@@ -3,32 +3,30 @@ from decimal import Decimal
 
 # Funciones auxiliares para convertir y normalizar datos
 def get_str(datos, key):
-    return datos.get(key, '').strip().upper()
+    return datos.get(key, '').strip().upper() if datos.get(key) else ''
 
 def get_date(datos, key, fmt="%Y-%m-%d"):
     val = datos.get(key, "")
     if val is None or val == "":
         return None
-    
-    # Si ya es date o datetime, regresamos como date
     if isinstance(val, (date, datetime)):
         return val if isinstance(val, date) else val.date()
-    
-    # Si es string, intentamos parsear
     if isinstance(val, str):
         val = val.strip()
         try:
             return datetime.strptime(val, fmt).date()
         except ValueError:
             return None
-    
     return None
+
 def get_time(datos, key):
-    val = datos.get(key, '').strip()
+    val = datos.get(key, '')
     if not val:
         return None
+    if isinstance(val, datetime):
+        return val.time()
     try:
-        return datetime.strptime(val, '%H:%M').time()
+        return datetime.strptime(val.strip(), '%H:%M').time()
     except:
         return None
 
@@ -36,69 +34,60 @@ def get_int(datos, key):
     val = datos.get(key, "")
     if val is None:
         return None
-    
-    # Si ya es numérico
     if isinstance(val, (int, float, Decimal)):
         return int(val)
-    
-    # Si es cadena
     if isinstance(val, str):
         val = val.strip()
         try:
             return int(val) if val else None
         except ValueError:
             return None
-    
     return None
-
 
 def get_float(datos, key):
     val = datos.get(key, "")
     if val is None:
         return None
-    
-    # Si ya es numérico
     if isinstance(val, (int, float, Decimal)):
         return float(val)
-    
-    # Si es cadena
     if isinstance(val, str):
         val = val.strip()
         try:
             return float(val) if val else None
         except ValueError:
             return None
-    
     return None
-# Validación de todos los campos de nota médica
+
 def campos_validos_nota_medica(datos):
     errores = []
 
     # Signos vitales
     peso = get_float(datos, 'peso')
     talla = get_float(datos, 'talla')
-    if peso < 0:
-        errores.append('Peso no puede ser negativo')
-    if talla < 0:
-        errores.append('Talla no puede ser negativa')
-
+    cc = get_float(datos, 'cc')
     ta = get_str(datos, 'ta') or "0/0"
-
     fc = get_int(datos, 'fc')
     fr = get_int(datos, 'fr')
     temp = get_float(datos, 'temp')
     spo2 = get_int(datos, 'spo2')
     glicemia = get_int(datos, 'glicemia')
 
-    if fc < 0:
+    # Validaciones
+    if peso is not None and peso < 0:
+        errores.append('Peso no puede ser negativo')
+    if talla is not None and talla < 0:
+        errores.append('Talla no puede ser negativa')
+    if cc is not None and cc < 0:
+        errores.append('CC no puede ser negativa')
+    if fc is not None and fc < 0:
         errores.append('FC no puede ser negativa')
-    if fr < 0:
+    if fr is not None and fr < 0:
         errores.append('FR no puede ser negativa')
-    if temp < 0:
+    if temp is not None and temp < 0:
         errores.append('Temperatura no puede ser negativa')
-    if spo2 < 0:
+    if spo2 is not None and spo2 < 0:
         errores.append('SpO2 no puede ser negativa')
-    if glicemia < 0:
+    if glicemia is not None and glicemia < 0:
         errores.append('Glicemia no puede ser negativa')
 
     # Fecha
@@ -106,14 +95,15 @@ def campos_validos_nota_medica(datos):
     if not fecha:
         errores.append('Fecha inválida o vacía')
 
-    # Campos de texto
-    campos_texto = ['antecedentes', 'exploracion_fisica', 'diagnostico',
-                    'plan', 'pronostico', 'laboratorio']
+    # Campos de texto (SOAP)
+    campos_texto = ['presentacion', 'antecedentes', 'exploracion_fisica',
+                    'diagnostico', 'plan', 'pronostico', 'laboratorio']
     textos = {c: get_str(datos, c) for c in campos_texto}
 
     return errores, {
         'peso': peso,
         'talla': talla,
+        'cc': cc,
         'ta': ta,
         'fc': fc,
         'fr': fr,

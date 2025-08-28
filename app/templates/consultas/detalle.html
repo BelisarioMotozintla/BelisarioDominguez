@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Detalle de la consulta #{{ consulta.id_consulta }}</h2>
+<p><b>Paciente:</b> {{ consulta.paciente.nombre }}</p>
+<p><b>Fecha:</b> {{ consulta.fecha }}</p>
+<p><b>Servicio:</b> {{ consulta.servicio.nombre_servicio }}</p>
+<p><b>Estado:</b> {{ consulta.estado }}</p>
+
+<a href="{{ url_for('medicos.listar_notas', id_consulta=consulta.id_consulta) }}" class="btn btn-primary">
+  Ver Notas
+</a>
+<a href="{{ url_for('consultas.listar_consultas') }}" class="btn btn-secondary">
+  Volver
+</a>
+{% endblock %}

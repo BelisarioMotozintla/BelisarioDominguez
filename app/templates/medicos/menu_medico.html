@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Consultas y Notas Médicas</h2>
+
+<!-- Botones de acción -->
+<table style="border: none;">
+  <tr>
+    <td>
+      <div class="btn-group" role="group">
+        <a href="{{ url_for('consultas.nueva_consulta') }}" class="btn btn-sm btn-outline-danger" title="Nueva Consulta">
+          <i class="bi bi-pencil-square"></i> Nueva Consulta
+        </a>
+        <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-sm btn-outline-primary" title="Pacientes">
+          <i class="bi bi-person-fill"></i> Pacientes
+        </a>
+        <a href="{{ url_for('medicos.listar_notas', id_consulta=1) }}" class="btn btn-sm btn-outline-warning" title="Notas (ejemplo)">
+          <i class="bi bi-journal-text"></i> Notas
+        </a>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<!-- Buscador -->
+<form method="get" class="mb-3">
+  <div class="input-group">
+    <input type="text" name="q" class="form-control"
+           placeholder="Buscar por paciente, CURP o número de expediente"
+           value="{{ query }}">
+    <button type="submit" class="btn btn-primary">Buscar</button>
+  </div>
+</form>
+
+<!-- Resultados -->
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID Consulta</th>
+      <th>Paciente</th>
+      <th>Fecha</th>
+      <th>Médico</th>
+      <th>Estatus</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for consulta in consultas %}
+    <tr>
+      <td>{{ consulta.id_consulta }}</td>
+      <td>{{ consulta.paciente.nombre }}</td>
+      <td>{{ consulta.fecha.strftime('%Y-%m-%d') }}</td>
+      <td>{{ consulta.usuario.empleado.nombre }}</td>
+      <td>{{ consulta.estado }}</td>
+      <td>
+        <a href="{{ url_for('medicos.listar_notas', id_consulta=consulta.id_consulta) }}" 
+           class="btn btn-sm btn-outline-success">
+           Ver Notas
+        </a>
+       <a href="{{ url_for('consultas.editar_consulta', id_consulta=consulta.id_consulta) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="5" class="text-center">No se encontraron resultados.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

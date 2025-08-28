@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Consultas</h2>
+<a href="{{ url_for('consultas.nueva_consulta') }}" class="btn btn-primary">Nueva Consulta</a>
+
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Paciente</th>
+      <th>Fecha</th>
+      <th>Servicio</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in consultas %}
+    <tr>
+      <td>{{ c.id_consulta }}</td>
+      <td>{{ c.paciente.nombre }}</td>
+      <td>{{ c.fecha }}</td>
+      <td>{{ c.servicio.nombre_servicio }}</td>
+      <td>
+        <a href="{{ url_for('consultas.detalle_consulta', id_consulta=c.id_consulta) }}" class="btn btn-sm btn-info">
+          Detalle
+        </a>
+        <a href="{{ url_for('medicos.listar_notas', id_consulta=c.id_consulta) }}" class="btn btn-sm btn-success">
+          Notas
+        </a>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="5">No hay consultas registradas.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

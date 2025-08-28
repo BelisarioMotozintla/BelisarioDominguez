@@ -5,22 +5,14 @@ from datetime import datetime
 
 class Consulta(db.Model):
     __tablename__ = 'consulta'
-
     id_consulta = db.Column(db.Integer, primary_key=True)
     id_paciente = db.Column(db.Integer, db.ForeignKey('Paciente.id_paciente'), nullable=False)
-    id_expediente = db.Column(db.Integer, db.ForeignKey('ArchivoClinico.id_archivo'), nullable=True)
     id_usuario = db.Column(db.Integer, db.ForeignKey('Usuario.id_usuario'), nullable=False)  # Médico tratante
-    id_servicio = db.Column(db.Integer, db.ForeignKey('Servicio.id_servicio'), nullable=False)
-
     fecha = db.Column(db.Date, default=datetime.utcnow, nullable=False)
     hora = db.Column(db.Time, nullable=True)
     estado = db.Column(db.String(20), default='ABIERTA')
-
-    # Relaciones
     paciente = db.relationship('Paciente', backref=db.backref('consultas', lazy='dynamic'))
-    expediente = db.relationship('ArchivoClinico', backref=db.backref('consultas', lazy='dynamic'))
     usuario = db.relationship('Usuario', backref=db.backref('consultas', lazy='dynamic'))
-    servicio = db.relationship('Servicio', backref=db.backref('consultas', lazy='dynamic'))
 
     notas = db.relationship('NotaConsultaExterna', back_populates='consulta', cascade="all, delete-orphan")
 
@@ -31,7 +23,7 @@ class NotaConsultaExterna(db.Model):
 
     id_nota = db.Column(db.Integer, primary_key=True)
     id_consulta = db.Column(db.Integer, db.ForeignKey('consulta.id_consulta'), nullable=False)
-
+    id_servicio = db.Column(db.Integer, db.ForeignKey('Servicio.id_servicio'), nullable=False)
     fecha = db.Column(db.Date, default=datetime.utcnow, nullable=False)
     hora = db.Column(db.Time, nullable=True)
 
@@ -44,6 +36,7 @@ class NotaConsultaExterna(db.Model):
     fc = db.Column(db.Integer, nullable=True)
     fr = db.Column(db.Integer, nullable=True)
     temp = db.Column(db.Numeric(4,1), nullable=True)
+    cc = db.Column(db.Numeric(5,2), nullable=True)
     spo2 = db.Column(db.Integer, nullable=True)
     glicemia = db.Column(db.Integer, nullable=True)
     imc = db.Column(db.Numeric(5,2), nullable=True)
@@ -62,3 +55,4 @@ class NotaConsultaExterna(db.Model):
 
     # Relación
     consulta = db.relationship('Consulta', back_populates='notas')
+    servicio = db.relationship('Servicio', backref=db.backref('notas', lazy='dynamic'))
