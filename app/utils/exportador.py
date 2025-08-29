@@ -4,19 +4,28 @@ from datetime import datetime
 from app.models import RegistroAdultoMayor  # Importa tu modelo SQLAlchemy
 from app.utils.db import db  # Instancia SQLAlchemy
 
-def generar_excel(fecha_inicio_str, fecha_fin_str):
+
+def generar_excel(fecha_inicio_str, fecha_fin_str, usuario=None, rol=None):
     try:
         # Validar fechas
         fecha_inicio = datetime.strptime(fecha_inicio_str, "%Y-%m-%d")
         fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d")
 
-        # Consulta con SQLAlchemy todos los registros
-        registros = RegistroAdultoMayor.query.all()
+        # Consulta con SQLAlchemy
+        query = RegistroAdultoMayor.query
 
-        # Convertir registros SQLAlchemy a lista de diccionarios
-        lista_dicts = [r.to_dict() for r in registros]  # Necesitas definir to_dict() en tu modelo
+        # Filtrar por usuario si no es JefeEnfermeria
+        if rol != "JefeEnfermeria" and usuario:
+            query = query.filter(db.func.upper(RegistroAdultoMayor.personal_enfermeria) == usuario.upper())
 
-        # Crear DataFrame
+        registros = query.all()
+
+        if not registros:
+            return None, "No hay registros para exportar en ese rango de fechas o usuario."
+
+        # Convertir registros a lista de diccionarios (define to_dict en tu modelo)
+        lista_dicts = [r.to_dict() for r in registros]
+
         df = pd.DataFrame(lista_dicts)
 
         # Asegurarse que la columna 'fecha' sea datetime
@@ -45,8 +54,8 @@ def generar_excel(fecha_inicio_str, fecha_fin_str):
 
         jefe_index = df.columns.get_loc('nombre_jefe_fam')
         df.insert(jefe_index,
-            'NOMBRE DEL JEFE DE FAM, NOMBRE DEL PACIENTE , FECHA DE NACIMIENTO Y DOMICILIO',
-            df['jefe_de_familia'])
+                  'NOMBRE DEL JEFE DE FAM, NOMBRE DEL PACIENTE , FECHA DE NACIMIENTO Y DOMICILIO',
+                  df['jefe_de_familia'])
 
         # Eliminar columnas innecesarias
         df.drop(columns=[

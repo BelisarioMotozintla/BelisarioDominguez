@@ -6,8 +6,10 @@ from app.utils.helpers import roles_required
 from . import enfermeria_bp as bp
 from io import BytesIO
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime, date, time
 from sqlalchemy import desc, func
+from sqlalchemy.dialects import postgresql
+from app.utils.exportador import generar_excel
 
 
 
@@ -24,54 +26,77 @@ def formulario():
     usua = session['usuario']
     hoy = date.today()
 
-    # Rango fechas del 26 del mes anterior al 25 del actual
+    # Rango 26 del mes anterior → hoy (en lugar de 25 del mes actual)
     if hoy.month == 1:
         inicio = datetime(hoy.year - 1, 12, 26)
     else:
         inicio = datetime(hoy.year, hoy.month - 1, 26)
-    fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
 
-    registros = RegistroAdultoMayor.query.filter(
+    fin = datetime.combine(hoy, datetime.max.time())  # Incluye hoy completo
+
+    # Consulta
+    query = RegistroAdultoMayor.query.filter(
         RegistroAdultoMayor.fecha >= inicio,
         RegistroAdultoMayor.fecha <= fin,
-        RegistroAdultoMayor.personal_enfermeria == usua
-    ).all()
-
-    datos = {}  # Diccionario para enviar datos al formulario
+        db.func.upper(RegistroAdultoMayor.personal_enfermeria) == usua.upper()
+    )
+   
+    # Ejecutar la query
+    registros = query.all()
+    
+    datos = {}
 
     if request.method == 'POST':
-        # Si el POST es para búsqueda por nombre (por ejemplo, desde un input "nombre")
-        if 'nombre' in request.form:
-            nombre = request.form.get('nombre', '').upper()
-            resultados = RegistroAdultoMayor.query.filter(
-                RegistroAdultoMayor.paciente.ilike(f"%{nombre}%")
-            ).all()
-            return render_template('enfermeria/formulario.html', resultados=resultados, datos=datos, registros=registros)
-
-        # Si el POST es para guardar un registro (ejemplo: campo obligatorio 'paciente')
+        # Validar campos obligatorios
         validado, campo = campos_validos(request.form)
         if not validado:
             flash(f"Completa el campo: {campo}", 'danger')
-            print(f"[VALIDACIÓN] Campo inválido: {campo}")
             datos = request.form
             return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
 
+        # Validar fecha principal
+        fecha_str = request.form.get('fecha')
         try:
-            fecha_obj = datetime.strptime(get_str(request.form, 'fecha'), '%Y-%m-%d').date()
+            fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            if fecha_obj < date(1900,1,1) or fecha_obj > date.today():
+                flash("Fecha inválida.", "danger")
+                datos = request.form
+                return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
+        except (ValueError, TypeError):
+            flash("Formato de fecha incorrecto.", "danger")
+            datos = request.form
+            return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
 
+        # Validar fecha de nacimiento si existe
+        fecha_nac_str = request.form.get('fecha_nacimiento')
+        fecha_nac_obj = None
+        if fecha_nac_str:
+            try:
+                fecha_nac_obj = datetime.strptime(fecha_nac_str, '%Y-%m-%d').date()
+                if fecha_nac_obj < date(1900,1,1) or fecha_nac_obj > date.today():
+                    flash("Fecha de nacimiento inválida.", "danger")
+                    datos = request.form
+                    return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
+            except (ValueError, TypeError):
+                flash("Formato de fecha de nacimiento incorrecto.", "danger")
+                datos = request.form
+                return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
+
+        # Guardar registro
+        try:
             nuevo_registro = RegistroAdultoMayor(
                 unidad_salud = get_str(request.form, 'unidad_salud'),
                 entidad_federativa = get_str(request.form, 'entidad_federativa'),
                 clues = get_str(request.form, 'clues'),
                 localidad = get_str(request.form, 'localidad'),
                 servicio = get_str(request.form, 'servicio'),
-                personal_enfermeria = get_str(request.form, 'personal_enfermeria'),
+                personal_enfermeria = usua,
                 fecha = fecha_obj,
                 hora_inicio = get_str(request.form, 'hora_inicio'),
                 hora_termino = get_str(request.form, 'hora_termino'),
                 nombre_jefe_fam = get_str(request.form, 'nombre_jefe_fam').upper(),
                 paciente = get_str(request.form, 'paciente').upper(),
-                fecha_nacimiento = get_str(request.form, 'fecha_nacimiento'),
+                fecha_nacimiento = fecha_nac_obj,
                 domicilio = get_str(request.form, 'domicilio').upper(),
                 edad = get_int(request.form, 'edad'),
                 sexo = get_str(request.form, 'sexo'),
@@ -114,106 +139,53 @@ def formulario():
             db.session.add(nuevo_registro)
             db.session.commit()
             flash('Registro guardado exitosamente.', 'success')
-            datos = {}  # limpiar formulario después de guardar
-
+            datos = {}
+            registros.append(nuevo_registro)
         except Exception as e:
             db.session.rollback()
             flash(f'Error al guardar: {e}', 'danger')
             datos = request.form
             return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
 
-    # GET o después de guardar muestra formulario limpio con registros
     return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
 
-@bp.route('/guardar', methods=['POST'])
-@roles_required(['UsuarioEnfermeria', 'Administrador'])
-def guardar():
-    try:
-        nuevo_registro = RegistroAdultoMayor(
-            unidad_salud=get_str('unidad_salud'),
-            entidad_federativa=get_str('entidad_federativa'),
-            clues=get_str('clues'),
-            localidad=get_str('localidad'),
-            servicio=get_str('servicio'),
-            personal_enfermeria=session.get('usuario', '').upper(),
-            fecha=get_date('fecha'),
-            hora_inicio=request.form.get('hora_inicio', '').strip(),
-            hora_termino=request.form.get('hora_termino', '').strip(),
-            nombre_jefe_fam=get_str('nombre_jefe_fam'),
-            paciente=get_str('paciente'),
-            fecha_nacimiento=request.form.get('fecha_nacimiento', '').strip(),
-            domicilio=get_str('domicilio'),
-            edad=get_int('edad'),
-            sexo=get_str('sexo'),
-            indigena=get_str('indigena'),
-            migrante=get_str('migrante'),
-            nivel_atencion=get_str('nivel_atencion'),
-            consulta_enfermeria=get_str('consulta_enfermeria'),
-            consultoria_otorgada=get_str('consultoria_otorgada'),
-            prescripcion_medicamentos=get_str('prescripcion_medicamentos'),
-            DG_plan_cuidados=get_str('DG_plan_cuidados'),
-            DG_GRUPOS_EDAD=get_str('DG_GRUPOS_EDAD'),
-            INSTITUCION_PROCEDENCIA=get_str('INSTITUCION_PROCEDENCIA'),
-            CONSEJERIA_PF=get_str('CONSEJERIA_PF'),
-            PF_GRUPOS_EDAD=get_str('PF_GRUPOS_EDAD'),
-            PF_SUBSECUENTE=get_str('PF_SUBSECUENTE'),
-            PF_METODO=get_str('PF_METODO'),
-            VI_EMB_grupo_edad=get_str('VI_EMB_grupo_edad'),
-            VI_EMB_TRIMESTRE_GESTACIONAL=get_str('VI_EMB_TRIMESTRE_GESTACIONAL'),
-            VI_EMB_ACCIONES_IRREDUCTIBLES=get_list_as_str('VI_EMB_ACCIONES_IRREDUCTIBLES[]'),
-            observaciones=get_str('observaciones'),
-            DETECCION_TAMIZ=get_str('DETECCION_TAMIZ'),
-            diagnostico_nutricional=get_str('diagnostico_nutricional'),
-            SALUD_GINECO_DETECCION=get_str('SALUD_GINECO_DETECCION'),
-            EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS=get_str('EDA_SOBRES_DE_HIDRATACION_ORAL_ENTREGADOS'),
-            EDA_MADRES_CAPACITADAS_MANEJO=get_str('EDA_MADRES_CAPACITADAS_MANEJO'),
-            IRA_MADRES_CAPACITADAS_MANEJO=get_str('IRA_MADRES_CAPACITADAS_MANEJO'),
-            grupo_riesgo=get_str('grupo_riesgo'),
-            DETECCION_ENFERMEDADES_CRONICAS=get_str('DETECCION_ENFERMEDADES_CRONICAS'),
-            DIABETES_MELLITUS=get_str('DIABETES_MELLITUS'),
-            DISLIPIDEMIA=get_str('DISLIPIDEMIA'),
-            hipertension=get_str('hipertension'),
-            REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES=get_str('REVISION_INTEGRAL_PIEL_MIEMBROS_INFERIORES'),
-            DIABETICOS_INFORMADOS_CUIDADOS_PIES=get_str('DIABETICOS_INFORMADOS_CUIDADOS_PIES'),
-            vacunacion=get_str('vacunacion'),
-            PROMOCION_SALUD=get_str('PROMOCION_SALUD'),
-            DERIVACION=get_str('DERIVACION'),
-            ACTIVIDADES_ASISTENCIALES=get_str('ACTIVIDADES_ASISTENCIALES'),
-            OBSERVACIONES_GENERALES=get_str('OBSERVACIONES_GENERALES'),
-        )
-        db.session.add(nuevo_registro)
-        db.session.commit()
-        flash('Registro guardado exitosamente.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error al guardar el registro: {e}', 'danger')
-    return redirect(url_for('enfermeria.formulario'))
-
 @bp.route('/exportar', methods=['POST'])
-@roles_required(['UsuarioEnfermeria', 'Administrador'])
+@roles_required(['UsuarioEnfermeria', 'Administrador', 'JefeEnfermeria'])
 def exportar():
-    ids = request.form.getlist('ids')
-    registros = RegistroAdultoMayor.query.filter(RegistroAdultoMayor.id.in_(ids)).all()
-    if not registros:
-        flash('No se seleccionaron registros válidos para exportar.', 'warning')
-        return redirect(url_for('enfermeria.formulario'))
-    data = [{
-        'Paciente': r.paciente,
-        'Edad': r.edad,
-        'Domicilio': r.domicilio,
-        'Unidad de Salud': r.unidad_salud,
-        'Fecha': r.fecha,
-        'Hora de Inicio': r.hora_inicio,
-        'Hora de Término': r.hora_termino,
-        'Nombre del Jefe de Familia': r.nombre_jefe_fam,
-    } for r in registros]
-    df = pd.DataFrame(data)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Registros')
-    output.seek(0)
-    return send_file(output, as_attachment=True, download_name="registros.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    if 'usuario' not in session or 'rol' not in session:
+        flash('Debes iniciar sesión', 'error')
+        return redirect(url_for('auth.login'))
 
+    usuario = session['usuario']
+    rol = session['rol']
+
+    # Tomar fechas desde el formulario POST
+    fecha_inicio = request.form.get('fecha_inicio')
+    fecha_fin = request.form.get('fecha_fin')
+
+    if not fecha_inicio or not fecha_fin:
+        flash("Debes seleccionar un rango de fechas.", "warning")
+        return redirect(url_for('enfermeria.formulario'))
+
+    try:
+        # Llamamos a generar_excel pasando usuario y rol
+        excel_output, mensaje = generar_excel(fecha_inicio, fecha_fin, usuario=usuario, rol=rol)
+
+        if not excel_output:
+            flash(mensaje, "danger")
+            return redirect(url_for('enfermeria.formulario'))
+
+        return send_file(
+            excel_output,
+            download_name=mensaje,
+            as_attachment=True,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        flash(f'Error al exportar: {e}', 'danger')
+        return redirect(url_for('enfermeria.formulario'))
+    
 @bp.route('/eliminar', methods=['POST'])
 @roles_required(['UsuarioEnfermeria', 'Administrador'])
 def eliminar():
@@ -252,20 +224,33 @@ def total_capturados_mes():
         usua = session.get('usuario')
         if not usua:
             return jsonify({'error': 'Sesión no válida'}), 401
-        hoy = datetime.now()
+
+        hoy = date.today()  # solo fecha, sin hora
+
+        # Día 26 del mes anterior
         if hoy.month == 1:
             inicio = datetime(hoy.year - 1, 12, 26)
         else:
             inicio = datetime(hoy.year, hoy.month - 1, 26)
-        fin = datetime(hoy.year, hoy.month, 25, 23, 59, 59)
+
+        # Hasta hoy completo
+        fin = datetime.combine(hoy, datetime.max.time())
+
+        print("📅 Rango de fechas:", inicio, "→", fin)
+        print("👤 Personal:", usua)
+
         total = RegistroAdultoMayor.query.filter(
-            RegistroAdultoMayor.fecha >= inicio,
-            RegistroAdultoMayor.fecha <= fin,
-            RegistroAdultoMayor.personal_enfermeria == usua
+            RegistroAdultoMayor.fecha >= inicio.date(),  # comparar solo fechas
+            RegistroAdultoMayor.fecha <= fin.date(),     # comparar solo fechas
+            db.func.upper(RegistroAdultoMayor.personal_enfermeria) == usua.upper()
         ).count()
+
         return jsonify({'total': total})
+
     except Exception as e:
-        return jsonify({'total': 0, 'error': f'Error al obtener datos: {e}'}), 500
+        print("❌ ERROR total_capturados_mes:", e)
+        return jsonify({'error': 'Error al obtener datos'}), 500
+
 
 @bp.route("/api/reporte", methods=["GET"])
 @roles_required(['UsuarioEnfermeria', 'Administrador'])
