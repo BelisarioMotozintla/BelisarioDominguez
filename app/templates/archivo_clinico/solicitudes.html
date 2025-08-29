@@ -52,8 +52,18 @@
                         <tr>
                             <td>{{ solicitud.id_solicitud }}</td>
                             <td>{{ solicitud.paciente.nombre }}</td>
-                            <td>{{ solicitud.usuario_solicita.nombre }}</td>
-                            <td>{{ solicitud.usuario_autoriza.nombre if solicitud.usuario_autoriza else 'Pendiente' }}</td>
+                            <td>{{ solicitud.usuario_solicita.usuario if solicitud.usuario_solicita else '---' }}</td>
+                            <td>
+                            {% if solicitud.usuario_autoriza %}
+                                {{ solicitud.usuario_autoriza.usuario }}
+                            {% elif solicitud.estado_solicitud == 'pendiente' %}
+                                Pendiente
+                            {% elif solicitud.estado_solicitud == 'entregado' %}
+                                En proceso
+                            {% else %}
+                                ---
+                            {% endif %}
+                            </td>
                             <td>{{ solicitud.fecha_solicitud.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 <span class="badge bg-{{ 'secondary' if solicitud.estado_solicitud == 'pendiente' else 'warning' if solicitud.estado_solicitud == 'entregado' else 'success' if solicitud.estado_solicitud == 'devuelto' else 'danger' }}">
