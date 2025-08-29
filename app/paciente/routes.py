@@ -4,6 +4,10 @@ from app.utils.helpers import roles_required
 from app import db
 from sqlalchemy import or_, cast, Date
 from datetime import date
+from datetime import datetime
+from datetime import datetime, date
+
+
 
 bp = Blueprint('paciente', __name__, template_folder='templates/paciente')
 
@@ -30,11 +34,13 @@ def listar_pacientes():
         query=query
     )
 
+
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO'])
 def alta_paciente():
     if request.method == 'POST':
-        curp = request.form['curp'].strip().upper()
+        # Normalizar CURP
+        curp = request.form.get('curp', '').strip().upper()
 
         # Verificar si el CURP ya existe
         existente = Paciente.query.filter_by(curp=curp).first()
@@ -42,25 +48,38 @@ def alta_paciente():
             flash('Ya existe un paciente registrado con ese CURP.', 'danger')
             return redirect(url_for('paciente.alta_paciente'))
 
+        # Validar fecha de nacimiento
+        fecha_str = request.form.get('fecha_nacimiento')
+        fecha_nac = None
+        if fecha_str:
+            try:
+                fecha_nac = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+                if fecha_nac < date(1900, 1, 1) or fecha_nac > date.today():
+                    flash("La fecha de nacimiento no es válida.", "danger")
+                    return redirect(url_for('paciente.alta_paciente'))
+            except ValueError:
+                flash("Formato de fecha incorrecto.", "danger")
+                return redirect(url_for('paciente.alta_paciente'))
+
+        # Manejo de cronicidad
         es_cronico = request.form.get('es_cronico', 'No')
         tipo_cronicidad = request.form.get('tipo_cronicidad')
-        # Si no es crónico, asignar "No aplica"
         if es_cronico != "Sí":
             tipo_cronicidad = "Otro"
 
         # Crear nuevo paciente
         nuevo = Paciente(
-            nombre=request.form['nombre'].strip(),
+            nombre=request.form.get('nombre', '').strip(),
             curp=curp,
-            fecha_nacimiento=request.form.get('fecha_nacimiento') or None,
-            sexo=request.form['sexo'],
+            fecha_nacimiento=fecha_nac,
+            sexo=request.form.get('sexo'),
             direccion=request.form.get('direccion'),
             es_cronico=es_cronico,
             tipo_cronicidad=tipo_cronicidad,
             esta_embarazada=request.form.get('esta_embarazada', 'No')
         )
         db.session.add(nuevo)
-        db.session.flush()  # Obtener ID sin hacer commit aún
+        db.session.flush()  # Obtener ID sin commit aún
 
         # Datos de unidad y tipo de relación
         id_unidad = request.form.get('id_unidad')
@@ -77,16 +96,17 @@ def alta_paciente():
         db.session.commit()
 
         flash('Paciente registrado correctamente', 'success')
+
         rol = session.get('rol')
         if rol == 'USUARIOMEDICO':
             return redirect(url_for('medicos.menu'))
         else:
             return redirect(url_for('paciente.listar_pacientes'))
-        
 
-    # GET: cargar unidades para el formulario
+    # GET: cargar unidades y fecha actual para el formulario
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
-    return render_template('paciente/alta.html', unidades=unidades)
+    hoy = date.today().isoformat()
+    return render_template('paciente/alta.html', unidades=unidades, hoy=hoy)
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])

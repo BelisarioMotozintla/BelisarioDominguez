@@ -14,6 +14,17 @@
 </div>
 
 <script>
+    document.querySelector("form").addEventListener("submit", function(e) {
+    const fecha = document.querySelector('input[name="fecha_nacimiento"]').value;
+    if (fecha) {
+        const f = new Date(fecha);
+        const hoy = new Date();
+        if (f < new Date("1900-01-01") || f > hoy) {
+            e.preventDefault();
+            alert("La fecha debe estar entre 1900 y hoy.");
+        }
+    }
+});
 document.addEventListener('DOMContentLoaded', function () {
     const esCronico = document.getElementById('es_cronico');
     const tipoCronicidad = document.getElementById('tipo_cronicidad');
@@ -45,6 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         }
+
     }
 
     function actualizarEstado() {

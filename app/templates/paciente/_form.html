@@ -7,7 +7,13 @@
 
 <div class="mb-3">
   <label for="fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
-  <input type="date" name="fecha_nacimiento" class="form-control" value="{{ paciente.fecha_nacimiento if paciente and paciente.fecha_nacimiento else '' }}">
+  
+ <input type="date" 
+       name="fecha_nacimiento" 
+       class="form-control" 
+       min="1900-01-01" 
+       max="{{ hoy }}" 
+       value="{{ paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente and paciente.fecha_nacimiento else '' }}">
 </div>
 
 <div class="mb-3">
