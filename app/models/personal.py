@@ -131,6 +131,7 @@ class Usuario(db.Model, UserMixin):
     rango_folios = relationship('RangoFolios', back_populates='usuario')
     bitacora_accion = relationship('BitacoraAccion', back_populates='usuario')
     bitacora_movimiento = relationship('BitacoraMovimiento', back_populates='usuario')
+    dispositivos = relationship('MAC', back_populates='usuario', cascade="all, delete-orphan")
 
     solicitudes_solicita = relationship(
         'SolicitudExpediente',
@@ -154,3 +155,15 @@ class Usuario(db.Model, UserMixin):
     
     def get_id(self):
     	return str(self.id_usuario)
+
+class MAC(db.Model):
+    __tablename__ = 'MAC'
+    id_mac = Column(Integer, primary_key=True)
+    dispositivo = Column(Text, nullable=False)
+    mac_address = Column(Text, unique=True, nullable=False)
+    red = Column(Text, nullable=False)
+    observaciones = Column(Text)
+
+    # Relación con Usuario
+    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'), nullable=False)
+    usuario = relationship('Usuario', back_populates='dispositivos')

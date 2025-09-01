@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">Dispositivos por Usuario</h2>
+
+    <!-- Barra de búsqueda -->
+    <form method="GET" action="{{ url_for('control_mac.listar_macs') }}" class="row g-2 mb-3">
+        <div class="col-md-6">
+            <input type="text" name="q" class="form-control" 
+                   placeholder="Buscar por usuario o MAC..."
+                   value="{{ request.args.get('q', '') }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Buscar</button>
+        </div>
+        <div class="col-md-2">
+            <a href="{{ url_for('control_mac.listar_macs') }}" class="btn btn-secondary w-100">Limpiar</a>
+        </div>
+        <div class="col-md-2">
+            <a href="{{ url_for('control_mac.agregar_mac') }}" class="btn btn-success w-100">
+                + Agregar Dispositivo
+            </a>
+        </div>
+    </form>
+
+    <!-- Tabla -->
+   <table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+            <th>Dispositivo</th>
+            <th>Dirección MAC</th>
+            <th>Observaciones</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for mac in macs %}
+        <tr>
+            <td>{{ mac.id_mac }}</td>
+            <td>{{ mac.usuario.usuario }}</td>
+            <td>{{ mac.dispositivo }}</td>
+            <td>{{ mac.mac_address }}</td>
+            <td>{{ mac.observaciones }}</td>
+            <td>
+                <a href="{{ url_for('control_mac.editar_mac', id_mac=mac.id_mac) }}" 
+                   class="btn btn-warning btn-sm">Editar</a>
+
+                <form action="{{ url_for('control_mac.eliminar_mac', id_mac=mac.id_mac) }}" 
+                      method="POST" 
+                      style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('¿Seguro que deseas eliminar este dispositivo?')">
+                        Eliminar
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center">No hay dispositivos registrados.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

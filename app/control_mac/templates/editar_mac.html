@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Editar dispositivo</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="usuario_id" class="form-label">Usuario propietario</label>
+      <select name="usuario_id" id="usuario_id" class="form-select" required>
+        {% for u in usuarios %}
+          <option value="{{ u.id_usuario }}" {% if mac.id_usuario == u.id_usuario %}selected{% endif %}>
+            {{ u.usuario }} {% if u.empleado %}- {{ u.empleado.nombre }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="dispositivo" class="form-label">Dispositivo</label>
+      <input type="text" name="dispositivo" id="dispositivo" value="{{ mac.dispositivo }}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="mac_address" class="form-label">Dirección MAC</label>
+      <input type="text" name="mac_address" id="mac_address" value="{{ mac.mac_address }}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="red" class="form-label">Red</label>
+      <input type="text" name="red" id="red" value="{{ mac.red }}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="observaciones" class="form-label">Observaciones</label>
+      <textarea name="observaciones" id="observaciones" class="form-control">{{ mac.observaciones }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Actualizar</button>
+    <a href="{{ url_for('control_mac.listar_macs') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

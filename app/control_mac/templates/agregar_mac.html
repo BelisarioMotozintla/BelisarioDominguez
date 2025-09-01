@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Registrar nuevo dispositivo</h2>
+  <form method="POST">
+    
+    <!-- Seleccionar usuario propietario -->
+    <div class="mb-3">
+      <label for="usuario_id" class="form-label">Usuario propietario</label>
+      <select name="usuario_id" id="usuario_id" class="form-select" required>
+        <option value="">-- Selecciona un usuario --</option>
+        {% for u in usuarios %}
+          <option value="{{ u.id_usuario }}">  
+            {{ u.usuario }} 
+            {% if u.empleado %}
+              - {{ u.empleado.nombre }}
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Seleccionar dispositivo -->
+    <div class="mb-3">
+      <label for="dispositivo" class="form-label">Dispositivo</label>
+      <select name="dispositivo" id="dispositivo" class="form-select" required>
+        <option value="">-- Selecciona un dispositivo --</option>
+        <option value="Laptop">Laptop</option>
+        <option value="Celular">Celular</option>
+        <option value="Tablet">Tablet</option>
+        <option value="Impresora">Impresora</option>
+        <option value="PC de escritorio">PC de escritorio</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+
+    <!-- Dirección MAC -->
+    <div class="mb-3">
+      <label for="mac_address" class="form-label">Dirección MAC</label>
+      <input type="text" name="mac_address" id="mac_address" class="form-control" placeholder="AA:BB:CC:DD:EE:FF" required>
+    </div>
+
+    <!-- Red -->
+    <div class="mb-3">
+      <label for="red" class="form-label">Red asignada</label>
+      <input type="text" name="red" id="red" class="form-control" placeholder="Red A o Red B" required>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="mb-3">
+      <label for="observaciones" class="form-label">Observaciones</label>
+      <textarea name="observaciones" id="observaciones" class="form-control" rows="3"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-success">Registrar</button>
+    <a href="/control_mac" class="btn btn-secondary">Cancelar</a>
+	
+  </form>
+</div>
+{% endblock %}

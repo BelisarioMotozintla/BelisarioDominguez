@@ -3,6 +3,7 @@ from sqlite3 import IntegrityError
 from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session,make_response
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
 from app.models.personal import Usuario,Servicio
+from app.models.medicos import Consulta
 from app.utils.helpers import roles_required
 from app import db
 from datetime import date, datetime
@@ -30,44 +31,81 @@ def index():
     archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(10).all()  # limitar a 50 registros
 
     return render_template('archivo_clinico/listar.html', archivos=archivos, query=query)
+
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def agregar_archivo():
-    if request.method == 'POST':
-        id_paciente = request.form.get('id_paciente')
-        numero = request.form.get('numero_expediente', '').strip()
-
-        existe = ArchivoClinico.query.filter_by(numero_expediente=numero).first()
-        if existe:
-            flash('El número de expediente ya existe. Por favor, usa otro.', 'danger')
-            return redirect(request.url)
-        else:
-            if not id_paciente:
-                flash("Debes seleccionar un paciente válido.", "danger")
-                return redirect(request.url)
-
-            nuevo = ArchivoClinico(
-                id_paciente=id_paciente,
-                ubicacion_fisica=request.form['ubicacion_fisica'],
-                estado=request.form['estado'],
-                tipo_archivo=request.form['tipo_archivo'],
-                fecha_creacion=request.form['fecha_creacion'],
-                numero_expediente=numero
-            )
-            db.session.add(nuevo)
-            db.session.commit()
-            flash("Archivo clínico guardado correctamente", "success")
-            return redirect(url_for('archivo_clinico.index'))
+    paciente_preseleccionado = None
+    id_paciente_query = request.args.get('id_paciente', type=int)
     
-    # Calcular siguiente número candidato
+    if id_paciente_query:
+        paciente_preseleccionado = Paciente.query.get(id_paciente_query)
+
+    if request.method == 'POST':
+        # Tomar id de paciente: primero del formulario, si existe
+        id_paciente = request.form.get('id_paciente')
+        if not id_paciente and paciente_preseleccionado:
+            id_paciente = paciente_preseleccionado.id_paciente
+
+        if not id_paciente:
+            flash("Debes seleccionar un paciente válido.", "danger")
+            return redirect(request.url)
+
+        # Número de expediente
+        numero = request.form.get('numero_expediente', '').strip()
+        if not numero.isdigit():
+            flash("El número de expediente debe ser numérico.", "danger")
+            return redirect(request.url)
+        numero_int = int(numero)
+
+        # Validar existencia de expediente
+        id_actual = request.args.get('id', type=int)
+        query = ArchivoClinico.query.filter(ArchivoClinico.numero_expediente == numero_int)
+        if id_actual:
+            query = query.filter(ArchivoClinico.id_archivo != id_actual)
+        if query.first():
+            flash("El número de expediente ya existe. Por favor, usa otro.", "danger")
+            return redirect(request.url)
+
+        # Validar si el paciente ya tiene un archivo
+        paciente = paciente_preseleccionado or Paciente.query.get(id_paciente)
+        nombre_paciente = paciente.nombre if paciente else f"ID {id_paciente}"
+
+        archivo_existente = ArchivoClinico.query.filter_by(id_paciente=id_paciente).first()
+        if archivo_existente:
+            flash(f"El paciente {nombre_paciente} ya tiene un archivo clínico.", "danger")
+            return redirect(request.url)
+
+        # Obtener otros campos con valores por defecto si no existen
+        ubicacion_fisica = request.form.get('ubicacion_fisica', '').strip() or "Sin ubicación"
+        estado = request.form.get('estado', 'disponible')
+        tipo_archivo = request.form.get('tipo_archivo', 'FISICO')
+        fecha_creacion = request.form.get('fecha_creacion', date.today().strftime("%Y-%m-%d"))
+
+        # Crear nuevo archivo
+        nuevo = ArchivoClinico(
+            id_paciente=id_paciente,
+            numero_expediente=numero_int,
+            ubicacion_fisica=ubicacion_fisica,
+            estado=estado,
+            tipo_archivo=tipo_archivo,
+            fecha_creacion=fecha_creacion
+        )
+        db.session.add(nuevo)
+        db.session.commit()
+        flash("Archivo clínico guardado correctamente", "success")
+        return redirect(url_for('archivo_clinico.index'))
+
+    # GET: calcular siguiente número candidato
     max_numero = db.session.query(func.max(ArchivoClinico.numero_expediente)).scalar()
     siguiente_numero = (int(max_numero) + 1) if max_numero else 1
 
     return render_template(
         'archivo_clinico/agregar.html',
-        candidato_numero=siguiente_numero,fecha_hoy=date.today().strftime("%Y-%m-%d")  # <-- pasar fecha al template
+        candidato_numero=siguiente_numero,
+        fecha_hoy=date.today().strftime("%Y-%m-%d"),
+        paciente_preseleccionado=paciente_preseleccionado
     )
-
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
@@ -131,10 +169,11 @@ def eliminar_archivo(id):
 @bp.route('/validar_numero_expediente')
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def validar_numero_expediente():
-    numero = request.args.get('numero', '').strip()  # Valor por defecto '' si no existe
-    existe = False
-    if numero:
-        existe = ArchivoClinico.query.filter_by(numero_expediente=numero).first() is not None
+    numero = request.args.get('numero', '').strip()
+    if not numero.isdigit():
+        return jsonify({'existe': False})
+    numero_int = int(numero)
+    existe = ArchivoClinico.query.filter_by(numero_expediente=numero_int).first() is not None
     return jsonify({'existe': existe})
 #===========================================================================================Solicitudes de Expedientes
 @bp.route('/archivo/solicitudes')
@@ -262,6 +301,15 @@ def devolver_solicitud(id):
 
     solicitud.estado_solicitud = 'devuelto'
     solicitud.fecha_devolucion = datetime.utcnow()
+    # Cerrar la consulta activa del paciente
+    if solicitud.paciente:
+        consulta = Consulta.query.filter_by(
+            id_paciente=solicitud.paciente.id_paciente,
+            estado='ABIERTA'
+        ).first()
+        if consulta:
+            consulta.estado = 'CERRADO'
+
     db.session.commit()
     flash("Expediente devuelto correctamente", "success")
     return redirect(url_for('archivo_clinico.lista_solicitudes'))
@@ -323,3 +371,22 @@ def imprimir_bitacora_pdf():
     response.headers['Content-Disposition'] = f'inline; filename=bitacora_{fecha_inicio}_a_{fecha_fin}.pdf'
 
     return response
+#=========================================================Paciente sin archivo clinico asociado===================================
+@bp.route('/pacientes_sin_archivo', methods=['GET'])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+def reporte_pacientes_sin_archivo():
+    q = request.args.get('q', '').strip()  # texto de búsqueda
+
+    # Base: pacientes sin archivo clínico
+    query = Paciente.query.outerjoin(ArchivoClinico).filter(ArchivoClinico.id_archivo == None)
+
+    if q:
+        # Filtrar por nombre o CURP
+        query = query.filter(
+            (Paciente.nombre.ilike(f"%{q}%")) |
+            (Paciente.curp.ilike(f"%{q}%"))
+        )
+
+    pacientes_sin_archivo = query.all()
+    return render_template('archivo_clinico/pacientes_sin_archivo.html', pacientes=pacientes_sin_archivo, q=q)
+

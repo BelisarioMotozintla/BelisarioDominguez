@@ -16,8 +16,9 @@
             <a href="{{ url_for('archivo_clinico.lista_solicitudes') }}" class="btn btn-sm btn-outline-warning" title="Registrar salida">
               <i class="bi bi-box-arrow-right"></i>Registrar salida
             </a>
-            <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-sm btn-outline-secondary" title="Historial">
-              <i class="bi bi-clock-history"></i>Historial
+           <a href="{{ url_for('archivo_clinico.reporte_pacientes_sin_archivo') }}" 
+            class="btn btn-sm btn-outline-secondary" title="Pacientes sin Expediente">
+            <i class="bi bi-folder-x"></i> Pacientes sin Expediente
             </a>
             <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-sm btn-outline-info" title="Unidad médica">
               <i class="bi bi-hospital"></i>Unidad médica
