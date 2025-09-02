@@ -22,6 +22,7 @@
         <th>Nombre</th>
         <th>CURP</th>
         <th>Fecha Nacimiento</th>
+        <th>Edad</th>
         <th>Sexo</th>
         <th>Cronico</th>
         <th>Tipo</th>
@@ -35,6 +36,7 @@
         <td>{{ paciente.nombre }}</td>
         <td>{{ paciente.curp }}</td>
         <td>{{ paciente.fecha_nacimiento }}</td>
+       <td class="fecha" data-fecha="{{ paciente.fecha_nacimiento }}"></td>
         <td>{{ paciente.sexo }}</td>
         <td>{{ paciente.es_cronico }}</td>
         <td>{{ paciente.tipo_cronicidad }}</td>
@@ -56,4 +58,25 @@
 
   <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
 </div>
+<script>
+  function calcularEdad(fechaNacimiento) {
+    // Convertir a objeto Date si viene como string
+    let nacimiento = new Date(fechaNacimiento);
+    let hoy = new Date();
+
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    let mes = hoy.getMonth() - nacimiento.getMonth();
+
+    // Si aún no ha cumplido años este año, restamos 1
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+    }
+
+    return edad;
+}
+document.querySelectorAll(".fecha").forEach(td => {
+    let fecha = td.dataset.fecha;
+    td.textContent = calcularEdad(fecha);
+});
+</script>
 {% endblock %}
