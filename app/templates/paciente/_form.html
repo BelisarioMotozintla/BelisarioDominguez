@@ -94,7 +94,12 @@
       <option value="Otro" {% if paciente and paciente.tipo_cronicidad == 'Otro' %}selected{% endif %}>Otro</option>
     </select>
   </div>
-
+  <!-- planificacion -->
+  <div class="mb-3">
+  <input type="checkbox" id="planificacion" name="planificacion" value="true"
+       {% if paciente.planificacion %}checked{% endif %}>
+<label for="planificacion">Planificación</label>
+  </div>
   <!-- Embarazo -->
   <div class="mb-3">
     <label for="esta_embarazada" class="form-label">¿Está embarazada?</label>

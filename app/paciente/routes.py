@@ -61,11 +61,24 @@ def alta_paciente():
                 flash("Formato de fecha incorrecto.", "danger")
                 return redirect(url_for('paciente.alta_paciente'))
 
-        # Manejo de cronicidad
-        es_cronico = request.form.get('es_cronico', 'No')
+        # Cronicidad
+        es_cronico = request.form.get('es_cronico') == 'Sí'
         tipo_cronicidad = request.form.get('tipo_cronicidad')
-        if es_cronico != "Sí":
+
+        if not es_cronico:
             tipo_cronicidad = "Otro"
+
+        # Embarazo
+        esta_embarazada = request.form.get('esta_embarazada') == 'Sí'
+
+        # Planificación (checkbox o toggle que envía 'true'/'false')
+        planificacion = request.form.get('planificacion') == 'true'
+
+        # Reglas de exclusión
+        if esta_embarazada:
+            planificacion = False
+        elif planificacion:
+            esta_embarazada = False
 
         # Crear nuevo paciente
         nuevo = Paciente(
@@ -76,7 +89,8 @@ def alta_paciente():
             direccion=request.form.get('direccion'),
             es_cronico=es_cronico,
             tipo_cronicidad=tipo_cronicidad,
-            esta_embarazada=request.form.get('esta_embarazada', 'No')
+            esta_embarazada=esta_embarazada,
+            planificacion=planificacion
         )
         db.session.add(nuevo)
         db.session.flush()  # Obtener ID sin commit aún
@@ -116,26 +130,54 @@ def editar_paciente(id):
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
 
     if request.method == 'POST':
+
+        # Manejo de cronicidad
+        es_cronico = request.form.get('es_cronico') == 'Sí'
+        tipo_cronicidad = request.form.get('tipo_cronicidad')
+        if not es_cronico:
+            tipo_cronicidad = "Otro"
+
+        # Manejo de embarazo y planificación
+        esta_embarazada = request.form.get('esta_embarazada') == 'Sí'
+        planificacion = request.form.get('planificacion') == 'true'
+
+        # Reglas de exclusión
+        if esta_embarazada:
+            planificacion = False
+        elif planificacion:
+            esta_embarazada = False
+
         # Datos del paciente
         paciente.nombre = request.form['nombre']
         paciente.curp = request.form['curp']
-        paciente.fecha_nacimiento = request.form.get('fecha_nacimiento')
+
+        # Parseo seguro de fecha
+        fecha_nacimiento_str = request.form.get('fecha_nacimiento')
+        if fecha_nacimiento_str:
+            try:
+                paciente.fecha_nacimiento = datetime.strptime(fecha_nacimiento_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Formato de fecha inválido. Use AAAA-MM-DD.", "danger")
+
         paciente.sexo = request.form['sexo']
         paciente.direccion = request.form.get('direccion')
-        paciente.es_cronico = request.form.get('es_cronico', 'No')
-        paciente.tipo_cronicidad = request.form.get('tipo_cronicidad') or None
-        paciente.esta_embarazada = request.form.get('esta_embarazada', 'No')
+        paciente.es_cronico = es_cronico
+        paciente.tipo_cronicidad = tipo_cronicidad
+        paciente.esta_embarazada = esta_embarazada
+        paciente.planificacion = planificacion
+       
+        # Datos de relación con la unidad
+        id_unidad = request.form.get('id_unidad')
+        tipo_relacion = request.form.get('tipo_relacion')
 
-        # Datos de relación unidad
         if relacion:
-            relacion.id_unidad = request.form.get('id_unidad')
-            relacion.tipo_relacion = request.form.get('tipo_relacion')
+            relacion.id_unidad = id_unidad
+            relacion.tipo_relacion = tipo_relacion
         else:
-            # Si no tenía relación, la crea
             nueva_relacion = PacienteUnidad(
                 id_paciente=paciente.id_paciente,
-                id_unidad=request.form.get('id_unidad'),
-                tipo_relacion=request.form.get('tipo_relacion'),
+                id_unidad=id_unidad,
+                tipo_relacion=tipo_relacion,
                 fecha_relacion=date.today()
             )
             db.session.add(nueva_relacion)
@@ -144,8 +186,12 @@ def editar_paciente(id):
         flash('Paciente actualizado correctamente', 'success')
         return redirect(url_for('paciente.listar_pacientes'))
 
-    return render_template('paciente/editar.html', paciente=paciente, relacion=relacion, unidades=unidades)
-
+    return render_template(
+        'paciente/editar.html',
+        paciente=paciente,
+        relacion=relacion,
+        unidades=unidades
+    )
 @bp.route('/buscar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def buscar_paciente():
@@ -204,3 +250,31 @@ def calcular_digito():
     anio = request.json.get('anio')      # año de nacimiento YYYY
     dig_ver = digito_verificador(curp17, anio)
     return jsonify({"digito": dig_ver})
+
+
+@bp.route("/reporte_condicion", methods=["GET", "POST"])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def reporte_condicion():
+    filtros = request.args.getlist("filtro")  # devuelve lista de opciones seleccionadas
+    query = Paciente.query
+
+    condiciones = []
+
+    for f in filtros:
+        if f == "Hipertenso":
+            condiciones.append(Paciente.tipo_cronicidad == "Hipertenso")
+        elif f == "Diabético":
+            condiciones.append(Paciente.tipo_cronicidad == "Diabético")
+        elif f == "Metabólico":
+            condiciones.append(Paciente.tipo_cronicidad == "Metabólico")
+        elif f == "Embarazada":
+            condiciones.append(Paciente.esta_embarazada == True)
+        elif f == "Planificación":
+            condiciones.append(Paciente.planificacion == True)
+
+    if condiciones:
+        pacientes = query.filter(or_(*condiciones)).all()  # filtra cualquiera de las condiciones
+    else:
+        pacientes = query.all()  # si no hay filtro, todos
+
+    return render_template("paciente/reporte_condicion.html", pacientes=pacientes, filtro=filtros)

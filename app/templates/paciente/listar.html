@@ -25,8 +25,8 @@
         <th>Edad</th>
         <th>Sexo</th>
         <th>Cronico</th>
-        <th>Tipo</th>
         <th>Embarazo</th>
+        <th>PF</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -38,9 +38,9 @@
         <td>{{ paciente.fecha_nacimiento }}</td>
        <td class="fecha" data-fecha="{{ paciente.fecha_nacimiento }}"></td>
         <td>{{ paciente.sexo }}</td>
-        <td>{{ paciente.es_cronico }}</td>
         <td>{{ paciente.tipo_cronicidad }}</td>
-        <td>{{ paciente.esta_embarazada }}</td>
+        <td>{{ "Sí" if paciente.esta_embarazada else "No" }}</td>
+        <td>{{ "Sí" if paciente.planificacion else "No" }}</td>
         <td>
           <a href="{{ url_for('paciente.editar_paciente', id=paciente.id_paciente) }}" class="btn btn-sm btn-warning">Editar</a>
           <form method="POST" action="{{ url_for('paciente.eliminar_paciente', id=paciente.id_paciente) }}" style="display:inline;">

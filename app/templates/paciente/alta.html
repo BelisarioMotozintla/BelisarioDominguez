@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const embarazada = document.getElementById('esta_embarazada');
     const tipoRelacion = document.getElementById('tipo_relacion');
     const unidad = document.getElementById('id_unidad');
+    const planificacion = document.getElementById('planificacion'); // 👈 aquí lo agregamos
 
     function actualizarTipoCronicidad() {
         tipoCronicidad.disabled = (esCronico.value !== 'Sí');
@@ -42,7 +43,20 @@ document.addEventListener('DOMContentLoaded', function () {
             embarazada.value = 'No';
             embarazada.disabled = true;
         } else {
-            embarazada.disabled = false;
+            // Si es mujer y no está planificando, habilitar embarazo
+            embarazada.disabled = planificacion.checked;
+            if (planificacion.checked) {
+                embarazada.value = 'No'; // forzar "No"
+            }
+        }
+    }
+
+    function actualizarPlanificacion() {
+        if (planificacion.checked) {
+            embarazada.value = 'No';
+            embarazada.disabled = true;
+        } else {
+            actualizarEmbarazo();
         }
     }
 
@@ -56,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         }
-
     }
 
     function actualizarEstado() {
@@ -68,14 +81,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Eventos
     esCronico.addEventListener("change", actualizarEstado);
     esCronico.addEventListener('change', actualizarTipoCronicidad);
     sexo.addEventListener('change', actualizarEmbarazo);
     tipoRelacion.addEventListener('change', seleccionarUnidadBelisario);
+    planificacion.addEventListener('change', actualizarPlanificacion);
 
+    // Inicializar al cargar la página
     actualizarEstado();
     actualizarTipoCronicidad();
     actualizarEmbarazo();
+    actualizarPlanificacion();
 });
 
 // Función para generar los primeros 17 caracteres de la CURP

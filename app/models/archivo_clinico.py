@@ -1,6 +1,6 @@
 # archivo_clinico.py
 
-from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,Boolean
 from sqlalchemy.orm import relationship
 from app.utils.db import db
 from app.models.personal import Usuario,Servicio
@@ -29,10 +29,11 @@ class Paciente(db.Model):
     fecha_nacimiento = Column(Date)
     sexo = Column(Text)
     direccion = Column(Text)
-    es_cronico = Column(String(2), default='No')  # 'Sí' o 'No'
-    tipo_cronicidad = Column(Text, nullable=True)  # 'Diabético', 'Hipertenso', 'Metabólico', etc.
-    esta_embarazada = Column(String(2), default='No')
-
+    es_cronico = Column(Boolean, default=False)
+    tipo_cronicidad = Column(String(100)) # 'Diabético', 'Hipertenso', 'Metabólico', etc.
+    esta_embarazada = Column(Boolean, default=False)
+    planificacion = Column(Boolean, default=False)
+   
     __table_args__ = (
         CheckConstraint("sexo IN ('M', 'F', 'Otro')", name='chk_sexo'),
         CheckConstraint("es_cronico IN ('Sí', 'No')", name='chk_cronico'),

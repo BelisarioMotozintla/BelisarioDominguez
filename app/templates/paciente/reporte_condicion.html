@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-success">Reporte de Pacientes por Condición</h2>
+
+ <form method="get" action="{{ url_for('paciente.reporte_condicion') }}" class="mb-3">
+  <label for="filtro">Filtrar por condiciones:</label>
+  <select name="filtro" id="filtro" class="form-control w-50 d-inline" multiple>
+    <option value="Hipertenso" {% if 'Hipertenso' in filtro %}selected{% endif %}>Hipertenso</option>
+    <option value="Diabético" {% if 'Diabético' in filtro %}selected{% endif %}>Diabético</option>
+    <option value="Metabólico" {% if 'Metabólico' in filtro %}selected{% endif %}>Síndrome Metabólico</option>
+    <option value="Embarazada" {% if 'Embarazada' in filtro %}selected{% endif %}>Embarazada</option>
+    <option value="Planificación" {% if 'Planificación' in filtro %}selected{% endif %}>Planificación</option>
+  </select>
+ 
+  <button type="submit" class="btn btn-success">Buscar</button>
+</form>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>CURP</th>
+      <th>Edad</th>
+      <th>Sexo</th>
+      <th>Cronico</th>
+      <th>Tipo Cronicidad</th>
+      <th>Embarazada</th>
+      <th>Planificación</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pacientes %}
+    <tr>
+      <td>{{ p.nombre }}</td>
+      <td>{{ p.curp }}</td>
+      <td>{{ p.edad }}</td>
+      <td>{{ p.sexo }}</td>
+      <td>{{ "Sí" if p.es_cronico else "No" }}</td>
+      <td>{{ p.tipo_cronicidad if p.es_cronico else "-" }}</td>
+      <td>{{ "Sí" if p.esta_embarazada else "No" }}</td>
+      <td>{{ "Sí" if p.planificacion else "No" }}</td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="8" class="text-center">No se encontraron pacientes con esta condición</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+ <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-secondary">Cancelar</a>
+{% endblock %}
