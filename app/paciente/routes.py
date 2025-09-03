@@ -120,7 +120,7 @@ def alta_paciente():
     # GET: cargar unidades y fecha actual para el formulario
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     hoy = date.today().isoformat()
-    return render_template('paciente/alta.html', unidades=unidades, hoy=hoy)
+    return render_template('paciente/alta.html', unidades=unidades, hoy=hoy, paciente=None)
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
