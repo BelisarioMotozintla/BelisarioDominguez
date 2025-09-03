@@ -96,8 +96,8 @@
   </div>
   <!-- planificacion -->
   <div class="mb-3">
-  <input type="checkbox" id="planificacion" name="planificacion" value="true"
-       {% if paciente.planificacion %}checked{% endif %}>
+  <input type="checkbox" name="planificacion"
+       {% if paciente and paciente.planificacion %}checked{% endif %}>
 <label for="planificacion">Planificación</label>
   </div>
   <!-- Embarazo -->
