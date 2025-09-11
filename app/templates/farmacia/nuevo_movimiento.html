@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h3 class="text-success">Registrar Movimiento de Almacén a Farmacia</h3>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<form method="POST">
+  <div class="mb-3">
+    <select id="id_medicamento" name="id_medicamento" style="width:100%">
+  <option value="">-- Selecciona un medicamento --</option>
+  {% for med in medicamentos %}
+    <option value="{{ med.id_medicamento }}">
+      {{ med.clave }} | {{ med.nombre_comercial }} | {{ med.principio_activo }}
+    </option>
+  {% endfor %}
+</select>
+
+  </div>
+
+  <div class="mb-3">
+    <label for="cantidad" class="form-label">Cantidad</label>
+    <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="observaciones" class="form-label">Observaciones</label>
+    <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
+  </div>
+
+  <button type="submit" class="btn btn-success">
+    <i class="bi bi-plus-square"></i> Guardar Movimiento
+  </button>
+  <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#id_medicamento').select2({
+        placeholder: "-- Selecciona un medicamento --",
+        allowClear: true,
+        ajax: {
+            url: "{{ url_for('farmacia.buscar_medicamentos') }}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return { q: params.term }; // el texto escrito por el usuario
+            },
+            processResults: function (data) {
+                return { results: data };
+            },
+            cache: true
+        },
+        width: 'resolve'
+    });
+});
+</script>
+{% endblock %}

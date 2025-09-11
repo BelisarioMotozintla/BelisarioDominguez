@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Reporte de Salidas de Medicamentos</h2>
+
+  <!-- Botones principales -->
+  <div class="mb-3">
+    <div class="btn-group" role="group">
+      <a href="{{ url_for('farmacia.index') }}" class="btn btn-sm btn-outline-secondary" title="Regresar al menú">
+        <i class="bi bi-arrow-left"></i> Regresar
+      </a>
+     
+    </div>
+  </div>
+	
+
+  <!-- Buscador -->
+  <form method="get" class="mb-3">
+    <div class="input-group">
+      <input type="text" name="q" class="form-control" placeholder="Buscar por medicamento o médico" value="{{ query }}">
+      <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+  </form>
+    
+<div class="mb-4">
+  <div class="btn-group" role="group" aria-label="Acciones Medicamentos">
+    <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-plus-square"></i> Nuevo Medicamento
+    </a>
+    <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-pencil-square"></i> Modificar Medicamento
+    </a>
+  </div>
+</div>
+  <!-- Tabla de salidas -->
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Medicamento</th>
+        <th>Médico</th>
+        <th>Cantidad</th>
+        <th>Folio Receta</th>
+        <th>Fecha</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for salida in salidas %}
+      <tr>
+        <td>{{ salida.id_salida }}</td>
+        <td>{{ salida.medicamento.nombre }}</td>
+        <td>{{ salida.usuario.usuario }}</td>
+        <td>{{ salida.cantidad }}</td>
+        <td>{{ salida.folio_receta }}</td>
+        <td>{{ salida.fecha_salida.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          <a href="{{ url_for('farmacia.registrar_salida', id_medicamento=salida.id_medicamento) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+          <form method="POST" action="{{ url_for('farmacia.eliminar_salida', id=salida.id_salida) }}" style="display:inline;">
+            <button type="submit" onclick="return confirm('¿Eliminar salida?')" class="btn btn-sm btn-outline-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center">No se encontraron registros.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

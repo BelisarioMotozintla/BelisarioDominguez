@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Recetas Médicas</h2>
+  <div>
+    <a href="{{ url_for('recetas.crear_receta') }}" class="btn btn-sm btn-success me-2">
+      <i class="bi bi-plus-circle"></i> Crear Receta
+    </a>
+    <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-box-arrow-up-right"></i> Salidas a Pacientes
+    </a>
+  </div>
+</div>
+
+<table class="table table-bordered table-hover text-center">
+  <thead class="table-light">
+    <tr>
+      <th>Folio</th>
+      <th>Paciente</th>
+      <th>Médico</th>
+      <th>Fecha de Emisión</th>
+      <th>Tipo de Surtimiento</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for receta in recetas %}
+    <tr>
+      <td>{{ receta.folio }}</td>
+      <td>{{ receta.paciente.nombre }}</td>
+      <td>{{ receta.usuario.nombre }}</td>
+      <td>{{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>
+        {% if receta.tipo_surtimiento_calculado == "Completa" %}
+          <span class="badge bg-success">Completa</span>
+        {% elif receta.tipo_surtimiento_calculado == "Parcial" %}
+          <span class="badge bg-warning text-dark">Parcial</span>
+        {% else %}
+          <span class="badge bg-danger">No surtida</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="{{ url_for('recetas.detalle_receta', id_receta=receta.id_receta) }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-file-medical"></i> Ver Detalle
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

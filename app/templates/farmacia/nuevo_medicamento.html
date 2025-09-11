@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Nuevo Medicamento</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Clave</label>
+      <input type="text" name="clave" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Nombre Comercial</label>
+      <input type="text" name="nombre_comercial" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Principio Activo</label>
+      <input type="text" name="principio_activo" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Presentación</label>
+      <input type="text" name="presentacion" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Vía Administración</label>
+      <input type="text" name="via_administracion" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Concentración</label>
+      <input type="text" name="concentracion" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Unidad</label>
+      <input type="text" name="unidad" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">CPM</label>
+      <input type="number" step="0.01" name="cpm" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Nivel de Movimiento</label>
+      <select name="nivel_movimiento" class="form-control">
+        <option value="Alto">Alto</option>
+        <option value="Medio">Medio</option>
+        <option value="Bajo">Bajo</option>
+        <option value="Nulo">Nulo</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-success">Guardar</button>
+    <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-secondary">Regresar</a>
+  </form>
+</div>
+{% endblock %}

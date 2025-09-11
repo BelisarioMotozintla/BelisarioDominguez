@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Asignar Bloque a Médico</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="id_bloque" class="form-label">Bloque</label>
+      <select name="id_bloque" class="form-control" required>
+        {% for bloque in bloques %}
+          <option value="{{ bloque.id_bloque }}">
+            {{ bloque.folio_inicio }} - {{ bloque.folio_fin }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="id_medico" class="form-label">Médico</label>
+      <select name="id_medico" class="form-control" required>
+        {% for medico in medicos %}
+          <option value="{{ medico.id_usuario }}">{{ medico.usuario }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Asignar</button>
+    <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+  </form>
+</div>
+{% endblock %}
+

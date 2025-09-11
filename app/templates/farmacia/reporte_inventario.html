@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="text-info">Reporte de Inventarios</h3>
+
+<!-- Botones para alternar -->
+<div class="mb-3">
+  <button class="btn btn-primary btn-sm" onclick="mostrar('consolidado')">
+    <i class="bi bi-collection"></i> Consolidado
+  </button>
+  <button class="btn btn-secondary btn-sm" onclick="mostrar('separado')">
+    <i class="bi bi-columns-gap"></i> Separado
+  </button>
+ <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Cancelar</a>
+</div>
+
+<!-- Consolidado -->
+<div id="consolidado" style="display:block;">
+  <h5>Inventario Consolidado</h5>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Medicamento</th>
+        <th>Total Disponible</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in consolidado %}
+      <tr>
+        <td>{{ item.nombre }}</td>
+        <td>{{ item.total }}</td>
+        <td>
+          {% if item.estado == "success" %}
+            <span class="badge bg-success">🟢 Suficiente</span>
+          {% elif item.estado == "warning" %}
+            <span class="badge bg-warning text-dark">🟡 Bajo</span>
+          {% else %}
+            <span class="badge bg-danger">🔴 Crítico</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Separado -->
+<div id="separado" style="display:none;">
+  <h5>Inventario en Almacén</h5>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Medicamento</th>
+        <th>Cantidad</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in inv_almacen %}
+      <tr>
+        <td>{{ item.nombre }}</td>
+        <td>{{ item.cantidad }}</td>
+        <td>
+          {% if item.estado == "success" %}
+            <span class="badge bg-success">🟢 Suficiente</span>
+          {% elif item.estado == "warning" %}
+            <span class="badge bg-warning text-dark">🟡 Bajo</span>
+          {% else %}
+            <span class="badge bg-danger">🔴 Crítico</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h5>Inventario en Farmacia</h5>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Medicamento</th>
+        <th>Cantidad</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in inv_farmacia %}
+      <tr>
+        <td>{{ item.nombre }}</td>
+        <td>{{ item.cantidad }}</td>
+        <td>
+          {% if item.estado == "success" %}
+            <span class="badge bg-success">🟢 Suficiente</span>
+          {% elif item.estado == "warning" %}
+            <span class="badge bg-warning text-dark">🟡 Bajo</span>
+          {% else %}
+            <span class="badge bg-danger">🔴 Crítico</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function mostrar(tipo) {
+  document.getElementById('consolidado').style.display = (tipo === 'consolidado') ? 'block' : 'none';
+  document.getElementById('separado').style.display = (tipo === 'separado') ? 'block' : 'none';
+}
+</script>
+{% endblock %}

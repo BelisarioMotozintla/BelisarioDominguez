@@ -13,13 +13,13 @@ bp = Blueprint('consultas', __name__, template_folder='templates/consultas')
 
 # 📌 Lista de consultas
 @bp.route('/')
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def listar_consultas():
     consultas = Consulta.query.order_by(Consulta.fecha.desc()).all()
     return render_template('consultas/lista.html', consultas=consultas)
 
 @bp.route('/consultas/nueva', methods=['GET', 'POST'])
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def nueva_consulta():
     query = request.args.get("q", "").strip()
 
@@ -71,7 +71,7 @@ def nueva_consulta():
     return render_template("consultas/nueva.html", pacientes=pacientes, query=query)
 
 @bp.route('/consultas/<int:id_consulta>')
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def ver_consultas(id_consulta):
     consulta = Consulta.query.get_or_404(id_consulta)
     notas = consulta.notas  # gracias a la relación back_populates
@@ -82,7 +82,7 @@ def ver_consultas(id_consulta):
     )
 # 📌 Detalle de una consulta
 @bp.route('/<int:id_consulta>')
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def detalle_consulta(id_consulta):
     consulta = Consulta.query.get_or_404(id_consulta)
     return render_template('detalle.html', consulta=consulta)

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Crear Receta Médica</h2>
+
+<form method="POST">
+  <!-- Paciente fijo -->
+  <div class="mb-3">
+    <label><strong>Paciente:</strong></label>
+    <p>{{ consulta.paciente.nombre }}</p>
+    <input type="hidden" name="id_paciente" value="{{ consulta.paciente.id_paciente }}">
+  </div>
+
+  <!-- Médico autenticado -->
+  <div class="mb-3">
+    <label><strong>Médico:</strong></label>
+    <p>{{ current_user.empleado.nombre if current_user.empleado else current_user.username }}</p>
+    <input type="hidden" name="id_medico" value="{{ current_user.id_usuario }}">
+    <p><strong>Folio de la receta:</strong> {{ folio }}</p>
+  </div>
+
+  <!-- Diagnóstico con búsqueda -->
+  <div class="mb-3">
+    <label for="diagnostico_id" class="form-label">Diagnóstico</label>
+    <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
+      <option value="">-- Buscar por clave o descripción --</option>
+      {% for diag in diagnosticos %}
+        <option value="{{ diag.id_diagnostico }}"
+          {% if request.form.get("diagnostico_id") == diag.id_diagnostico|string %}selected{% endif %}>
+          {{ diag.codigo }} - {{ diag.descripcion }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Selección de medicamentos (3 máximo) -->
+  {% for i in range(1, 4) %}
+  <div class="mb-3 border rounded p-3 shadow-sm">
+    <label><strong>Medicamento {{ i }}</strong></label>
+    <select name="med_{{ i }}" class="form-select" onchange="updateCantidadOptions(this, {{ i }})">
+      <option value="">-- Seleccionar medicamento --</option>
+      {% for med in medicamentos %}
+        <option value="{{ med.id }}"
+          {% if request.form.get('med_' ~ i) == med.id|string %}selected{% endif %}>
+          {{ med.descripcion }} (Disp: {{ med.existencia }})
+        </option>
+      {% endfor %}
+    </select>
+
+    <!-- Combo de cantidad -->
+    <select name="cant_{{ i }}" id="cant_{{ i }}" class="form-select mt-2">
+      <option value="">-- Cantidad --</option>
+      {% if request.form.get('cant_' ~ i) %}
+        <option selected>{{ request.form.get('cant_' ~ i) }}</option>
+      {% endif %}
+    </select>
+
+    <!-- Dosis -->
+    <input type="text" name="dosis_{{ i }}" class="form-control mt-2"
+           placeholder="Ej: 1 tableta cada 8h" value="{{ request.form.get('dosis_' ~ i, '') }}">
+
+    <!-- Indicaciones -->
+    <textarea name="indicaciones_{{ i }}" class="form-control mt-2"
+              rows="2" placeholder="Indicaciones al paciente">{{ request.form.get('indicaciones_' ~ i, '') }}</textarea>
+  </div>
+  {% endfor %}
+
+  <button type="submit" class="btn btn-success">Crear Receta</button>
+</form>
+
+<a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}"
+   class="btn btn-sm btn-outline-secondary mt-2">
+   <i class="bi bi-arrow-return-left"></i> Regresar a la nota
+</a>
+
+<!-- Inventario JS -->
+<script>
+  const inventario = {
+    {% for med in medicamentos %}
+      {{ med.id }}: {{ med.existencia }},
+    {% endfor %}
+  };
+
+  function updateCantidadOptions(selectMed, index) {
+    const idMed = selectMed.value;
+    const selectCantidad = document.getElementById("cant_" + index);
+    selectCantidad.innerHTML = "";
+
+    if (idMed && inventario[idMed]) {
+      const max = inventario[idMed];
+      for (let i = 1; i <= max; i++) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.text = i;
+        selectCantidad.appendChild(opt);
+      }
+    } else {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.text = "-- Sin existencia --";
+      selectCantidad.appendChild(opt);
+    }
+  }
+</script>
+
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#diagnostico_id').select2({
+        placeholder: "-- Buscar por clave o descripción --",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+
+{% endblock %}

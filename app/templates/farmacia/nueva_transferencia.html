@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="text-primary">Nueva Transferencia</h3>
+
+<form method="POST">
+  <div class="mb-3">
+    <label for="id_medicamento" class="form-label">Medicamento</label>
+    <select class="form-select" id="id_medicamento" name="id_medicamento" required>
+      <option value="">-- Selecciona --</option>
+      {% for m in medicamentos %}
+      <option value="{{ m.id_medicamento }}">{{ m.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="cantidad" class="form-label">Cantidad</label>
+    <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="id_usuario_destino" class="form-label">Responsable Destino</label>
+    <select class="form-select" id="id_usuario_destino" name="id_usuario_destino" required>
+      <option value="">-- Selecciona --</option>
+      {% for u in usuarios %}
+      <option value="{{ u.id_usuario }}">{{ u.usuario }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="observaciones" class="form-label">Observaciones</label>
+    <textarea class="form-control" id="observaciones" name="observaciones"></textarea>
+  </div>
+
+  <button type="submit" class="btn btn-success">Guardar</button>
+  <a href="{{ url_for('farmacia.listar_transferencias') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

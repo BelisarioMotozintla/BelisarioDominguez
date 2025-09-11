@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Medicamentos</h2>
+
+  <div class="mb-3">
+    <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-plus-square"></i> Nuevo Medicamento
+    </a>
+    <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-clipboard-data"></i> Regresar
+    </a>
+  </div>
+
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Clave</th>
+        <th>Nombre Comercial</th>
+        <th>Principio Activo</th>
+        <th>Presentación</th>
+        <th>Via Administración</th>
+        <th>Concentración</th>
+        <th>Unidad</th>
+        <th>CPM</th>
+        <th>Nivel Movimiento</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for medicamento in medicamentos %}
+      <tr>
+        <td>{{ medicamento.id_medicamento }}</td>
+        <td>{{ medicamento.clave }}</td>
+        <td>{{ medicamento.nombre_comercial }}</td>
+        <td>{{ medicamento.principio_activo }}</td>
+        <td>{{ medicamento.presentacion }}</td>
+        <td>{{ medicamento.via_administracion }}</td>
+        <td>{{ medicamento.concentracion }}</td>
+        <td>{{ medicamento.unidad }}</td>
+        <td>{{ medicamento.cpm }}</td>
+        <td>{{ medicamento.nivel_movimiento }}</td>
+        <td>
+         <form method="POST" action="{{ url_for('farmacia.eliminar_medicamento', id_medicamento=medicamento.id_medicamento) }}" style="display:inline;">
+  <button type="submit" onclick="return confirm('¿Eliminar medicamento?')" class="btn btn-sm btn-outline-danger">Eliminar</button>
+</form>
+
+<a href="{{ url_for('farmacia.editar_medicamento', id_medicamento=medicamento.id_medicamento) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="11" class="text-center">No hay medicamentos registrados.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

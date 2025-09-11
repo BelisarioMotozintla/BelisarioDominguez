@@ -47,7 +47,9 @@ def login():
                 'UsuarioEnfermeria': 'enfermeria.formulario',
                 'UsuarioAdmin': 'personal.index',
                 'SuperUsuario': 'formatos.formatos',
-                'USUARIOMEDICO': 'medicos.menu_medico'
+                'UsuarioInvitado': 'formatos.formatos',
+                'USUARIOMEDICO': 'medicos.menu_medico',
+                'UsuarioPasante': 'medicos.menu_medico'
 
             }
 

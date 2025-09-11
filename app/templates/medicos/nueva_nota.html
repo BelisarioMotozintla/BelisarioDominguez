@@ -15,7 +15,7 @@
     {% endif %}
   {% endwith %}
 
-  <form method="POST" id="notaForm" action="">
+  <form method="POST" id="notaForm">
     {{ form.hidden_tag() }}
 
     <!-- Fecha y Hora ocultas -->
@@ -25,16 +25,33 @@
     <!-- Servicio -->
     <div class="mb-3">
       {{ form.id_servicio.label(class="form-label") }}
-      {{ form.id_servicio(class="form-select", title="Seleccione el servicio correspondiente") }}
+      {{ form.id_servicio(class="form-select") }}
       <div class="invalid-feedback">Debe seleccionar un servicio</div>
     </div>
 
+    <!-- Médico Responsable (solo pasante) -->
+   {% if es_pasante %}
+    <div class="mb-3">
+        <label for="medico_responsable" class="form-label">Médico Responsable</label>
+        <select id="medico_responsable" name="medico_responsable" class="form-select" required>
+            <option value="">Seleccione un médico</option>
+            {% for medico in medicos_responsables %}
+                <option value="{{ medico.id_usuario }}">{{ medico.usuario }}</option>
+            {% endfor %}
+        </select>
+        <div class="invalid-feedback">Debe seleccionar un médico responsable</div>
+    </div>
+    {% endif %}
+
     <!-- Signos Vitales -->
-     <h5>Signos Vitales</h5>
+    <h5>Signos Vitales</h5>
     <div class="row mb-3">
-        <div class="col">{{ form.peso.label }} {{ form.peso(class="form-control") }}</div>
-        <div class="col">{{ form.talla.label }} {{ form.talla(class="form-control") }}</div>
-        <div class="col">{{ form.imc.label }} {{ form.imc(class="form-control") }}</div>
+        <div class="col">{{ form.peso.label }} {{ form.peso(class="form-control", id="peso") }}</div>
+        <div class="col">{{ form.talla.label }} {{ form.talla(class="form-control", id="talla") }}</div>
+        <div class="col">
+          <label for="imc" class="form-label">IMC</label>
+          <input type="text" id="imc" class="form-control" value="{{ form.imc.data or '' }}" readonly>
+        </div>
     </div>
     <div class="row mb-3">
         <div class="col">{{ form.ta.label }} {{ form.ta(class="form-control") }}</div>
@@ -47,34 +64,34 @@
         <div class="col">{{ form.spo2.label }} {{ form.spo2(class="form-control") }}</div>
         <div class="col">{{ form.glicemia.label }} {{ form.glicemia(class="form-control") }}</div>
     </div>
+
     <!-- SOAP -->
     <h4>SOAP</h4>
     {% for campo in ['presentacion','antecedentes','exploracion_fisica','laboratorio','diagnostico','plan','pronostico'] %}
       <div class="mb-3">
         {{ form[campo].label }}
-        {{ form[campo](class="form-control", rows="5", placeholder=form[campo].label.text, title="Ingrese {{ form[campo].label.text.lower() }}") }}
+        {{ form[campo](class="form-control", rows="5", placeholder=form[campo].label.text) }}
         <div class="invalid-feedback">Campo requerido</div>
       </div>
     {% endfor %}
 
     <!-- Botones -->
-   {{ form.submit(class="btn btn-success") }}
+    {{ form.submit(class="btn btn-success") }}
     <a href="{{ url_for('medicos.listar_notas', id_consulta=consulta.id_consulta) }}" class="btn btn-secondary">Cancelar</a>
   </form>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    // Calcular IMC
     const pesoInput = document.getElementById("peso");
     const tallaInput = document.getElementById("talla");
     const imcInput = document.getElementById("imc");
-    const form = document.getElementById("notaForm");
 
     function calcularIMC() {
         const peso = parseFloat(pesoInput.value);
         const talla = parseFloat(tallaInput.value);
-
-        if (!isNaN(peso) && !isNaN(talla) && peso > 0 && talla > 0) {
+        if (!isNaN(peso) && !isNaN(talla) && talla > 0) {
             imcInput.value = (peso / (talla * talla)).toFixed(2);
         } else {
             imcInput.value = "";
@@ -84,44 +101,20 @@ document.addEventListener("DOMContentLoaded", function() {
     pesoInput.addEventListener("input", calcularIMC);
     tallaInput.addEventListener("input", calcularIMC);
 
-    // Validación en tiempo real
-    const camposNumericos = ['peso','talla','fc','fr','temp','spo2','glicemia'];
-    const camposTexto = ['presentacion','antecedentes','exploracion_fisica','laboratorio','diagnostico','plan','pronostico'];
-
+    // Validación básica
+    const form = document.getElementById("notaForm");
     form.addEventListener("submit", function(event) {
         let valido = true;
 
-        // Validar select de servicio
-        const servicio = form.querySelector("#id_servicio");
-        if (!servicio.value) {
-            servicio.classList.add("is-invalid");
+        {% if es_pasante %}
+        const medicoSelect = document.getElementById("medico_responsable");
+        if (!medicoSelect.value) {
+            medicoSelect.classList.add("is-invalid");
             valido = false;
         } else {
-            servicio.classList.remove("is-invalid");
+            medicoSelect.classList.remove("is-invalid");
         }
-
-        // Validar campos numéricos
-        camposNumericos.forEach(c => {
-            const input = document.getElementById(c);
-            const val = parseFloat(input.value);
-            if (isNaN(val) || val < 0) {
-                input.classList.add("is-invalid");
-                valido = false;
-            } else {
-                input.classList.remove("is-invalid");
-            }
-        });
-
-        // Validar campos de texto obligatorios
-        camposTexto.forEach(c => {
-            const input = form.querySelector(`[name="${c}"]`);
-            if (!input.value.trim()) {
-                input.classList.add("is-invalid");
-                valido = false;
-            } else {
-                input.classList.remove("is-invalid");
-            }
-        });
+        {% endif %}
 
         if (!valido) {
             event.preventDefault();
@@ -130,5 +123,4 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
-
 {% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Registrar Bloque de Recetas</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="folio_inicio" class="form-label">Folio Inicio</label>
+      <input type="number" class="form-control" name="folio_inicio" required>
+    </div>
+    <div class="mb-3">
+      <label for="folio_fin" class="form-label">Folio Fin</label>
+      <input type="number" class="form-control" name="folio_fin" required>
+    </div>
+    <button type="submit" class="btn btn-success">Guardar</button>
+	<a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+  </form>
+</div>
+{% endblock %}

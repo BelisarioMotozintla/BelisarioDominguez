@@ -4,7 +4,7 @@ from app import db
 from flask_login import current_user  
 from app.models.medicos import Consulta, NotaConsultaExterna
 from app.models.archivo_clinico import Paciente
-from app.models.personal import Servicio,Usuario
+from app.models.personal import Servicio,Usuario,Roles
 from app.medicos.forms import NotaConsultaForm
 from app.utils.helpers import roles_required
 from sqlalchemy import String, or_
@@ -23,7 +23,7 @@ bp = Blueprint('medicos', __name__, template_folder='templates/medicos')
 
 
 @bp.route('/menu', methods=['GET'])
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def menu_medico():
     query = request.args.get('q', '')
 
@@ -42,7 +42,7 @@ def menu_medico():
 
 # 📌 Lista de notas de una consulta
 @bp.route('/notas/<int:id_consulta>')
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def listar_notas(id_consulta):
     consulta = Consulta.query.get_or_404(id_consulta)
     notas = consulta.notas
@@ -67,134 +67,114 @@ def safe_str(val):
         return val.strip()
     return val if val is not None else ""
 
-@bp.route('/<int:id_consulta>/nota/nueva', methods=['GET', 'POST'])
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@bp.route('/consulta/<int:id_consulta>/nota/nueva', methods=['GET', 'POST'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def nueva_nota(id_consulta):
-    # Obtener consulta y paciente
     consulta = Consulta.query.get_or_404(id_consulta)
     paciente = consulta.paciente
 
-    # Bloquear acceso si la consulta no está abierta y el usuario no es admin
+    # Solo si consulta abierta o admin
     if consulta.estado != "ABIERTA" and current_user.rol.nombre_rol != "Administrador":
         flash("Solo se puede agregar nota si la consulta está abierta o eres administrador", "danger")
         return redirect(url_for("medicos.menu_medico"))
 
-    # Servicios disponibles
-    servicios = Servicio.query.filter_by(area='Paciente').all()
-    choices_servicios = [(s.id_servicio, s.nombre_servicio) for s in servicios]
-    if not choices_servicios:
-        choices_servicios = [(0, 'Sin servicio')]
-
     # Inicializar formulario
     form = NotaConsultaForm()
-    form.id_servicio.choices = choices_servicios  # importante asignarlo antes de validate_on_submit
 
-    # Última nota para prellenar signos vitales
-    notas_anteriores = NotaConsultaExterna.query.filter_by(
-        id_consulta=consulta.id_consulta
-    ).order_by(NotaConsultaExterna.fecha.desc(), NotaConsultaExterna.hora.desc()).first()
+    # Determinar si es pasante
+    es_pasante = current_user.rol.nombre_rol.upper() == "USUARIOPASANTE"
 
-    if notas_anteriores and request.method == 'GET':
-        form.peso.data = notas_anteriores.peso
-        form.talla.data = notas_anteriores.talla
-        form.imc.data = notas_anteriores.imc
-        form.ta.data = notas_anteriores.ta
-        form.fc.data = notas_anteriores.fc
-        form.fr.data = notas_anteriores.fr
-        form.temp.data = notas_anteriores.temp
-        form.cc.data = notas_anteriores.cc
-        form.spo2.data = notas_anteriores.spo2
-        form.glicemia.data = notas_anteriores.glicemia
+    # Lista de médicos responsables si es pasante
+    medicos_responsables = []
+    if es_pasante:
+        medicos_responsables = Usuario.query.join(Roles).filter(Roles.nombre_rol=="USUARIOMEDICO").all()
+        form.medico_responsable.choices = [(m.id_usuario, m.usuario) for m in medicos_responsables]
 
-    # Inicializar fecha y hora en GET
+    # Prellenar signos vitales con última nota si existe
+    nota_ultima = NotaConsultaExterna.query.filter_by(id_consulta=consulta.id_consulta)\
+        .order_by(NotaConsultaExterna.fecha.desc(), NotaConsultaExterna.hora.desc()).first()
+    if nota_ultima and request.method == 'GET':
+        form.peso.data = nota_ultima.peso
+        form.talla.data = nota_ultima.talla
+        form.imc.data = nota_ultima.imc
+        form.ta.data = nota_ultima.ta
+        form.fc.data = nota_ultima.fc
+        form.fr.data = nota_ultima.fr
+        form.temp.data = nota_ultima.temp
+        form.cc.data = nota_ultima.cc
+        form.spo2.data = nota_ultima.spo2
+        form.glicemia.data = nota_ultima.glicemia
+
+    # Inicializar fecha y hora
     if request.method == "GET":
         if not form.fecha.data:
             form.fecha.data = datetime.utcnow().date()
         if not form.hora.data:
             form.hora.data = datetime.utcnow().time()
 
-    # Depuración: imprimir datos POST
-    if request.method == "POST":
-        print("=== Datos POST enviados ===")
-        print("Form crudo:", request.form)
-        print("Form procesado:", form.data)
-        print("Choices de servicio:", form.id_servicio.choices)
-        print("==========================")
-        print("Método:", request.method)
-        print("Datos del formulario:", request.form)
-        print("Choices actuales:", form.id_servicio.choices)
-    # POST: guardar nota
     if form.validate_on_submit():
-    
-        datos = form.data
-        errores, campos = campos_validos_nota_medica(datos)
-        print("=== Imprimiendo servicio seleccionado ===")
-        print("Servicio seleccionado:", form.id_servicio.data)
-        if errores:
-            for e in errores:
-                flash(e, "danger")
-        else:
-            # Calcular IMC
-            imc_val = calcular_imc(campos['peso'], campos['talla'])
-
-            # Hora segura
-            hora_val = form.hora.data
-            if not isinstance(hora_val, time):
-                hora_val = get_time(datos, 'hora') or datetime.utcnow().time()
-
-            # Evitar guardar un servicio inválido
-            if form.id_servicio.data == 0:
-                flash("Debe seleccionar un servicio válido", "danger")
+        try:
+            # Determinar usuario responsable
+            if es_pasante:
+                medico_responsable_id = form.medico_responsable.data
+                if not medico_responsable_id:
+                    flash("Debes seleccionar un médico responsable", "danger")
+                    return redirect(request.url)
             else:
-                try:
-                    nota = NotaConsultaExterna(
-                        id_consulta=consulta.id_consulta,
-                        id_servicio=form.id_servicio.data,
-                        fecha=form.fecha.data,
-                        hora=hora_val,
-                        peso=campos['peso'],
-                        talla=campos['talla'],
-                        imc=imc_val,
-                        ta=campos['ta'],
-                        fc=campos['fc'],
-                        fr=campos['fr'],
-                        temp=campos['temp'],
-                        cc=campos['cc'],
-                        spo2=campos['spo2'],
-                        glicemia=campos['glicemia'],
-                        presentacion=safe_str(form.presentacion.data),
-                        antecedentes=safe_str(form.antecedentes.data),
-                        exploracion_fisica=safe_str(form.exploracion_fisica.data),
-                        diagnostico=safe_str(form.diagnostico.data),
-                        plan=safe_str(form.plan.data),
-                        pronostico=safe_str(form.pronostico.data),
-                        laboratorio=safe_str(form.laboratorio.data),
-                    )
-                    print("Servicio seleccionado:", nota.id_servicio)
+                medico_responsable_id = current_user.id_usuario
 
-                    db.session.add(nota)
-                    db.session.commit()
+            # Calcular IMC
+            imc_val = None
+            if form.peso.data and form.talla.data and form.talla.data > 0:
+                imc_val = round(float(form.peso.data) / (float(form.talla.data) ** 2), 2)
 
-                    # Cambiar estado del expediente a cerrado
-                   
-                    flash("Nota registrada correctamente", "success")
-                    return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
+            # Crear nota
+            nota = NotaConsultaExterna(
+                id_consulta=consulta.id_consulta,
+                id_servicio=form.id_servicio.data,
+                fecha=form.fecha.data,
+                hora=form.hora.data,
+                usuario_id=medico_responsable_id,
+                peso=form.peso.data,
+                talla=form.talla.data,
+                imc=imc_val,
+                ta=form.ta.data,
+                fc=form.fc.data,
+                fr=form.fr.data,
+                temp=form.temp.data,
+                cc=form.cc.data,
+                spo2=form.spo2.data,
+                glicemia=form.glicemia.data,
+                presentacion=form.presentacion.data,
+                antecedentes=form.antecedentes.data,
+                exploracion_fisica=form.exploracion_fisica.data,
+                diagnostico=form.diagnostico.data,
+                plan=form.plan.data,
+                pronostico=form.pronostico.data,
+                laboratorio=form.laboratorio.data,
+            )
 
-                except Exception as e:
-                    db.session.rollback()
-                    flash("Ocurrió un error al guardar la nota", "danger")
-                    print("❌ Error al guardar en BD:", e)
+            db.session.add(nota)
+            db.session.commit()
+            flash("Nota registrada correctamente", "success")
+            return redirect(url_for("medicos.ver_nota", id_nota=nota.id_nota))
 
-    # Renderizar template
+        except Exception as e:
+            db.session.rollback()
+            flash("Ocurrió un error al guardar la nota", "danger")
+            print("❌ Error:", e)
+
     return render_template(
         "medicos/nueva_nota.html",
         form=form,
         consulta=consulta,
-        paciente=paciente
+        paciente=paciente,
+        es_pasante=es_pasante,
+        medicos_responsables=medicos_responsables
     )
 
 @bp.route("/ver_nota/<int:id_nota>")
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def ver_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
     # Obtener la consulta relacionada
@@ -214,6 +194,7 @@ def ver_nota(id_nota):
     )
 def _plantilla_path():
     return os.path.join(current_app.root_path, "static", "medicos", "plantilla_nota.pdf")
+
 
 def _build_coords():
     return {
@@ -236,17 +217,20 @@ def _build_coords():
         "spo2": (85, 430),
         "glicemia": (85, 410),
         "imc": (85, 390),
-        "medico": (400, 45),
-        "cedula": (400, 40),
+        "medico": (350, 55),
+        "cedula": (350, 45),
+        "pasante": (350, 35),  # nueva coordenada para pasante
     }
+
 
 def ajustar_lineas(texto, max_caracteres):
     if not texto:
         return []
     return textwrap.wrap(texto, max_caracteres)
 
+
 @bp.route("/nota/<int:id_nota>")
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def generar_nota_pdf(id_nota: int):
     debug = request.args.get("debug", "0") == "1"
     download = request.args.get("dl", "1") != "0"  # dl=0 => mostrar inline
@@ -268,6 +252,8 @@ def generar_nota_pdf(id_nota: int):
             joinedload(NotaConsultaExterna.consulta)
             .joinedload(Consulta.usuario)
             .joinedload(Usuario.empleado),
+            joinedload(NotaConsultaExterna.usuario)
+            .joinedload(Usuario.empleado),
         )
         .filter(NotaConsultaExterna.id_nota == id_nota)
         .first()
@@ -278,9 +264,15 @@ def generar_nota_pdf(id_nota: int):
 
     paciente = nota.consulta.paciente
     archivo = paciente.archivo_clinico[0] if paciente.archivo_clinico else None
-    usuario_medico = nota.consulta.usuario
+
+    # Usuario médico responsable de la nota
+    usuario_medico = nota.usuario
     medico_emp = usuario_medico.empleado if usuario_medico else None
-    
+
+    # Usuario pasante (quien abrió la consulta)
+    usuario_pasante = nota.consulta.usuario
+    pasante_emp = usuario_pasante.empleado if usuario_pasante else None
+
     if nota.id_servicio == 5:  # URGENCIAS
         expediente_num = archivo.numero_expediente if archivo is not None else "S/N"
     else:
@@ -292,7 +284,6 @@ def generar_nota_pdf(id_nota: int):
         abort(400, description="La nota no tiene médico (Usuario/Empleado) asociado")
 
     # Obtener nombre del servicio
-    from app.models.personal import Servicio
     servicio_obj = Servicio.query.get(nota.id_servicio)
     nombre_servicio = servicio_obj.nombre_servicio if servicio_obj else "Consulta"
 
@@ -305,7 +296,7 @@ def generar_nota_pdf(id_nota: int):
         "direccion": paciente.direccion or "",
         "sexo": paciente.sexo or "",
         "edad": str(paciente.edad) if paciente.edad else "",
-        "expediente":  expediente_num,
+        "expediente": expediente_num,
         "fecha": nota.fecha.strftime("%d/%m/%Y") if nota.fecha else "",
         "hora": nota.hora.strftime("%H:%M") if nota.hora else "",
         "peso": str(nota.peso) if nota.peso is not None else "",
@@ -318,15 +309,21 @@ def generar_nota_pdf(id_nota: int):
         "spo2": str(nota.spo2) if nota.spo2 is not None else "",
         "glicemia": str(nota.glicemia) if nota.glicemia is not None else "",
         "imc": str(nota.imc) if nota.imc is not None else "",
-        "medico": " ".join(
+        "medico":"Médico: " + " ".join(
             x for x in [
-                medico_emp.titulo,
                 medico_emp.nombre,
                 medico_emp.apellido_paterno,
                 medico_emp.apellido_materno,
             ] if x
         ),
-        "cedula": medico_emp.cedula or "",
+        "cedula": "Cédula:" + " " + medico_emp.cedula or "",
+        "pasante": "Mpss: " + " ".join(
+            x for x in [
+                pasante_emp.nombre if pasante_emp else "",
+                pasante_emp.apellido_paterno if pasante_emp else "",
+                pasante_emp.apellido_materno if pasante_emp else "",
+            ] if x
+        ),
         "presentacion": ajustar_lineas("P.- " + (nota.presentacion or ""), 65),
         "antecedentes": ajustar_lineas("S.- " + (nota.antecedentes or ""), 65),
         "exploracion_fisica": ajustar_lineas("O.- " + (nota.exploracion_fisica or ""), 65),
@@ -426,9 +423,8 @@ def generar_nota_pdf(id_nota: int):
         mimetype="application/pdf",
     )
 
-
 @bp.route('/editar/<int:id_nota>', methods=['GET', 'POST'])
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def editar_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
     consulta = nota.consulta
@@ -495,13 +491,13 @@ def editar_nota(id_nota):
     
 # 📌 Detalle de una nota
 @bp.route('/notas/detalle/<int:id_nota>')
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def detalle_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
     return render_template('notas_detalle.html', nota=nota)
 
 @bp.route('/eliminar_nota/<int:id_nota>', methods=['POST'])
-@roles_required(['USUARIOMEDICO', 'Administrador'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def eliminar_nota(id_nota):
     # Obtener la nota y la consulta asociada
     nota = NotaConsultaExterna.query.get_or_404(id_nota)

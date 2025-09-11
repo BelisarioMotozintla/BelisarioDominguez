@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<!-- Mini menú de botones -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Recetas Médicas</h2>
+  <div>
+    {% if receta %}
+      <!-- Botón: editar receta -->
+      <a href="{{ url_for('recetas.editar_receta', id_receta=receta.id_receta) }}" 
+         class="btn btn-sm btn-outline-warning me-2">
+         <i class="bi bi-pencil-square"></i> Editar Receta
+      </a>
+
+      <!-- Botón: regresar a la nota -->
+      <a href="{{ url_for('medicos.ver_nota', id_nota=receta.nota_id ) }}"
+         class="btn btn-sm btn-outline-secondary">
+         <i class="bi bi-arrow-return-left"></i> Regresar a la nota
+      </a>
+    {% endif %}
+  </div>
+</div>
+ 
+<!-- Información de la receta -->
+<div class="card shadow p-4">
+  <h3 class="mb-3">Receta médica</h3>
+  <p><strong>Folio:</strong> {{ receta.folio }}</p>
+  <p><strong>Paciente:</strong> {{ receta.paciente.nombre }}</p>
+  <p><strong>Médico:</strong> {{ current_user.empleado.nombre if current_user.empleado else current_user.username }}</p>
+  <p><strong>Fecha:</strong> {{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</p>
+
+  <!-- Diagnóstico -->
+  <p><strong>Diagnóstico:</strong> 
+    {{ receta.diagnostico.codigo }} - {{ receta.diagnostico.descripcion }}
+  </p>
+
+  <h4 class="mt-4">Medicamentos</h4>
+  <table class="table table-bordered text-center">
+    <thead class="table-light">
+      <tr>
+        <th>Medicamento</th>
+        <th>Cantidad prescrita</th>
+        <th>Dosis</th>
+        <th>Indicaciones</th>
+        <th>Entregado</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for detalle in receta.detalle %}
+      <tr>
+        <td>{{ detalle.medicamento.nombre_comercial }}</td>
+        <td>{{ detalle.cantidad }}</td>
+        <td>{{ detalle.dosis }}</td>
+        <td>{{ detalle.indicaciones }}</td>
+        <td>{{ entregados.get(detalle.id_medicamento, 0) }}</td>
+        <td>
+          {% set entregado = entregados.get(detalle.id_medicamento, 0) %}
+          {% if entregado == 0 %}
+            <span class="badge bg-danger">No surtido</span>
+          {% elif entregado < detalle.cantidad %}
+            <span class="badge bg-warning text-dark">Parcial</span>
+          {% else %}
+            <span class="badge bg-success">Completo</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="mt-4">
+    <h5>Tipo de surtimiento total: 
+      {% if receta.tipo_surtimiento_calculado == "Completa" %}
+        <span class="badge bg-success">Completa</span>
+      {% elif receta.tipo_surtimiento_calculado == "Parcial" %}
+        <span class="badge bg-warning text-dark">Parcial</span>
+      {% else %}
+        <span class="badge bg-danger">No surtida</span>
+      {% endif %}
+    </h5>
+  </div>
+</div>
+
+{% endblock %}

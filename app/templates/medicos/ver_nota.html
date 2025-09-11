@@ -60,6 +60,17 @@
                 <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
             </form>
             {% endif %}
+           {% if nota.receta %}
+            <a href="{{ url_for('recetas.detalle_receta', id_receta=nota.receta.id_receta) }}"
+                class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-file-medical"></i> Ver Receta
+            </a>
+            {% else %}
+            <a href="{{ url_for('recetas.crear_receta', id_nota=nota.id_nota) }}"
+                class="btn btn-sm btn-outline-success">
+                <i class="bi bi-plus-circle"></i> Crear Receta
+            </a>
+            {% endif %}
 
             <a href="{{ url_for('medicos.listar_notas', id_consulta=nota.id_consulta) }}" class="btn btn-secondary">Volver</a>
         </div>

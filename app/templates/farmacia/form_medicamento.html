@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ medicamento and 'Editar' or 'Nuevo' }} Medicamento</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label>Clave</label>
+            <input type="text" class="form-control" name="clave" value="{{ medicamento.clave if medicamento else '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label>Nombre Comercial</label>
+            <input type="text" class="form-control" name="nombre_comercial" value="{{ medicamento.nombre_comercial if medicamento else '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label>Principio Activo</label>
+            <input type="text" class="form-control" name="principio_activo" value="{{ medicamento.principio_activo if medicamento else '' }}">
+        </div>
+        <div class="mb-3">
+            <label>Presentación</label>
+            <input type="text" class="form-control" name="presentacion" value="{{ medicamento.presentacion if medicamento else '' }}">
+        </div>
+        <div class="mb-3">
+            <label>Vía Administración</label>
+            <input type="text" class="form-control" name="via_administracion" value="{{ medicamento.via_administracion if medicamento else '' }}">
+        </div>
+        <div class="mb-3">
+            <label>Concentración</label>
+            <input type="text" class="form-control" name="concentracion" value="{{ medicamento.concentracion if medicamento else '' }}">
+        </div>
+        <div class="mb-3">
+            <label>Unidad</label>
+            <input type="text" class="form-control" name="unidad" value="{{ medicamento.unidad if medicamento else '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-success">{{ medicamento and 'Actualizar' or 'Guardar' }}</button>
+        <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-secondary">Regresar</a>
+    </form>
+</div>
+{% endblock %}

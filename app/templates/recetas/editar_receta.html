@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Editar Receta Médica</h2>
+
+  <form method="POST">
+    <!-- Diagnóstico con búsqueda -->
+    <div class="mb-3">
+      <label for="diagnostico_id" class="form-label">Diagnóstico</label>
+      <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
+        <option value="">-- Buscar por clave o descripción --</option>
+        {% for diag in diagnosticos %}
+          <option value="{{ diag.id_diagnostico }}"
+                  {% if receta.diagnostico_id == diag.id_diagnostico %}selected{% endif %}>
+            {{ diag.codigo }} - {{ diag.descripcion }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Medicamentos -->
+    <h4 class="mt-4">Medicamentos</h4>
+    {% for detalle in receta.detalle %}
+      <div class="mb-3 border rounded p-3 shadow-sm">
+        <p><strong>{{ detalle.medicamento.nombre_comercial }} {{ detalle.medicamento.presentacion }}</strong></p>
+
+        <div class="mb-2">
+          <label class="form-label">Cantidad</label>
+          <input type="number" name="cantidad_{{ detalle.id_detalle }}" 
+                 value="{{ detalle.cantidad }}" class="form-control" min="1" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Dosis</label>
+          <input type="text" name="dosis_{{ detalle.id_detalle }}" 
+                 value="{{ detalle.dosis }}" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Indicaciones</label>
+          <textarea name="indicaciones_{{ detalle.id_detalle }}" 
+                    class="form-control" rows="2" required>{{ detalle.indicaciones }}</textarea>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-between">
+      <a href="{{ url_for('recetas.detalle_receta', id_receta=receta.id_receta) }}" 
+         class="btn btn-secondary">
+        Cancelar
+      </a>
+      <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+    </div>
+  </form>
+</div>
+
+<!-- Select2 JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#diagnostico_id').select2({
+        placeholder: "-- Buscar por clave o descripción --",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+
+{% endblock %}

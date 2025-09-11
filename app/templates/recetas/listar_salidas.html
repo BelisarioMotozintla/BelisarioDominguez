@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Salidas de Farmacia a Pacientes</h2>
+<a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+</div>
+
+<table class="table table-bordered table-hover text-center">
+  <thead class="table-light">
+    <tr>
+      <th>Folio Receta</th>
+      <th>Paciente</th>
+      <th>Médico</th>
+      <th>Fecha de Emisión</th>
+      <th>Medicamento</th>
+      <th>Cantidad</th>
+      <th>Fecha de Salida</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for salida in salidas %}
+    <tr>
+      <td>{{ salida.folio_receta }}</td>
+      <td>{{ salida.receta.paciente.nombre }}</td>
+      <td>{{ salida.usuario.nombre }}</td>
+      <td>{{ salida.receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ salida.medicamento.nombre }}</td>
+      <td>{{ salida.cantidad }}</td>
+      <td>{{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') if salida.fecha_salida else '' }}</td>
+      <td>
+        <a href="{{ url_for('recetas.detalle_receta', id_receta=salida_lista.receta.id_receta) }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-file-medical"></i> Ver Receta
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

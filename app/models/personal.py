@@ -89,8 +89,8 @@ class Empleado(db.Model):
     servicio = relationship('Servicio', back_populates='empleados')
     estudios = relationship('Estudios', back_populates='empleado')
     usuarios = relationship('Usuario', back_populates='empleado')
-    rango_folios = relationship('RangoFolios', back_populates='empleado')
-    recetas_medicas = relationship('RecetaMedica', back_populates='empleado')
+   # bloques_recetas = relationship("BloqueReceta", back_populates="empleado")
+   # recetas_medicas = relationship('RecetaMedica', back_populates='empleado')
 
 # Modelo Estudios 006
 class Estudios(db.Model):
@@ -113,12 +113,14 @@ class Roles(db.Model):
 # Modelo Usuario 008
 class Usuario(db.Model, UserMixin):
     __tablename__ = 'Usuario'
+
     id_usuario = Column(Integer, primary_key=True)
     usuario = Column(Text, unique=True, nullable=False)
     contrasena_hash = Column(Text, nullable=False)
     rol_id = Column(Integer, ForeignKey('Roles.id_rol'))
     id_empleado = Column(Integer, ForeignKey('Empleado.id_empleado'))
 
+    # Relaciones con otras tablas
     rol = relationship('Roles', back_populates='usuarios')
     empleado = relationship('Empleado', back_populates='usuarios')
 
@@ -128,11 +130,25 @@ class Usuario(db.Model, UserMixin):
     transferencias_salientes = relationship('TransferenciaSaliente', back_populates='usuario')
     transferencias_entrantes = relationship('TransferenciaEntrante', back_populates='usuario')
     recetas = relationship('RecetaMedica', back_populates='usuario')
-    rango_folios = relationship('RangoFolios', back_populates='usuario')
+    bloques_recetas = relationship("BloqueReceta", back_populates="creador")
     bitacora_accion = relationship('BitacoraAccion', back_populates='usuario')
     bitacora_movimiento = relationship('BitacoraMovimiento', back_populates='usuario')
     dispositivos = relationship('MAC', back_populates='usuario', cascade="all, delete-orphan")
 
+    # Relaciones con asignaciones de recetas
+    asignaciones_recetas = relationship(
+        "AsignacionReceta",
+        back_populates="medico",
+        foreign_keys="AsignacionReceta.id_medico"
+    )
+
+    asignaciones_asignadas = relationship(
+        "AsignacionReceta",
+        back_populates="asignador",
+        foreign_keys="AsignacionReceta.id_asignador"
+    )
+
+    # Relaciones con solicitudes de expediente
     solicitudes_solicita = relationship(
         'SolicitudExpediente',
         foreign_keys='SolicitudExpediente.id_usuario_solicita',

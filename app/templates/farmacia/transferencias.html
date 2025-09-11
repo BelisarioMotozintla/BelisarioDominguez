@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 class="text-info">Transferencias de Medicamentos</h3>
+
+<h5 class="mt-4">Salientes</h5>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Medicamento</th>
+      <th>Cantidad</th>
+      <th>Fecha</th>
+      <th>Usuario Origen</th>
+    </tr>
+  </thead>
+  <tbody>
+ <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+    {% for t in salientes %}
+    <tr>
+      <td>{{ t.medicamento.nombre }}</td>
+      <td>{{ t.cantidad }}</td>
+      <td>{{ t.fecha_transferencia.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ t.usuario.usuario }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h5 class="mt-4">Entrantes</h5>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Medicamento</th>
+      <th>Cantidad</th>
+      <th>Fecha</th>
+      <th>Usuario Destino</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in entrantes %}
+    <tr>
+      <td>{{ t.medicamento.nombre }}</td>
+      <td>{{ t.cantidad }}</td>
+      <td>{{ t.fecha_transferencia.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td>{{ t.usuario.usuario }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

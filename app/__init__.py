@@ -10,11 +10,11 @@ def create_app():
     from app import models
     from app.models.archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
     from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios,MAC
-    from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia, RangoFolios, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
+    from app.models.medicos import NotaConsultaExterna,Consulta
+    from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
-    from app.models.medicos import NotaConsultaExterna,Consulta
-
+    
     app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config.from_object(DevelopmentConfig)
     
@@ -58,6 +58,7 @@ def create_app():
     from app.archivo_clinico import archivo_clinico_bp
     from app.paciente import paciente_bp
     from app.farmacia import farmacia_bp
+    from app.recetas import recetas_bp
     from app.personal import personal_bp
     from app.admin import admin_bp
     from app.formatos import formatos_bp
@@ -72,6 +73,7 @@ def create_app():
     app.register_blueprint(archivo_clinico_bp, url_prefix='/archivo')
     app.register_blueprint(paciente_bp, url_prefix='/paciente')
     app.register_blueprint(farmacia_bp, url_prefix='/farmacia')
+    app.register_blueprint(recetas_bp, url_prefix='/recetas')
     app.register_blueprint(personal_bp, url_prefix='/personal')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(formatos_bp, url_prefix='/formatos')
