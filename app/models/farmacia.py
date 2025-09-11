@@ -286,6 +286,7 @@ class DetalleReceta(db.Model):
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
 
     cantidad = Column(Integer, nullable=False)
+    cantidad_surtida = Column(Integer, default=0, nullable=False)
     dosis = Column(Text)
     indicaciones = Column(Text)
 

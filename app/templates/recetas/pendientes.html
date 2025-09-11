@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Recetas Pendientes de Surtimiento</h2>
+
+    <!-- Formulario de búsqueda -->
+    <form method="GET" class="row g-2 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="folio" class="form-control" placeholder="Buscar por folio" value="{{ request.args.get('folio', '') }}">
+        </div>
+        <div class="col-md-4">
+            <input type="text" name="paciente" class="form-control" placeholder="Buscar por paciente" value="{{ request.args.get('paciente', '') }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">Buscar</button>
+        </div>
+    </form>
+
+    {% if recetas %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle text-center">
+            <thead class="table-light">
+                <tr>
+                    <th>Folio</th>
+                    <th>Paciente</th>
+                    <th>Fecha</th>
+                    <th>Tipo de Surtimiento</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recetas %}
+                <tr>
+                    <td>{{ r.folio }}</td>
+                    <td>{{ r.paciente.nombre }}</td>
+                    <td>{{ r.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td>
+                        {% if r.tipo_surtimiento_calculado == "Completa" %}
+                            <span class="badge bg-success">Completa</span>
+                        {% elif r.tipo_surtimiento_calculado == "Parcial" %}
+                            <span class="badge bg-warning text-dark">Parcial</span>
+                        {% else %}
+                            <span class="badge bg-danger">No surtida</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('recetas.surtir_receta', id_receta=r.id_receta) }}" class="btn btn-sm btn-success">
+                            <i class="bi bi-bag-fill"></i> Surtir
+                        </a>
+                        <a href="{{ url_for('recetas.detalle_receta', id_receta=r.id_receta) }}" class="btn btn-sm btn-secondary">
+                            <i class="bi bi-eye"></i> Ver
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info text-center">
+            No se encontraron recetas pendientes.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

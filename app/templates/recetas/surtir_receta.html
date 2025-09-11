@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Surtir Receta Médica</h2>
+<p><strong>Folio:</strong> {{ receta.folio }}</p>
+<p><strong>Paciente:</strong> {{ receta.paciente.nombre }}</p>
+<p><strong>Médico:</strong> {{ receta.usuario.empleado.nombre if receta.usuario.empleado else receta.usuario.username }}</p>
+<p><strong>Fecha:</strong> {{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</p>
+
+<form method="POST">
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Medicamento</th>
+        <th>Recetado</th>
+        <th>Surtido</th>
+        <th>Stock disponible</th>
+        <th>Cantidad a entregar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set receta_completa = True %}
+      {% for det in receta.detalle %}
+      {% set pendiente = det.cantidad - (det.cantidad_surtida or 0) %}
+      <tr>
+        <td>{{ det.medicamento.nombre_comercial }}</td>
+        <td>{{ det.cantidad }}</td>
+        <td>{{ det.cantidad_surtida or 0 }}</td>
+        <td>{{ inventario[det.id_medicamento] }}</td>
+        <td>
+          {% if pendiente > 0 and inventario[det.id_medicamento] > 0 %}
+            <input type="number" name="cant_{{ det.id_detalle }}" 
+                   min="0" max="{{ [pendiente, inventario[det.id_medicamento]|int]|min }}" 
+                   value="{{ [pendiente, inventario[det.id_medicamento]|int]|min }}" 
+                   class="form-control">
+            {% set receta_completa = False %}
+          {% else %}
+            <input type="number" value="0" class="form-control" disabled>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if not receta_completa %}
+    <button type="submit" class="btn btn-success">Surtir</button>
+  {% else %}
+    <div class="alert alert-info">✅ Todos los medicamentos ya fueron surtidos.</div>
+  {% endif %}
+</form>
+
+<a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-secondary mt-2">
+  <i class="bi bi-arrow-return-left"></i> Volver a pendientes
+</a>
+
+{% endblock %}

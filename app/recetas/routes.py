@@ -328,3 +328,92 @@ def detalle_receta(id_receta):
         entregados=entregados,
         medicos=medicos
     )
+#==========================================================================================================surtimiento de receta===============================
+@bp.route("/recetas/pendientes")
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def recetas_pendientes():
+    # Obtener parámetros de búsqueda
+    folio = request.args.get("folio", type=int)
+    paciente_nombre = request.args.get("paciente", type=str)
+
+    # Base query: solo recetas que no estén completas
+    query = RecetaMedica.query.filter(
+        RecetaMedica.tipo_surtimiento_calculado != "Completa"
+    ).join(Paciente)
+
+    # Filtrar por folio si se especifica
+    if folio:
+        query = query.filter(RecetaMedica.folio == folio)
+
+    # Filtrar por nombre de paciente si se especifica
+    if paciente_nombre:
+        query = query.filter(Paciente.nombre.ilike(f"%{paciente_nombre}%"))
+
+    # Ordenar por fecha descendente
+    recetas = query.order_by(RecetaMedica.fecha_emision.desc()).all()
+
+    return render_template(
+        "recetas/pendientes.html",
+        recetas=recetas
+    )
+
+@bp.route("/surtir/<int:id_receta>", methods=["GET", "POST"])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def surtir_receta(id_receta):
+    receta = RecetaMedica.query.get_or_404(id_receta)
+
+    # Inventario actual por medicamento
+    inventario = {
+        det.id_medicamento: (
+            db.session.query(InventarioFarmacia)
+            .filter_by(id_medicamento=det.id_medicamento)
+            .first().cantidad
+            if db.session.query(InventarioFarmacia).filter_by(id_medicamento=det.id_medicamento).first()
+            else 0
+        )
+        for det in receta.detalle
+    }
+
+    if request.method == "POST":
+        try:
+            for det in receta.detalle:
+                cant_entregada = request.form.get(f"cant_{det.id_detalle}", type=int) or 0
+
+                # Validar que no se surta más de lo recetado
+                cant_max = det.cantidad - (det.cantidad_surtida or 0)
+                if cant_entregada > cant_max:
+                    cant_entregada = cant_max
+
+                # Validar que no se surta más de lo disponible
+                stock = inventario[det.id_medicamento]
+                if cant_entregada > stock:
+                    cant_entregada = stock
+
+                if cant_entregada > 0:
+                    # Crear registro de salida en farmacia
+                    salida = SalidaFarmaciaPaciente(
+                        folio_receta=receta.folio,   # ✅ Campo correcto
+                        id_medicamento=det.id_medicamento,
+                        cantidad=cant_entregada,
+                        fecha_salida=datetime.utcnow(),
+                        id_usuario=current_user.id_usuario
+                    )
+                    db.session.add(salida)
+
+                    # Actualizar inventario
+                    inv = InventarioFarmacia.query.filter_by(id_medicamento=det.id_medicamento).first()
+                    if inv:
+                        inv.cantidad = max(inv.cantidad - cant_entregada, 0)
+
+                    # Actualizar cantidad surtida en DetalleReceta
+                    det.cantidad_surtida = (det.cantidad_surtida or 0) + cant_entregada
+
+            db.session.commit()
+            flash("✅ Receta surtida correctamente", "success")
+            return redirect(url_for("recetas.recetas_pendientes"))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error al surtir la receta: {e}", "danger")
+
+    return render_template("recetas/surtir_receta.html", receta=receta, inventario=inventario)
