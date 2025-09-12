@@ -34,22 +34,22 @@
     </tr>
   </thead>
   <tbody>
-    {% for salida in salidas %}
-    <tr>
-      <td>{{ salida.folio_receta }}</td>
-      <td>{{ salida.receta.paciente.nombre }}</td>
-      <td>{{ salida.usuario.nombre }}</td>
-      <td>{{ salida.receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
-      <td>{{ salida.medicamento.nombre }}</td>
-      <td>{{ salida.cantidad }}</td>
-      <td>{{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') if salida.fecha_salida else '' }}</td>
-      <td>
-        <a href="{{ url_for('recetas.detalle_receta', id_receta=salida_lista.receta.id_receta) }}" class="btn btn-sm btn-outline-primary">
-          <i class="bi bi-file-medical"></i> Ver Receta
-        </a>
-      </td>
-    </tr>
-    {% endfor %}
+   {% for salida in salidas %}
+<tr>
+  <td>{{ salida.folio_receta }}</td>
+  <td>{{ salida.receta.paciente.nombre }}</td>
+  <td>{{ salida.usuario.nombre }}</td>
+  <td>{{ salida.receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
+  <td>{{ salida.medicamento.nombre }}</td>
+  <td>{{ salida.cantidad }}</td>
+  <td>{{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') if salida.fecha_salida else '' }}</td>
+  <td>
+    <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-file-medical"></i> Ver Receta
+    </a>
+  </td>
+</tr>
+{% endfor %}
   </tbody>
 </table>
 

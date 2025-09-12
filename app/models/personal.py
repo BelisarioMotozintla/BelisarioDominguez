@@ -122,6 +122,7 @@ class Usuario(db.Model, UserMixin):
 
     # Relaciones con otras tablas
     rol = relationship('Roles', back_populates='usuarios')
+    #rol = relationship('Roles', backref='usuarios', lazy='joined')
     empleado = relationship('Empleado', back_populates='usuarios')
 
     entrada_almacenes = relationship('EntradaAlmacen', back_populates='usuario')

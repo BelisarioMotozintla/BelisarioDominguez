@@ -72,6 +72,8 @@ def lista_recetas():
 def listar_salidas():
     # Traer todas las salidas, ordenadas por fecha descendente
     salidas = SalidaFarmaciaPaciente.query.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
+    print(salidas)
+    print(len(salidas))
     
     # Asegurarse de que cada salida tenga acceso a receta, medicamento y usuario
     return render_template("recetas/listar_salidas.html", salidas=salidas)
@@ -312,7 +314,7 @@ def detalle_recetasss(id_receta):
     )
 
 @bp.route("/detalle/<int:id_receta>")
-@roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
+@roles_required(['USUARIOMEDICO','UsuarioPasante','UsuarioAdministrativo','Administrador'])
 def detalle_receta(id_receta):
     receta = RecetaMedica.query.get_or_404(id_receta)
     

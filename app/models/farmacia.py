@@ -98,10 +98,12 @@ class SalidaFarmaciaPaciente(db.Model):
     cantidad = Column(Integer, nullable=False)
     fecha_salida = Column(TIMESTAMP)
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
-    folio_receta = Column(Integer, nullable=False)  # folio usado
+    folio_receta = Column(Integer, ForeignKey('RecetaMedica.folio'), nullable=False)
 
     medicamento = relationship('Medicamento', back_populates='salida_farmacia_paciente')
     usuario = relationship('Usuario', back_populates='salida_farmacia_paciente')
+    receta = relationship('RecetaMedica', back_populates='salidas')
+
 
 # Modelo TransferenciaSaliente
 class TransferenciaSaliente(db.Model):
@@ -248,12 +250,8 @@ class RecetaMedica(db.Model):
     diagnostico = db.relationship('Diagnostico')
 
     # Relación a las salidas de farmacia
-    salidas = relationship(
-        'SalidaFarmaciaPaciente',
-        primaryjoin="RecetaMedica.folio==foreign(SalidaFarmaciaPaciente.folio_receta)",
-        viewonly=True
-    )
-
+    salidas = relationship('SalidaFarmaciaPaciente', back_populates='receta')
+ 
     # Property para calcular tipo de surtimiento dinámicamente
     @property
     def tipo_surtimiento_calculado(self):
