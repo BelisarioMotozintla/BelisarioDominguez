@@ -36,7 +36,7 @@ def listar_pacientes():
 
 
 @bp.route('/alta', methods=['GET', 'POST'])
-@roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO'])
+@roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO', 'UsuarioPasante'])
 def alta_paciente():
     if request.method == 'POST':
         # Normalizar CURP
