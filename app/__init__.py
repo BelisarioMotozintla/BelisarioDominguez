@@ -10,7 +10,7 @@ def create_app():
     from app import models
     from app.models.archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
     from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios,MAC
-    from app.models.medicos import NotaConsultaExterna,Consulta
+    from app.models.medicos import NotaConsultaExterna,Consulta,FolioCertificado
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
@@ -64,6 +64,7 @@ def create_app():
     from app.formatos import formatos_bp
     from app.comentario import comentario_bp
     from app.medicos import medicos_bp
+    from app.certificado import certificado_bp
     from app.consultas import consultas_bp
     from app.control_mac import control_mac_bp
 
@@ -79,6 +80,7 @@ def create_app():
     app.register_blueprint(formatos_bp, url_prefix='/formatos')
     app.register_blueprint(comentario_bp, url_prefix='/comentario')
     app.register_blueprint(medicos_bp, url_prefix='/medicos')
+    app.register_blueprint(certificado_bp, url_prefix='/certificado')
     app.register_blueprint(consultas_bp, url_prefix='/consultas')
     app.register_blueprint(control_mac_bp, url_prefix='/control_mac')
 

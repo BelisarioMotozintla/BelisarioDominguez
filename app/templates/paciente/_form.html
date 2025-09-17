@@ -91,6 +91,7 @@
       <option value="Diabético" {% if paciente and paciente.tipo_cronicidad == 'Diabético' %}selected{% endif %}>Diabético</option>
       <option value="Hipertenso" {% if paciente and paciente.tipo_cronicidad == 'Hipertenso' %}selected{% endif %}>Hipertenso</option>
       <option value="Metabólico" {% if paciente and paciente.tipo_cronicidad == 'Metabólico' %}selected{% endif %}>Metabólico</option>
+      <option value="Dislipidemia" {% if paciente and paciente.tipo_cronicidad == 'Dislipidemia' %}selected{% endif %}>Dislipidemia</option>
       <option value="Otro" {% if paciente and paciente.tipo_cronicidad == 'Otro' %}selected{% endif %}>Otro</option>
     </select>
   </div>

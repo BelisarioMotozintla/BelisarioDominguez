@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, session, jsonify
+from flask_login import current_user
 from app.models.enfermeria import RegistroAdultoMayor
 from app.utils.db import db
 from app.utils.validaciones import campos_validos,get_str, get_int, get_date
@@ -10,11 +11,11 @@ from datetime import datetime, date, time
 from sqlalchemy import desc, func
 from sqlalchemy.dialects import postgresql
 from app.utils.exportador import generar_excel
-
+from app.models.archivo_clinico import Paciente
 
 
 @bp.route('/formulario', methods=['GET', 'POST'])
-@roles_required(['UsuarioEnfermeria', 'Administrador'])
+@roles_required(['UsuarioEnfermeria', 'Administrador','JefeEnfermeria'])
 def formulario():
     if 'usuario' not in session:
         flash('Debes iniciar sesión', 'error')
@@ -81,7 +82,7 @@ def formulario():
                 flash("Formato de fecha de nacimiento incorrecto.", "danger")
                 datos = request.form
                 return render_template('enfermeria/formulario.html', datos=datos, registros=registros)
-
+        
         # Guardar registro
         try:
             nuevo_registro = RegistroAdultoMayor(
@@ -137,6 +138,28 @@ def formulario():
                 OBSERVACIONES_GENERALES = get_str(request.form, 'OBSERVACIONES_GENERALES'),
             )
             db.session.add(nuevo_registro)
+            # Actualizar paciente correspondiente
+            paciente = Paciente.query.filter_by(nombre=nuevo_registro.paciente).first()
+            if paciente:
+                # Planificación
+                paciente.planificacion = nuevo_registro.PF_METODO not in ["7", None]
+
+                # Embarazo
+                # Por ejemplo si hay trimestre gestacional o campo equivalente
+                paciente.esta_embarazada = request.form.get("VI_EMB_TRIMESTRE_GESTACIONAL") in ["1", "2", "3"]
+                print(request.form.get("VI_EMB_TRIMESTRE_GESTACIONAL"))
+                # Enfermedades crónicas
+                cronicas = []
+                if nuevo_registro.DIABETES_MELLITUS == "2":
+                    cronicas.append("Diabético")
+                if nuevo_registro.DISLIPIDEMIA == "2":
+                    cronicas.append("Metabólico")
+                if nuevo_registro.hipertension == "2":
+                    cronicas.append("Hipertenso")
+
+                paciente.es_cronico = len(cronicas) > 0
+                paciente.tipo_cronicidad = ", ".join(cronicas) if cronicas else "Otro"
+
             db.session.commit()
             flash('Registro guardado exitosamente.', 'success')
             datos = {}
@@ -157,7 +180,7 @@ def exportar():
         return redirect(url_for('auth.login'))
 
     usuario = session['usuario']
-    rol = session['rol']
+    rol = rol = current_user.rol.nombre_rol
 
     # Tomar fechas desde el formulario POST
     fecha_inicio = request.form.get('fecha_inicio')
@@ -289,3 +312,24 @@ def tutorial():
         flash('Inicia sesión para acceder al tutorial.', 'warning')
         return redirect(url_for('admin.auth.login'))
     return render_template('enfermeria/tutorial.html')
+
+@bp.route("/buscar_paciente")
+def buscar_paciente():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+
+    # Buscar coincidencias por nombre (limitamos a 10 resultados)
+    resultados = Paciente.query.filter(Paciente.nombre.ilike(f"%{query}%")).limit(10).all()
+
+    # Convertir a lista de dicts con los campos que quieras enviar
+    pacientes = []
+    for p in resultados:
+        pacientes.append({
+            "id": p.id_paciente,
+            "nombre_completo": p.nombre,
+            "sexo": p.sexo,
+            "fecha_nacimiento": p.fecha_nacimiento.strftime('%Y-%m-%d'),
+            "direccion": p.direccion
+        })
+    return jsonify(pacientes)

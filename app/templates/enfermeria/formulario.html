@@ -6,8 +6,8 @@
 
 {% block content %}
 
-<!doctype html>
-<html lang="es">
+
+
 <head>
     <title>Captura Salud del Adulto</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -19,7 +19,7 @@
  
 
 </head>
-<body class="container mt-4">
+
   <!-- Mensajes flash -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -96,9 +96,16 @@
              <div class="row g-3">
             <div class="row">
                 <div class="col-md-6">
-                    <label>Nombre del Paciente</label>
-                  <input class="form-control" {% if campo == 'paciente' %}is-invalid{% endif %}"  name="paciente" id="paciente"   value="{{ datos.get('paciente', '') }}">
-                </div>
+    <label>Nombre del Paciente</label>
+    <input type="text"
+           class="form-control {% if campo == 'paciente' %}is-invalid{% endif %}"
+           name="paciente" 
+           id="paciente"
+           value="{{ datos.get('paciente', '') }}"
+           autocomplete="off">
+           <ul id="lista_pacientes" class="list-group position-absolute" style="z-index:1000; display:none;"></ul>
+
+</div>
                 <div class="col-md-6">
                     <label>Nombre del Jefe de Familia</label>
                     <input class="form-control" {% if campo == 'nombre_jefe_fam' %}is-invalid{% endif %}"  name="nombre_jefe_fam" id="nombre_jefe_fam" value="{{ datos.get('nombre_jefe_fam', '') }}">
@@ -144,7 +151,7 @@
                         "¿El paciente es el mismo que el jefe de familia?",
                         () => {
                             // Sí
-                            document.getElementById("nombre_jefe_fam").value = nombrePaciente;
+                            document.getElementById("nombre_jefe_fam").value = this.value.trim();
                         },
                         () => {
                             // No
@@ -327,7 +334,7 @@
 
             </script>
             <div class="col-md-8">
-                <label>Domicilio</label><input class="form-control" name="domicilio" value="{{ datos.get('domicilio', '') }}">
+                <label>Domicilio</label><input class="form-control" name="domicilio"  id="domicilio" value="{{ datos.get('domicilio', '') }}">
             </div>
             <div class="container mb-4 imss-fondo">
             <fieldset class="border p-3 ">
@@ -1065,6 +1072,65 @@
         </div> 
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    $("#paciente").on("input", function() {
+        let q = $(this).val();
+        if (q.length < 2) return; // Buscar solo si hay 2+ letras
+
+        $.getJSON("/enfermeria/buscar_paciente", { q: q }, function(data) {
+            let list = $("#lista_pacientes");
+            list.empty();
+            data.forEach(p => {
+            list.append(`<li class="list-group-item list-group-item-action"
+                     data-id="${p.id}"
+                     data-nombre-completo="${p.nombre_completo}"
+                     data-sexo="${p.sexo}"
+                     data-fecha_nacimiento="${p.fecha_nacimiento}"
+                     data-direccion="${p.direccion}">
+                     ${p.nombre_completo}  <!-- mostrar nombre completo -->
+                 </li>`);
+            });
+            list.show();
+        });
+    });
+
+    function calcularEdad(fechaNacimiento) {
+    const hoy = new Date();
+    const nacimiento = new Date(fechaNacimiento);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const m = hoy.getMonth() - nacimiento.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+    }
+    return edad;
+}
+
+    // Cuando seleccionan un paciente
+   let pacienteSeleccionado = null; // global temporal
+
+    // Cuando seleccionan un paciente
+    $(document).on("click", "#lista_pacientes li", function() {
+        pacienteSeleccionado = {
+            nombre_completo: $(this).data("nombre-completo"),
+            sexo: $(this).data("sexo"),
+            fecha_nacimiento: $(this).data("fecha_nacimiento"),
+            direccion: $(this).data("direccion")
+        };
+
+        $("#paciente").val(pacienteSeleccionado.nombre_completo);
+        $("#sexo").val(pacienteSeleccionado.sexo);
+        $("#fecha_nacimiento").val(pacienteSeleccionado.fecha_nacimiento);
+        $("#domicilio").val(pacienteSeleccionado.direccion);
+        // Calcular y actualizar la edad
+    const edad = calcularEdad(pacienteSeleccionado.fecha_nacimiento);
+    $("#edad").val(edad);
+    $("#edad_unidad").val(edad);
+    
+        $("#lista_pacientes").hide();
+    });
+});
+</script>
+
 {% endblock %}

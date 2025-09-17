@@ -2,6 +2,7 @@
 
 {% block content %}
 <h2 class="text-success">Reporte de Pacientes por Condición</h2>
+<a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Regresar</a>
 
  <form method="get" action="{{ url_for('paciente.reporte_condicion') }}" class="mb-3">
   <label for="filtro">Filtrar por condiciones:</label>
@@ -11,6 +12,7 @@
     <option value="Metabólico" {% if 'Metabólico' in filtro %}selected{% endif %}>Síndrome Metabólico</option>
     <option value="Embarazada" {% if 'Embarazada' in filtro %}selected{% endif %}>Embarazada</option>
     <option value="Planificación" {% if 'Planificación' in filtro %}selected{% endif %}>Planificación</option>
+    <option value="Dislipidemia" {% if 'Dislipidemia' in filtro %}selected{% endif %}>Dislipidemia</option>
   </select>
  
   <button type="submit" class="btn btn-success">Buscar</button>

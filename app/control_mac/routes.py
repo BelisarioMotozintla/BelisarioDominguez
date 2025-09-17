@@ -16,7 +16,8 @@ def listar_macs():
 
 # 📌 Agregar un dispositivo
 @bp.route("/agregar", methods=["GET", "POST"])
-@roles_required(['Administrador'])
+#@roles_required(['Administrador'])
+@usuarios_con_rol_requerido
 def agregar_mac():
     usuarios = Usuario.query.all()
     if request.method == "POST":

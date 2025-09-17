@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+
+<h2>Editar Folio</h2>
+<form method="POST">
+    <label>Folio:</label>
+    <input type="number" name="folio" class="form-control" value="{{ folio.folio }}" required>
+    <button type="submit" class="btn btn-primary mt-2">Actualizar</button>
+</form>
+</div>
+{% endblock %}

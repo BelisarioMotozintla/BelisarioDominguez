@@ -68,3 +68,19 @@ class NotaConsultaExterna(db.Model):
     laboratorio = db.Column(db.Text, nullable=True)
     receta = db.relationship("RecetaMedica", back_populates="nota", uselist=False)
 
+#==================================================================================folio============================
+class FolioCertificado(db.Model):
+    __tablename__ = "folio_certificado"
+
+    id = db.Column(db.Integer, primary_key=True)
+    folio = db.Column(db.Integer, unique=True, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Métodos utilitarios
+    @staticmethod
+    def generar_folio():
+        """Devuelve el siguiente folio consecutivo"""
+        ultimo = db.session.query(FolioCertificado).order_by(FolioCertificado.folio.desc()).first()
+        if ultimo:
+            return ultimo.folio + 1
+        return 1

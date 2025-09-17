@@ -13,11 +13,14 @@ def generar_excel(fecha_inicio_str, fecha_fin_str, usuario=None, rol=None):
 
         # Consulta con SQLAlchemy
         query = RegistroAdultoMayor.query
-
+        # Filtrar por fechas
+        query = query.filter(RegistroAdultoMayor.fecha.between(fecha_inicio, fecha_fin))
         # Filtrar por usuario si no es JefeEnfermeria
+        print("hola esta es una impresion")
+        print(rol)
         if rol != "JefeEnfermeria" and usuario:
             query = query.filter(db.func.upper(RegistroAdultoMayor.personal_enfermeria) == usuario.upper())
-
+            print(query)
         registros = query.all()
 
         if not registros:

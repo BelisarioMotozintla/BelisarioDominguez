@@ -1,0 +1,13 @@
+<h3>Generar Certificado Médico</h3>
+<p>Paciente: <b>{{ paciente.nombre }}</b></p>
+<p>Folio: <b>{{ folio }}</b></p>
+
+<form method="POST">
+    <label>Tipo de sangre:</label>
+    <input type="text" name="sangre" required class="form-control">
+
+    <label>Alergias:</label>
+    <input type="text" name="alergias" class="form-control" placeholder="Ninguna">
+
+    <button type="submit" class="btn btn-primary mt-3">Generar PDF</button>
+</form>

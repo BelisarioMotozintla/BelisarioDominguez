@@ -19,7 +19,7 @@ class Medicamento(db.Model):
     via_administracion = Column(Text)
     concentracion = Column(Text)
     unidad = Column(Text)
-
+    en_catalogo = Column(Boolean, default=True)  # True = catálogo, False = fuera
     # CPM y nivel de movimiento
     cpm = Column(Float, default=0.0)  # Consumo Promedio Mensual
     nivel_movimiento = Column(

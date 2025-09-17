@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+
+<h2>Folios</h2>
+<a href="{{ url_for('certificado.nuevo_folio') }}" class="btn btn-success">Nuevo Folio</a>
+<table class="table mt-3">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Folio</th>
+            <th>Fecha creación</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for f in folios %}
+        <tr>
+            <td>{{ f.id }}</td>
+            <td>{{ f.folio }}</td>
+            <td>{{ f.fecha_creacion.strftime('%d/%m/%Y') }}</td>
+            <td>
+                <a href="{{ url_for('certificado.editar_folio', id=f.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                <form action="{{ url_for('certificado.eliminar_folio', id=f.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
