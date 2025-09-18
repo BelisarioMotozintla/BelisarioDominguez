@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template, request, redirect, session, url_for, send_file
+from flask import Blueprint, current_app, flash, render_template, request, redirect, session, url_for, send_file
 from app import db
 from app.models import FolioCertificado,Paciente,Usuario,Empleado
 from app.utils.helpers import roles_required
