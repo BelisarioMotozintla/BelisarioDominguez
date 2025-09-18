@@ -21,6 +21,7 @@ def generar_excel(fecha_inicio_str, fecha_fin_str, usuario=None, rol=None):
         if rol != "JefeEnfermeria" and usuario:
             query = query.filter(db.func.upper(RegistroAdultoMayor.personal_enfermeria) == usuario.upper())
             print(query)
+        
         registros = query.all()
 
         if not registros:

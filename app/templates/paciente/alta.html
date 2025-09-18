@@ -5,14 +5,10 @@
   <form method="POST">
     {% include 'paciente/_form.html' %}
     <button type="submit" class="btn btn-primary">Guardar</button>
-  {% if current_user.rol == 'USUARIOMEDICO' %}
-    <a href="{{ url_for('medicos.menu') }}" class="btn btn-secondary">Cancelar</a>
-{% else %}
-    <a href="{{ url_for('paciente.listar_pacientes') }}" class="btn btn-secondary">Cancelar</a>
-{% endif %}
+  
   </form>
 </div>
-
+<a href="{{ volver_url }}" class="btn btn-secondary">Regresar</a>
 <script>
     document.querySelector("form").addEventListener("submit", function(e) {
     const fecha = document.querySelector('input[name="fecha_nacimiento"]').value;

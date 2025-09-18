@@ -96,7 +96,7 @@ def campos_validos_nota_medica(datos):
         errores.append('Fecha inválida o vacía')
 
     # Campos de texto (SOAP)
-    campos_texto = ['presentacion', 'antecedentes', 'exploracion_fisica',
+    campos_texto = ['antecedentes', 'exploracion_fisica',
                     'diagnostico', 'plan', 'pronostico', 'laboratorio']
     textos = {c: get_str(datos, c) for c in campos_texto}
 

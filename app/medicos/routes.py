@@ -145,7 +145,6 @@ def nueva_nota(id_consulta):
                 cc=form.cc.data,
                 spo2=form.spo2.data,
                 glicemia=form.glicemia.data,
-                presentacion=form.presentacion.data,
                 antecedentes=form.antecedentes.data,
                 exploracion_fisica=form.exploracion_fisica.data,
                 diagnostico=form.diagnostico.data,
@@ -324,7 +323,6 @@ def generar_nota_pdf(id_nota: int):
                 pasante_emp.apellido_materno if pasante_emp else "",
             ] if x
         ),
-        "presentacion": ajustar_lineas("P.- " + (nota.presentacion or ""), 65),
         "antecedentes": ajustar_lineas("S.- " + (nota.antecedentes or ""), 65),
         "exploracion_fisica": ajustar_lineas("O.- " + (nota.exploracion_fisica or ""), 65),
         "laboratorio": ajustar_lineas("    " + (nota.laboratorio or ""), 65),
@@ -353,7 +351,6 @@ def generar_nota_pdf(id_nota: int):
 
     # Campos concatenados
     campos_a_concatenar = [
-        "presentacion",
         "antecedentes",
         "exploracion_fisica",
         "laboratorio",
@@ -461,7 +458,6 @@ def editar_nota(id_nota):
             nota.cc = datos_validados['cc']
             nota.spo2 = datos_validados['spo2']
             nota.glicemia = datos_validados['glicemia']
-            nota.presentacion = datos_validados['presentacion']
             nota.antecedentes = datos_validados['antecedentes']
             nota.exploracion_fisica = datos_validados['exploracion_fisica']
             nota.diagnostico = datos_validados['diagnostico']

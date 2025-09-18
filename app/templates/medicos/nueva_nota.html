@@ -67,7 +67,7 @@
 
     <!-- SOAP -->
     <h4>SOAP</h4>
-    {% for campo in ['presentacion','antecedentes','exploracion_fisica','laboratorio','diagnostico','plan','pronostico'] %}
+    {% for campo in ['antecedentes','exploracion_fisica','laboratorio','diagnostico','plan','pronostico'] %}
       <div class="mb-3">
         {{ form[campo].label }}
         {{ form[campo](class="form-control", rows="5", placeholder=form[campo].label.text) }}

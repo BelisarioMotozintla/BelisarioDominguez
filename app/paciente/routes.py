@@ -112,15 +112,28 @@ def alta_paciente():
         flash('Paciente registrado correctamente', 'success')
 
         rol = session.get('rol')
-        if rol == 'USUARIOMEDICO':
-            return redirect(url_for('medicos.menu'))
+        if rol in ('USUARIOMEDICO', 'UsuarioPasante'):
+            return redirect(url_for('medicos.menu_medico'))
         else:
             return redirect(url_for('paciente.listar_pacientes'))
 
     # GET: cargar unidades y fecha actual para el formulario
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     hoy = date.today().isoformat()
-    return render_template('paciente/alta.html', unidades=unidades, hoy=hoy, paciente=None)
+   # aquí decides la URL de regreso
+    rol = session.get('rol')
+    if rol in ('USUARIOMEDICO', 'UsuarioPasante'):
+        volver_url = url_for('medicos.menu_medico')
+    else:
+        volver_url = url_for('paciente.listar_pacientes')
+
+    return render_template(
+        'paciente/alta.html',
+        unidades=unidades,
+        hoy=hoy,
+        paciente=None,
+        volver_url=volver_url
+    )
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])

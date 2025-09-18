@@ -59,7 +59,7 @@ class NotaConsultaExterna(db.Model):
     glicemia = db.Column(db.Integer, nullable=True)
 
     # SOAP
-    presentacion = db.Column(db.Text, nullable=True)
+    #presentacion = db.Column(db.Text, nullable=True) se elimina presentacion por que son los datos del paciente nombre, edad, curp
     antecedentes = db.Column(db.Text, nullable=True)
     exploracion_fisica = db.Column(db.Text, nullable=True)
     diagnostico = db.Column(db.Text, nullable=True)

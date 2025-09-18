@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h3>Generar Certificado Médico</h3>
+
+    <p><strong>Paciente:</strong> {{ paciente.nombre }}</p>
+    <p><strong>Médico:</strong> {{ medico.nombre }} {{ medico.apellido_paterno }} {{ medico.apellido_materno }}</p>
+    <p><strong>Cédula:</strong> {{ medico.cedula }}</p>
+    <p><strong>Folio:</strong> {{ folio }}</p>
+
+    <form method="POST">
+        <!-- Tipo de certificado -->
+        <div class="mb-3">
+            <label>Tipo de Certificado:</label>
+            <select name="tipo_certificado" class="form-control" required>
+                <option value="medico">Certificado Médico</option>
+                <option value="prenupcial">Certificado Médico Prenupcial</option>
+            </select>
+        </div>
+
+        <!-- Grupo sanguíneo -->
+        <div class="mb-3">
+            <label>Tipo de sangre:</label>
+            <select name="sangre" class="form-control" required>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+            </select>
+        </div>
+
+        <!-- Alergias -->
+        <div class="mb-3">
+            <label>Alergias:</label>
+            <select name="alergias" id="alergias" class="form-control" required onchange="mostrarOtros()">
+                <option value="ninguna">Ninguna</option>
+                <option value="medicamentos">Medicamentos</option>
+                <option value="alimentos">Alimentos</option>
+                <option value="otros">Otros</option>
+            </select>
+            <input type="text" name="alergias_otros" id="alergias_otros" class="form-control mt-2" placeholder="Especifique otras alergias" style="display:none;">
+        </div>
+<!-- Campos prenupcial -->
+    <div id="prenupcial_fields" style="display:none;">
+        <label>VDRL:</label>
+        <select name="vdrl" class="form-control">
+            <option value="NO REACTIVO">NO REACTIVO</option>
+            <option value="REACTIVO">REACTIVO</option>
+        </select>
+
+        <label>DETECCIÓN DE ANTICUERPOS DE VIH:</label>
+        <select name="vih" class="form-control">
+            <option value="NO REACTIVO">NO REACTIVO</option>
+            <option value="REACTIVO">REACTIVO</option>
+        </select>
+    </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Generar PDF</button>
+        <a href="{{ cancelar_url }}" class="btn btn-secondary mt-3">Cancelar</a>
+    </form>
+</div>
+<script>
+const tipo = document.querySelector('select[name="tipo_certificado"]');
+const prenupcialFields = document.getElementById('prenupcial_fields');
+
+tipo.addEventListener('change', function() {
+    prenupcialFields.style.display = this.value === 'prenupcial' ? 'block' : 'none';
+});
+</script>
+<script>
+function mostrarOtros() {
+    var select = document.getElementById("alergias");
+    var input = document.getElementById("alergias_otros");
+    if (select.value === "otros") {
+        input.style.display = "block";
+        input.required = true;
+    } else {
+        input.style.display = "none";
+        input.required = false;
+    }
+}
+</script>
+{% endblock %}

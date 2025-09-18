@@ -29,8 +29,8 @@
             <p><strong>Glicemia:</strong> {{ nota.glicemia }}</p>
 
             <hr>
-	    <h5>Presentacion</h5>
-            <p>{{ nota.presentacion }}</p>
+	       <!-- <h5>Presentacion</h5>
+            <p>{{ nota.presentacion }}</p> -->
 
             <h5>Antecedentes</h5>
             <p>{{ nota.antecedentes }}</p>
@@ -59,7 +59,11 @@
             <form action="{{ url_for('medicos.eliminar_nota', id_nota=nota.id_nota) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta nota?');">
                 <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
             </form>
-            {% endif %}
+           <a href="{{ url_for('certificado.nuevo', id_paciente=nota.consulta.id_paciente, id_medico=nota.usuario_id) }}" 
+        class="btn btn-sm btn-danger">
+        Certificado Médico
+        </a>
+                    {% endif %}
            {% if nota.receta %}
             <a href="{{ url_for('recetas.detalle_receta', id_receta=nota.receta.id_receta) }}"
                 class="btn btn-sm btn-outline-primary">
