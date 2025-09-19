@@ -17,11 +17,11 @@ def listar_macs():
     if q:
         macs = (
             MAC.query
-            .join(Usuario, MAC.id_usuario == Usuario.id_usuario)  # relación explícita
+            .join(Usuario, MAC.id_usuario == Usuario.id_usuario)
             .filter(
                 or_(
                     MAC.mac_address.ilike(f"%{q}%"),
-                    MAC.usuario.ilike(f"%{q}%")         # si la tabla MAC tiene nombre
+                    Usuario.usuario.ilike(f"%{q}%")   # buscar por nombre de usuario
                 )
             )
             .all()
