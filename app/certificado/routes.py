@@ -40,7 +40,7 @@ def generar_certificado_pdf_con_plantilla(paciente, medico, folio, sangre, alerg
     can = canvas.Canvas(packet, pagesize=letter)
 
     # Coordenadas aproximadas (ajusta según tu plantilla)
-    can.drawString(490, 665, f"{folio}")
+    can.drawString(490, 665, f"000{folio}")
     can.drawString(200, 555, f"{medico.nombre} {medico.apellido_paterno} {medico.apellido_materno}")
     can.drawString(140, 505, f"{medico.cedula}")
     can.drawString(160, 415, paciente.nombre)
@@ -94,7 +94,7 @@ def generar_certificado_prenupcial_pdf(paciente, medico, folio, sangre, alergias
     can = canvas.Canvas(packet, pagesize=letter)
 
     # Coordenadas aproximadas (ajusta según tu plantilla)
-    can.drawString(490, 665, f"{folio}")
+    can.drawString(490, 665, f"000{folio}")
     can.drawString(200, 555, f"{medico.nombre} {medico.apellido_paterno} {medico.apellido_materno}")
     can.drawString(140, 505, f"{medico.cedula}")
     can.drawString(160, 430, paciente.nombre)

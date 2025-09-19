@@ -1,99 +1,34 @@
+{% extends 'base.html' %}
 
+{% block content %}
+<div class="login-container mx-auto mt-5 p-4 shadow-sm border rounded" style="max-width: 350px; background: #fff;">
+    <h4 class="text-center mb-4">Iniciar sesión</h4>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} py-2 px-3 mb-3">
+                    <strong>{{ category|capitalize }}:</strong> {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Iniciar sesión</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .login-container {
-            background: white;
-            padding: 2rem 3rem;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            color: #333;
-        }
-        form label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #444;
-            font-weight: 500;
-        }
-        form input {
-            width: 100%;
-            padding: 0.6rem;
-            margin-bottom: 1rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            width: 100%;
-            padding: 0.7rem;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .flash-message {
-            padding: 0.8rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid;
-            border-radius: 4px;
-        }
-        .error {
-            background-color: #f8d7da;
-            border-color: #f5c2c7;
-            color: #842029;
-        }
-        .success {
-            background-color: #d1e7dd;
-            border-color: #badbcc;
-            color: #0f5132;
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <h2>Iniciar sesión</h2>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">
-                        <strong>{{ category|capitalize }}:</strong> {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <form method="post">
-            <label for="usuario">Usuario</label>
-            <input type="text" id="usuario" name="usuario" required>
+    <form method="post">
+        <div class="mb-2">
+            <label for="usuario" class="form-label">Usuario</label>
+            <input type="text" id="usuario" name="usuario" class="form-control form-control-sm" required>
+        </div>
 
-            <label for="contrasena">Contraseña</label>
-            <input type="password" id="contrasena" name="contrasena" required>
+        <div class="mb-3">
+            <label for="contrasena" class="form-label">Contraseña</label>
+            <input type="password" id="contrasena" name="contrasena" class="form-control form-control-sm" required>
+        </div>
 
-            <button type="submit">Entrar</button>
-        </form>
-    </div>
-
-</body>
-</html>
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary btn-sm">Entrar</button>
+            <a href="{{ url_for('main.home') }}" class="btn btn-danger btn-sm">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
