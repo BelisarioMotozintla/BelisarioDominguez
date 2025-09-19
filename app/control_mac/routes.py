@@ -4,15 +4,32 @@ from app.models.personal import MAC
 from app.models import Usuario
 from app.utils.db import db
 from app.utils.helpers import usuarios_con_rol_requerido,roles_required  # tu decorador para control de acceso
+from sqlalchemy import or_
 
 bp = Blueprint('control_mac', __name__, template_folder='templates')
 
 # 📌 Listar todos los dispositivos
-@bp.route("/")
+@bp.route("/", methods=["GET"])
 @roles_required(['Administrador'])
 def listar_macs():
-    macs = MAC.query.all()
-    return render_template("macs.html", macs=macs)
+    q = request.args.get("q", "").strip()
+
+    if q:
+        macs = (
+            MAC.query
+            .join(Usuario, MAC.id_usuario == Usuario.id_usuario)  # relación explícita
+            .filter(
+                or_(
+                    MAC.mac_address.ilike(f"%{q}%"),
+                    MAC.usuario.ilike(f"%{q}%")         # si la tabla MAC tiene nombre
+                )
+            )
+            .all()
+        )
+    else:
+        macs = MAC.query.all()
+
+    return render_template("macs.html", macs=macs, q=q)
 
 # 📌 Agregar un dispositivo
 @bp.route("/agregar", methods=["GET", "POST"])

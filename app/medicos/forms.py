@@ -25,7 +25,6 @@ class NotaConsultaForm(FlaskForm):
     glicemia = IntegerField("Glicemia", validators=[Optional()])
 
     # SOAP
-    #presentacion = TextAreaField("Presentación", validators=[Optional()]) se elimina por que se duplica
     antecedentes = TextAreaField("S - Subjetivo", validators=[DataRequired()])
     exploracion_fisica = TextAreaField("O - Objetivo", validators=[DataRequired()])
     diagnostico = TextAreaField("A - Análisis", validators=[DataRequired()])

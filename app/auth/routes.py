@@ -49,7 +49,8 @@ def login():
                 'SuperUsuario': 'formatos.formatos',
                 'UsuarioInvitado': 'formatos.formatos',
                 'USUARIOMEDICO': 'medicos.menu_medico',
-                'UsuarioPasante': 'medicos.menu_medico'
+                'UsuarioPasante': 'medicos.menu_medico',
+                'JefeEnfermeria': 'enfermeria.formulario'
 
             }
 
