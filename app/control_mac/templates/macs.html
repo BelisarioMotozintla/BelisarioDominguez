@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-3">Dispositivos por Usuario</h2>
-
+    
     <!-- Barra de búsqueda -->
     <form method="GET" action="{{ url_for('control_mac.listar_macs') }}" class="row g-2 mb-3">
         <div class="col-md-6">
@@ -21,6 +21,7 @@
             <a href="{{ url_for('control_mac.agregar_mac') }}" class="btn btn-success w-100">
                 + Agregar Dispositivo
             </a>
+            <a class="btn btn-secondary mt-3" href="{{ url_for('admin.panel') }}">Volver al Panel</a>
         </div>
     </form>
 
@@ -66,4 +67,5 @@
     </tbody>
 </table>
 </div>
+ <a class="btn btn-secondary mt-3" href="{{ url_for('admin.panel') }}">Volver al Panel</a>
 {% endblock %}

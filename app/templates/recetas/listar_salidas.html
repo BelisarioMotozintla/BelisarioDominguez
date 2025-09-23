@@ -36,17 +36,43 @@
   <tbody>
    {% for salida in salidas %}
 <tr>
-  <td>{{ salida.folio_receta }}</td>
-  <td>{{ salida.receta.paciente.nombre }}</td>
-  <td>{{ salida.usuario.nombre }}</td>
-  <td>{{ salida.receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
-  <td>{{ salida.medicamento.nombre }}</td>
-  <td>{{ salida.cantidad }}</td>
-  <td>{{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') if salida.fecha_salida else '' }}</td>
+  <td>{{ salida.folio_receta or '---' }}</td>
+
   <td>
-    <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-file-medical"></i> Ver Receta
-    </a>
+    {% if salida.receta and salida.receta.paciente %}
+      {{ salida.receta.paciente.nombre }}
+    {% else %}
+      Sin paciente
+    {% endif %}
+  </td>
+
+  <td>{{ salida.usuario.usuario if salida.usuario else 'Sin usuario' }}</td>
+
+  <td>
+    {% if salida.receta and salida.receta.fecha_emision %}
+      {{ salida.receta.fecha_salida.strftime('%d/%m/%Y %H:%M') }}
+    {% else %}
+      ---
+    {% endif %}
+  </td>
+
+  <td>{{ salida.medicamento.nombre_comercial if salida.medicamento else 'Sin medicamento' }}</td>
+
+  <td>{{ salida.cantidad or 0 }}</td>
+
+  <td>
+    {{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') if salida.fecha_salida else '---' }}
+  </td>
+
+  <td>
+    {% if salida.receta %}
+      <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}"
+         class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-file-medical"></i> Ver Receta
+      </a>
+    {% else %}
+      <span class="text-muted">Sin receta</span>
+    {% endif %}
   </td>
 </tr>
 {% endfor %}
