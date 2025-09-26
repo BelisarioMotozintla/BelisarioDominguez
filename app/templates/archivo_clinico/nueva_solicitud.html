@@ -6,14 +6,16 @@
       <div class="mb-3">
         <label for="id_paciente" class="form-label">Paciente</label>
       <div class="mb-3">
-        <label>Buscar paciente (por nombre o CURP):</label>
-        <input type="text" id="buscar_paciente" class="form-control" placeholder="Ej. Juan Pérez o CURP" autocomplete="off">
-        <input type="hidden" name="id_paciente" id="id_paciente">
-        <ul id="sugerencias" class="list-group mt-2"></ul>
-      </div>
+  <label>Buscar paciente (por nombre, CURP o expediente):</label>
+  <input type="text" id="buscar_paciente" class="form-control" placeholder="Ej. Juan Pérez, CURP o expediente" autocomplete="off">
+  
+  <!-- Campos ocultos -->
+  <input type="hidden" name="id_paciente" id="id_paciente">
+  <input type="hidden" name="numero_expediente" id="numero_expediente">
 
-   
-  </div>
+  <!-- Lista de sugerencias -->
+  <ul id="sugerencias" class="list-group mt-2"></ul>
+</div>
   
   <!-- Campo oculto que llenas automáticamente en el backend -->
   <!-- <input type="hidden" name="id_archivo" value="..." /> -->
@@ -45,29 +47,52 @@ document.addEventListener("DOMContentLoaded", function () {
     const input = document.getElementById("buscar_paciente");
     const lista = document.getElementById("sugerencias");
     const hiddenId = document.getElementById("id_paciente");
+    const hiddenExp = document.getElementById("numero_expediente");
 
     input.addEventListener("input", function () {
         const query = input.value.trim();
         lista.innerHTML = '';
         hiddenId.value = '';
+        hiddenExp.value = '';
 
-        if (query.length < 2) return;
+        if (query.length < 2) return;  // Espera mínimo 2 caracteres
 
-        fetch(`/paciente/buscar?query=${query}`)
+        fetch(`/archivo/buscar_json?q=${encodeURIComponent(query)}`)
             .then(res => res.json())
             .then(data => {
-                data.forEach(p => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    const item = document.createElement("li");
+                    item.classList.add("list-group-item");
+                    item.textContent = "No se encontraron resultados";
+                    lista.appendChild(item);
+                    return;
+                }
+
+                data.forEach(a => {
                     const item = document.createElement("li");
                     item.classList.add("list-group-item", "list-group-item-action");
-                    item.textContent = `${p.nombre} - ${p.curp}`;
+                    // Mostrar número de expediente, nombre y CURP
+                    item.textContent = `${a.numero_expediente ?? '---'} - ${a.paciente.nombre} - ${a.paciente.curp}`;
+
                     item.addEventListener("click", () => {
-                        input.value = `${p.nombre}`;
-                        hiddenId.value = p.id_paciente;
+                        // Solo mostrar el nombre en el input
+                        input.value = a.paciente.nombre;
+                        hiddenId.value = a.paciente.id_paciente;
+                        hiddenExp.value = a.numero_expediente ?? '';
                         lista.innerHTML = '';
                     });
+
                     lista.appendChild(item);
                 });
-            });
+            })
+            .catch(err => console.error("Error en búsqueda:", err));
+    });
+
+    // Cerrar la lista si se hace clic fuera del input o de la lista
+    document.addEventListener("click", function(e) {
+        if (!lista.contains(e.target) && e.target !== input) {
+            lista.innerHTML = '';
+        }
     });
 });
 </script>

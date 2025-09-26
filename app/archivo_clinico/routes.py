@@ -32,6 +32,32 @@ def index():
 
     return render_template('archivo_clinico/listar.html', archivos=archivos, query=query)
 
+@bp.route('/buscar_json')
+def buscar_archivo_json():
+    query = request.args.get('q', '').strip()
+    archivos = ArchivoClinico.query.options(joinedload(ArchivoClinico.paciente))
+
+    if query:
+        archivos = archivos.join(Paciente).filter(
+            (cast(ArchivoClinico.numero_expediente, String).ilike(f"%{query}%")) |
+            (Paciente.nombre.ilike(f"%{query}%")) |
+            (Paciente.curp.ilike(f"%{query}%"))
+        )
+
+    archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(10).all()
+
+    return jsonify([
+        {
+            'id_archivo': a.id_archivo,
+            'numero_expediente': a.numero_expediente,
+            'paciente': {
+                'id_paciente': a.paciente.id_paciente,
+                'nombre': a.paciente.nombre,
+                'curp': a.paciente.curp
+            }
+        } for a in archivos
+    ])
+
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def agregar_archivo():

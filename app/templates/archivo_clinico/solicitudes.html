@@ -37,7 +37,7 @@
         <table class="table table-bordered table-hover">
             <thead class="table-success">
                 <tr>
-                    <th>ID</th>
+                    <th>EXPEDIENTE</th>
                     <th>Paciente</th>
                     <th>Solicita</th>
                     <th>Autoriza</th>
@@ -50,8 +50,8 @@
                 {% if solicitudes %}
                     {% for solicitud in solicitudes %}
                         <tr>
-                            <td>{{ solicitud.id_solicitud }}</td>
-                            <td>{{ solicitud.paciente.nombre }}</td>
+                            <td>{{ solicitud.archivo.numero_expediente }}</td>
+                            <td>{{ solicitud.paciente.nombre }} {{ solicitud.numero_expediente  }}</td>
                             <td>{{ solicitud.usuario_solicita.usuario if solicitud.usuario_solicita else '---' }}</td>
                             <td>
                             {% if solicitud.usuario_autoriza %}

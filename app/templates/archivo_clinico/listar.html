@@ -50,7 +50,7 @@
         {% for archivo in archivos %}
         <tr>
             <td>{{ archivo.id_archivo }}</td>
-            <td>{{ archivo.paciente.nombre }}</td>
+            <td>{{ archivo.paciente.nombre }} {{ archivo.paciente.curp }}</td>
             <td>{{ archivo.ubicacion_fisica }}</td>
             <td>{{ archivo.estado }}</td>
             <td>{{ archivo.numero_expediente }}</td>

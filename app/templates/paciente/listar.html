@@ -13,7 +13,7 @@
       <button type="submit" class="btn btn-primary">Buscar</button>
     </div>
   </form>
-
+<a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-success mb-3">Regresar</a>
   <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-success mb-3">+ Nuevo Paciente</a>
 
   <table class="table table-striped">
@@ -56,7 +56,7 @@
     </tbody>
   </table>
 
-  <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Cancelar</a>
+  <a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary">Regresar</a>
 </div>
 <script>
   function calcularEdad(fechaNacimiento) {
