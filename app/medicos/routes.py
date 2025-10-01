@@ -23,7 +23,7 @@ bp = Blueprint('medicos', __name__, template_folder='templates/medicos')
 
 
 @bp.route('/menu', methods=['GET'])
-@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante','SuperUsuario'])
 def menu_medico():
     query = request.args.get('q', '')
 
@@ -42,7 +42,7 @@ def menu_medico():
 
 # 📌 Lista de notas de una consulta
 @bp.route('/notas/<int:id_consulta>')
-@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante','SuperUsuario'])
 def listar_notas(id_consulta):
     consulta = Consulta.query.get_or_404(id_consulta)
     notas = consulta.notas
@@ -68,7 +68,7 @@ def safe_str(val):
     return val if val is not None else ""
 
 @bp.route('/consulta/<int:id_consulta>/nota/nueva', methods=['GET', 'POST'])
-@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante','SuperUsuario'])
 def nueva_nota(id_consulta):
     consulta = Consulta.query.get_or_404(id_consulta)
     paciente = consulta.paciente
@@ -173,7 +173,7 @@ def nueva_nota(id_consulta):
     )
 
 @bp.route("/ver_nota/<int:id_nota>")
-@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante','SuperUsuario'])
 def ver_nota(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
     # Obtener la consulta relacionada

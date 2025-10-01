@@ -146,7 +146,7 @@ def generar_certificado_prenupcial_pdf(paciente, medico, folio, sangre, alergias
 
 # -------- Ruta para formulario (solo sangre y alergias) --------
 @bp.route("/certificado/<int:id_paciente>/<int:id_medico>", methods=["GET", "POST"])
-@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
+@roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante','SuperUsuario'])
 def nuevo(id_paciente, id_medico):
     # Consultar paciente y médico
     paciente = Paciente.query.get_or_404(id_paciente)
