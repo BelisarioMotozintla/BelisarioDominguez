@@ -23,8 +23,6 @@
     <div class="container">
         <h2>Hola, {{ usuario }}</h2>
         <p>Este es tu panel de administrador. Desde aquí puedes gestionar el sistema.</p>
-
-        <a class="btn" href="{{ url_for('admin.registrar_usuario') }}">Registrar Nuevo Usuario</a>
         <a class="btn" href="{{ url_for('admin.lista_usuarios') }}">Administrar Usuarios</a>
         <a class="btn" href="{{ url_for('formatos.formatos') }}">Ver / Cargar Formatos</a>
         <a class="btn" href="{{ url_for('control_mac.listar_macs') }}">Registrar un Direccion mac</a>

@@ -17,7 +17,16 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
-
+<form method="GET" action="{{ url_for('admin.lista_usuarios') }}" class="row g-2 mb-3">
+  <div class="col-md-6">
+    <input type="text" name="q" class="form-control"
+           placeholder="Buscar por usuario o rol..."
+           value="{{ request.args.get('q', '') }}">
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100">Buscar</button>
+  </div>
+</form>
     <div class="mb-3 d-flex justify-content-between">
         <a href="{{ url_for('admin.panel') }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Volver al Panel

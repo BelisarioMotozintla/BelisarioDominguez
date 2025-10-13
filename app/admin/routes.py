@@ -5,6 +5,8 @@ from app.models.personal import Usuario, Roles  # Correcto: import desde models
 from werkzeug.security import generate_password_hash
 from app.utils.helpers import roles_required
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 #bp = Blueprint('admin', __name__, template_folder='templates/admin')
 bp = Blueprint('admin', __name__)
@@ -27,9 +29,21 @@ def panel():
 @bp.route('/usuarios')
 @roles_required(['Administrador'])
 def lista_usuarios():
-    usuarios = Usuario.query.order_by(Usuario.id_usuario).all()  # Cambia 'id_usuario' por el nombre correcto
-    return render_template('admin/lista_usuarios.html', usuarios=usuarios)
+    q = request.args.get('q', '').strip()
 
+    query = Usuario.query.options(joinedload(Usuario.rol))  # carga también el rol
+
+    if q:
+        usuarios = query.join(Roles).filter(
+            or_(
+                Usuario.usuario.ilike(f"%{q}%"),
+                Roles.nombre_rol.ilike(f"%{q}%")
+            )
+        ).order_by(Usuario.id_usuario).all()
+    else:
+        usuarios = query.order_by(Usuario.id_usuario).all()
+
+    return render_template('admin/lista_usuarios.html', usuarios=usuarios)
 # Editar usuario específico
 @bp.route('/editar_usuario/<int:usuario_id>', methods=['GET', 'POST'])
 @roles_required(['Administrador'])
