@@ -32,8 +32,8 @@ def nueva_consulta():
                 Paciente.curp.ilike(f"%{query}%"),
                 cast(ArchivoClinico.numero_expediente, String).ilike(f"%{query}%")
             )
-        )
-    pacientes = pacientes.all()
+        ) 
+    pacientes = pacientes.limit(10).all()
 
     if request.method == 'POST':
         now = datetime.now()

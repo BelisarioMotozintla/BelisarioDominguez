@@ -1,44 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Nueva Consulta General</h2>
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">Nueva Consulta General</h2>
 
-<!-- Buscador de pacientes -->
-<form method="GET" action="{{ url_for('consultas.nueva_consulta') }}" class="mb-3">
-  <div class="input-group">
-    <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Buscar por nombre, CURP o expediente">
-    <button type="submit" class="btn btn-primary">Buscar</button>
-  </div>
-</form>
-
-<form method="POST">
-  <div class="form-group">
-    <label>Paciente</label>
-
-    {% if pacientes %}
-      <select name="id_paciente" class="form-control" required>
-        {% for p in pacientes %}
-        <option value="{{ p.id_paciente }}">
-          {{ p.nombre }} ({{ p.curp }}) - Expediente: 
-          {{ p.archivo_clinico[0].numero_expediente if p.archivo_clinico else 'No asignado' }}
-        </option>
-        {% endfor %}
-      </select>
-    {% else %}
-      <div class="alert alert-warning mt-2">
-        No se encontraron pacientes para este médico.
-      </div>
-      <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-sm btn-outline-primary mt-2" title="Registrar nuevo paciente">
-        <i class="bi bi-person-fill"></i> Pacientes
-      </a>
-    {% endif %}
-  </div>
-
-  <p class="text-muted mt-3">
-    Médico logueado: {{ current_user.username }}
-  </p>
+  <!-- Buscador de pacientes -->
+  <form method="GET" action="{{ url_for('consultas.nueva_consulta') }}" class="mb-4">
+    <div class="input-group">
+      <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Buscar por nombre, CURP o expediente" autofocus>
+      <button type="submit" class="btn btn-primary">Buscar</button>
+    </div>
+  </form>
 
   {% if pacientes %}
-    <button type="submit" class="btn btn-success mt-3">Registrar Consulta</button>
+    <h5 class="mb-3">Resultados de búsqueda:</h5>
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nombre</th>
+            <th>CURP</th>
+            <th>Expediente</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pacientes %}
+          <tr>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.curp }}</td>
+            <td>{{ p.archivo_clinico[0].numero_expediente if p.archivo_clinico else 'No asignado' }}</td>
+            <td class="text-center">
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="id_paciente" value="{{ p.id_paciente }}">
+                <button type="submit" class="btn btn-success btn-sm">
+                  <i class="bi bi-plus-circle"></i> Registrar Consulta
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif query %}
+    <div class="alert alert-warning text-center mt-3">
+      No se encontraron pacientes con ese criterio.
+    </div>
+  {% else %}
+    <div class="alert alert-info text-center mt-3">
+      Escribe el nombre, CURP o número de expediente del paciente para iniciar una búsqueda.
+    </div>
   {% endif %}
-</form>
+
+  <div class="mt-4 text-end text-muted">
+    <small>Médico logueado: {{ current_user.username }}</small>
+  </div>
+</div>
 {% endblock %}
