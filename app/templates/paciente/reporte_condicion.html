@@ -13,8 +13,17 @@
     <option value="Embarazada" {% if 'Embarazada' in filtro %}selected{% endif %}>Embarazada</option>
     <option value="Planificación" {% if 'Planificación' in filtro %}selected{% endif %}>Planificación</option>
     <option value="Dislipidemia" {% if 'Dislipidemia' in filtro %}selected{% endif %}>Dislipidemia</option>
+    <option value="MujeresEdadReproductiva" {% if 'MujeresEdadReproductiva' in filtro %}selected{% endif %}>Mujeres en Edad Reproductiva</option>
   </select>
- 
+ <br>
+
+  <label class="mt-2">
+    <input type="checkbox" name="universo_trabajo" value="universo"
+      {% if 'universo' in filtro %}checked{% endif %}>
+    Universo de trabajo
+  </label>
+
+  <br>
   <button type="submit" class="btn btn-success">Buscar</button>
 </form>
 

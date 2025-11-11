@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from app.models.archivo_clinico import Paciente,UnidadSalud,PacienteUnidad
 from app.utils.helpers import roles_required
 from app import db
-from sqlalchemy import or_, cast, Date
+from sqlalchemy import and_, extract, func, or_, cast, Date
 from datetime import date
 from datetime import datetime
 from datetime import datetime, date
@@ -269,9 +269,11 @@ def calcular_digito():
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def reporte_condicion():
     filtros = request.args.getlist("filtro")  # devuelve lista de opciones seleccionadas
+    universo_trabajo = request.args.get("universo_trabajo")  # checkbox
     query = Paciente.query
 
     condiciones = []
+    pacientes = []
 
     for f in filtros:
         if f == "Hipertenso":
@@ -284,10 +286,31 @@ def reporte_condicion():
             condiciones.append(Paciente.esta_embarazada == True)
         elif f == "Planificación":
             condiciones.append(Paciente.planificacion == True)
+        elif f == "MujeresEdadReproductiva":
+                condiciones.append(
+                    and_(
+                        Paciente.sexo == "F",
+                        extract('year', func.age(Paciente.fecha_nacimiento)) >= 10,
+                        extract('year', func.age(Paciente.fecha_nacimiento)) <= 49
+                    )
+                )
 
+     # --- Base query ---
+    query = db.session.query(Paciente)
+
+    # --- Si se marcó el check "Universo de trabajo", aplicar join y filtro ---
+    if universo_trabajo:
+        query = query.join(PacienteUnidad).filter(PacienteUnidad.tipo_relacion == "Universo")
+
+    # --- Aplicar condiciones adicionales ---
     if condiciones:
-        pacientes = query.filter(or_(*condiciones)).all()  # filtra cualquiera de las condiciones
+        pacientes = query.filter(or_(*condiciones)).all()
     else:
-        pacientes = query.all()  # si no hay filtro, todos
+        pacientes = query.all()
 
-    return render_template("paciente/reporte_condicion.html", pacientes=pacientes, filtro=filtros)
+    return render_template(
+        "paciente/reporte_condicion.html",
+        pacientes=pacientes,
+        filtro=filtros,
+        universo_trabajo=universo_trabajo,
+    )
