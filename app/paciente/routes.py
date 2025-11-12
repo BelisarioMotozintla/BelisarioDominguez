@@ -1,3 +1,6 @@
+from io import BytesIO
+from flask import send_file
+import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify,session
 from app.models.archivo_clinico import Paciente,UnidadSalud,PacienteUnidad
 from app.utils.helpers import roles_required
@@ -38,17 +41,38 @@ def listar_pacientes():
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO', 'UsuarioPasante'])
 def alta_paciente():
-    if request.method == 'POST':
-        # Normalizar CURP
-        curp = request.form.get('curp', '').strip().upper()
+    faltantes = []  # ✅ Inicializamos siempre
 
-        # Verificar si el CURP ya existe
+    if request.method == 'POST':
+        # --- Obtener datos del formulario ---
+        nombre = request.form.get('nombre', '').strip()
+        curp = request.form.get('curp', '').strip().upper()
+        sexo = request.form.get('sexo', '').strip()
+        direccion = request.form.get('direccion', '').strip()
+        id_unidad = request.form.get('id_unidad')
+        tipo_relacion = request.form.get('tipo_relacion')
+
+        # --- Validar campos vacíos ---
+        campos_requeridos = {
+            'Nombre': nombre,
+            'CURP': curp,
+            'Sexo': sexo,
+            'Dirección': direccion,
+            'Unidad de salud': id_unidad,
+            'Tipo de relación': tipo_relacion
+        }
+        faltantes = [campo for campo, valor in campos_requeridos.items() if not valor]
+        if faltantes:
+            flash(f"Faltan los siguientes campos obligatorios: {', '.join(faltantes)}", "danger")
+            return redirect(url_for('paciente.alta_paciente'))
+
+        # --- Validar duplicado de CURP ---
         existente = Paciente.query.filter_by(curp=curp).first()
         if existente:
             flash('Ya existe un paciente registrado con ese CURP.', 'danger')
             return redirect(url_for('paciente.alta_paciente'))
 
-        # Validar fecha de nacimiento
+        # --- Validar fecha de nacimiento ---
         fecha_str = request.form.get('fecha_nacimiento')
         fecha_nac = None
         if fecha_str:
@@ -61,32 +85,27 @@ def alta_paciente():
                 flash("Formato de fecha incorrecto.", "danger")
                 return redirect(url_for('paciente.alta_paciente'))
 
-        # Cronicidad
+        # --- Campos de cronicidad ---
         es_cronico = request.form.get('es_cronico') == 'Sí'
-        tipo_cronicidad = request.form.get('tipo_cronicidad')
+        tipo_cronicidad = request.form.get('tipo_cronicidad') if es_cronico else "Otro"
 
-        if not es_cronico:
-            tipo_cronicidad = "Otro"
-
-        # Embarazo
+        # --- Campos de embarazo y planificación ---
         esta_embarazada = request.form.get('esta_embarazada') == 'Sí'
-
-        # Planificación (checkbox o toggle que envía 'true'/'false')
         planificacion = request.form.get('planificacion') == 'true'
 
-        # Reglas de exclusión
+        # --- Reglas de exclusión ---
         if esta_embarazada:
             planificacion = False
         elif planificacion:
             esta_embarazada = False
 
-        # Crear nuevo paciente
+        # --- Crear paciente ---
         nuevo = Paciente(
-            nombre=request.form.get('nombre', '').strip(),
+            nombre=nombre,
             curp=curp,
             fecha_nacimiento=fecha_nac,
-            sexo=request.form.get('sexo'),
-            direccion=request.form.get('direccion'),
+            sexo=sexo,
+            direccion=direccion,
             es_cronico=es_cronico,
             tipo_cronicidad=tipo_cronicidad,
             esta_embarazada=esta_embarazada,
@@ -95,21 +114,17 @@ def alta_paciente():
         db.session.add(nuevo)
         db.session.flush()  # Obtener ID sin commit aún
 
-        # Datos de unidad y tipo de relación
-        id_unidad = request.form.get('id_unidad')
-        tipo_relacion = request.form.get('tipo_relacion')
-        fecha_relacion = date.today()
-
+        # --- Registrar relación con unidad ---
         relacion = PacienteUnidad(
             id_paciente=nuevo.id_paciente,
             id_unidad=id_unidad,
             tipo_relacion=tipo_relacion,
-            fecha_relacion=fecha_relacion
+            fecha_relacion=date.today()
         )
         db.session.add(relacion)
         db.session.commit()
 
-        flash('Paciente registrado correctamente', 'success')
+        flash('Paciente registrado correctamente.', 'success')
 
         rol = session.get('rol')
         if rol in ('USUARIOMEDICO', 'UsuarioPasante'):
@@ -117,23 +132,26 @@ def alta_paciente():
         else:
             return redirect(url_for('paciente.listar_pacientes'))
 
-    # GET: cargar unidades y fecha actual para el formulario
+    # --- Si no es POST o hay validaciones pendientes ---
+    rol = session.get('rol')
+    volver_url = (
+        url_for('medicos.menu_medico')
+        if rol in ('USUARIOMEDICO', 'UsuarioPasante')
+        else url_for('paciente.listar_pacientes')
+    )
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     hoy = date.today().isoformat()
-   # aquí decides la URL de regreso
-    rol = session.get('rol')
-    if rol in ('USUARIOMEDICO', 'UsuarioPasante'):
-        volver_url = url_for('medicos.menu_medico')
-    else:
-        volver_url = url_for('paciente.listar_pacientes')
 
+    # ✅ Siempre retornar algo (GET o recarga del form)
     return render_template(
         'paciente/alta.html',
         unidades=unidades,
         hoy=hoy,
         paciente=None,
-        volver_url=volver_url
+        volver_url=volver_url,
+        faltantes=faltantes
     )
+
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -271,6 +289,7 @@ def reporte_condicion():
     filtros = request.args.getlist("filtro")  # devuelve lista de opciones seleccionadas
     universo_trabajo = request.args.get("universo_trabajo")  # checkbox
     query = Paciente.query
+    descargar = request.args.get("descargar")
 
     condiciones = []
     pacientes = []
@@ -290,7 +309,7 @@ def reporte_condicion():
                 condiciones.append(
                     and_(
                         Paciente.sexo == "F",
-                        extract('year', func.age(Paciente.fecha_nacimiento)) >= 10,
+                        extract('year', func.age(Paciente.fecha_nacimiento)) >= 15,
                         extract('year', func.age(Paciente.fecha_nacimiento)) <= 49
                     )
                 )
@@ -307,6 +326,33 @@ def reporte_condicion():
         pacientes = query.filter(or_(*condiciones)).all()
     else:
         pacientes = query.all()
+    
+     # --- Si el usuario pidió DESCARGAR ---
+    if descargar:
+        data = [
+            {
+                "Nombre": f"{p.nombre} ",
+                "Edad": p.edad,
+                "Sexo": p.sexo,
+                "Tipo Cronicidad": p.tipo_cronicidad or "",
+                "Embarazada": "Sí" if p.esta_embarazada else "No",
+                "Planificación": "Sí" if p.planificacion else "No",
+                "Dirección":  p.direccion,
+            }
+            for p in pacientes
+        ]
+
+        df = pd.DataFrame(data)
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+
+        return send_file(
+            output,
+            download_name="reporte_condicion.xlsx",
+            as_attachment=True,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     return render_template(
         "paciente/reporte_condicion.html",

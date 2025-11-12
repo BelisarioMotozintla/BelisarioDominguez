@@ -25,6 +25,7 @@
 
   <br>
   <button type="submit" class="btn btn-success">Buscar</button>
+  <button type="submit" name="descargar" value="1" class="btn btn-primary">Descargar</button>
 </form>
 
 <table class="table table-bordered">
@@ -34,10 +35,10 @@
       <th>CURP</th>
       <th>Edad</th>
       <th>Sexo</th>
-      <th>Cronico</th>
-      <th>Tipo Cronicidad</th>
-      <th>Embarazada</th>
-      <th>Planificación</th>
+      <th>Cronicidad</th>
+      <th>Emb</th>
+      <th>PF</th>
+      <th>Dirección</th>
     </tr>
   </thead>
   <tbody>
@@ -47,10 +48,10 @@
       <td>{{ p.curp }}</td>
       <td>{{ p.edad }}</td>
       <td>{{ p.sexo }}</td>
-      <td>{{ "Sí" if p.es_cronico else "No" }}</td>
       <td>{{ p.tipo_cronicidad if p.es_cronico else "-" }}</td>
       <td>{{ "Sí" if p.esta_embarazada else "No" }}</td>
       <td>{{ "Sí" if p.planificacion else "No" }}</td>
+      <td>{{  p.direccion  }}</td>
     </tr>
     {% else %}
     <tr>
