@@ -96,19 +96,21 @@
 	<meta name="google-site-verification" content="2tixrCNW1pWHuw1wvMrEOlzak0eYyRt4pyylNqQe6Mg" />
 </head>
 <body>
-    <header>
-        <h1>{% block encabezado %}Sistema IMSS-BIENESTAR{% endblock %}</h1>
-        <nav>
-            <span>Bienvenido, {{ usuario or 'Invitado' }}</span>
-            {% if usuario %}
-                <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
-		<a href="{{ url_for('main.home') }}">Principal</a>
+<header>
+    <h1>{% block encabezado %}Sistema IMSS-BIENESTAR{% endblock %}</h1>
 
-            {% else %}
-                <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
-            {% endif %}
-        </nav>
-    </header>
+    <nav>
+        <span>Bienvenido, {{ usuario or 'Invitado' }}</span>
+
+        {% if usuario %}
+            <a href="{{ url_for('main.home') }}">Principal</a>
+            <a href="{{ url_for('pagos.mis_pagos') }}">Mis Pagos</a>
+            <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>
+        {% endif %}
+    </nav>
+</header>
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="container mt-3">

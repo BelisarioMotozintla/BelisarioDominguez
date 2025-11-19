@@ -21,7 +21,7 @@ def obtener_id_usuario_actual():
 
 # Panel de administración
 @bp.route('/')
-@roles_required(['Administrador'])
+@roles_required(['Administrador','JefeEnfermeria','SuperUsuario'])
 def panel():
     return render_template('admin/admin.html', usuario=session['usuario'])
 

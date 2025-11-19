@@ -50,7 +50,8 @@ def login():
                 'UsuarioInvitado': 'formatos.formatos',
                 'USUARIOMEDICO': 'medicos.menu_medico',
                 'UsuarioPasante': 'medicos.menu_medico',
-                'JefeEnfermeria': 'enfermeria.formulario'
+                'JefeEnfermeria': 'enfermeria.formulario',
+                'JefeEnfermeria': 'admin.panel'
 
             }
 

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Administración de Pagos</h2>
+
+    <form method="get" action="{{ url_for('pagos.admin_panel') }}" class="mb-3">
+        <input type="text" name="q" class="form-control" placeholder="Buscar usuario o teléfono" value="{{ query }}">
+    </form>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Teléfono</th>
+                <th>Meses Pagados</th>
+                <th>Último Pago</th>
+                <th>Deuda</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in usuarios %}
+            <tr>
+                <td>{{ u.usuario }}</td>
+                <td>{{ u.telefono }}</td>
+                <td>{{ u.meses_pagados }}</td>
+                <td>{{ u.ultimo_pago }}</td>
+
+                <td>
+                    {% if u.deuda == "SIN CALCULAR" %}
+                        <span class="badge bg-secondary">{{ u.deuda }}</span>
+                    {% else %}
+                        <span class="badge bg-danger">Debe {{ u.deuda }} meses</span>                     
+                    {% endif %}
+                </td>
+
+                <td>
+                    <a href="{{ url_for('pagos.registrar_pago_usuario', id_usuario=u.id_usuario) }}" 
+                       class="btn btn-success btn-sm">Registrar Pago</a>
+
+                {% if u.deuda|int > 0 %}
+                    {% set monto = u.deuda|int * 200 %}
+                    {% set mensaje = 'Hola {}, debes {} meses ({} pesos). Gracias!'.format(
+                        u.usuario, u.deuda|int, monto
+                    ) %}
+
+                    <a href="https://wa.me/52{{ u.telefono }}?text={{ mensaje | urlencode }}"
+                    target="_blank" class="btn btn-primary btn-sm">
+                        WhatsApp 📩
+                    </a>
+                {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

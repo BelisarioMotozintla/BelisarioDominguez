@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-center mt-3">Mis Pagos</h2>
+
+{% if datos %}
+<div class="alert alert-info text-center fw-bold">
+    Próximo mes a pagar: {{ proximo_mes }}<br>
+    Meses adeudados: {{ meses_adeuda }}<br>
+    Total adeudado: ${{ total_adeudado_dinero }} MXN
+</div>
+
+<div class="alert alert-success text-center fw-bold">
+    Total pagado historicamente: ${{ total_pagado_dinero }} MXN
+</div>
+{% endif %}
+
+<table class="table table-striped table-bordered mt-3">
+    <thead>
+        <tr>
+            <th>Período Cubierto</th>
+            <th>Pagado Hasta</th>
+            <th>Meses Pagados</th>
+            <th>Monto</th>
+            <th>Fecha Registro</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in datos %}
+        <tr>
+            <td>{{ p.rango }}</td>
+            <td>{{ p.pagado_hasta }}</td>
+            <td>{{ p.meses_pagados }}</td>
+            <td>${{ p.monto }}</td>
+            <td>{{ p.fecha_registro }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not datos %}
+<div class="alert alert-warning text-center">
+    No tienes pagos registrados.
+</div>
+{% endif %}
+
+
+
+{% endblock %}
+

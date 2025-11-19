@@ -135,7 +135,7 @@ class Usuario(db.Model, UserMixin):
     bitacora_accion = relationship('BitacoraAccion', back_populates='usuario')
     bitacora_movimiento = relationship('BitacoraMovimiento', back_populates='usuario')
     dispositivos = relationship('MAC', back_populates='usuario', cascade="all, delete-orphan")
-
+    pago_internet = relationship('PagoInternet', back_populates='usuario', cascade="all, delete-orphan")
     # Relaciones con asignaciones de recetas
     asignaciones_recetas = relationship(
         "AsignacionReceta",
@@ -184,3 +184,16 @@ class MAC(db.Model):
     # Relación con Usuario
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'), nullable=False)
     usuario = relationship('Usuario', back_populates='dispositivos')
+
+class PagoInternet(db.Model):
+    __tablename__ = 'PagoInternet'
+
+    id_pago = db.Column(db.Integer, primary_key=True)
+    mes_inicio = db.Column(db.Integer, nullable=False)   # Mes inicial del pago (1-12)
+    anio_inicio = db.Column(db.Integer, nullable=False)  # Año inicial
+    meses_pagados = db.Column(db.Integer, default=1)     # Cuántos meses cubre este pago
+    monto = db.Column(db.Float, nullable=False)
+    fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
+
+    id_usuario = db.Column(db.Integer, db.ForeignKey('Usuario.id_usuario'), nullable=False)
+    usuario = db.relationship('Usuario', backref='pagos')

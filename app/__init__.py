@@ -9,7 +9,7 @@ def create_app():
     # 🔁 Importar todos los modelos para registrarlos
     from app import models
     from app.models.archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
-    from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios,MAC
+    from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios,MAC,PagoInternet
     from app.models.medicos import NotaConsultaExterna,Consulta,FolioCertificado
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
@@ -67,6 +67,7 @@ def create_app():
     from app.certificado import certificado_bp
     from app.consultas import consultas_bp
     from app.control_mac import control_mac_bp
+    from app.pagos import pagos_bp
 
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -83,6 +84,8 @@ def create_app():
     app.register_blueprint(certificado_bp, url_prefix='/certificado')
     app.register_blueprint(consultas_bp, url_prefix='/consultas')
     app.register_blueprint(control_mac_bp, url_prefix='/control_mac')
+    app.register_blueprint(pagos_bp, url_prefix='/pagos')
+
 
 
 
