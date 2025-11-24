@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Detalle del control clínico</h2>
+
+<!-- BOTONES -->
+<div class="mb-3">
+    <a href="{{ url_for('cronicos.lista_controles', id_paciente=control.id_paciente) }}" class="btn btn-secondary">
+        ← Ver lista de controles
+    </a>
+    <a href="{{ url_for('cronicos.pacientes_cronicos') }}" class="btn btn-dark">
+        ← Volver a pacientes
+    </a>
+</div>
+
+<!-- INFO GENERAL -->
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">{{ control.paciente.nombre }}</h5>
+        <p><b>Fecha del control:</b> {{ control.fecha_control }}</p>
+    </div>
+</div>
+
+<!-- SIGNOS VITALES -->
+<div class="card mb-3">
+    <div class="card-header bg-primary text-white">Signos Vitales</div>
+    <div class="card-body">
+        {% if control.signos_vitales %}
+            <p>Peso: {{ control.signos_vitales.peso }} kg</p>
+            <p>Talla: {{ control.signos_vitales.talla }} cm</p>
+
+            <p>IMC: {{ control.signos_vitales.imc }}
+                <span class="badge bg-{{ imc_color }}">{{ imc_texto }}</span>
+            </p>
+
+            <p>Presión arterial: {{ control.signos_vitales.presion_sistolica }}/{{ control.signos_vitales.presion_diastolica }}</p>
+        {% else %}
+            <div class="alert alert-warning">No hay signos vitales registrados</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header bg-success text-white">Laboratorio</div>
+    <div class="card-body">
+        {% if control.laboratorio %}
+            
+            <p>
+                <strong>Glucosa:</strong> {{ control.laboratorio.glucosa }} mg/dL
+                <span class="badge bg-{{ glucosa_color }}">{{ glucosa_texto }}</span>
+            </p>
+
+            <p><strong>Colesterol Total:</strong> {{ control.laboratorio.colesterol_total }} mg/dL</p>
+
+            <p><strong>HDL:</strong> {{ control.laboratorio.hdl }} mg/dL</p>
+
+            <p><strong>LDL:</strong> {{ control.laboratorio.ldl }} mg/dL</p>
+
+            <p><strong>Triglicéridos:</strong> {{ control.laboratorio.trigliceridos }} mg/dL</p>
+
+            <p><strong>HbA1c:</strong> {{ control.laboratorio.hba1c }} %</p>
+
+            <p><strong>Microalbúmina:</strong> {{ control.laboratorio.microalbumina }} mg/g</p>
+
+        {% else %}
+            <div class="alert alert-info">No se han registrado estudios de laboratorio</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- PIE DIABÉTICO -->
+<div class="card mb-3">
+    <div class="card-header bg-warning">Pie Diabético</div>
+    <div class="card-body">
+        {% if control.pie_diabetico %}
+            <p><b>Clasificación:</b> {{ MAPA_CLASIFICACION.get(control.pie_diabetico.clasificacion_pie, 'No registrada') }}</p>
+            <p><b>Observaciones:</b> {{ control.pie_diabetico.observaciones }}</p>
+        {% else %}
+            <div class="alert alert-info">No se ha evaluado el pie diabético</div>
+        {% endif %}
+    </div>
+</div>
+<!-- DIAGNÓSTICO CIE-10 -->
+<div class="card mb-3 shadow">
+    <div class="card-header bg-dark text-white">Diagnóstico(s) CIE-10</div>
+    <div class="card-body">
+
+        {% if diagnosticos %}
+            <div class="row">
+                {% for dx in diagnosticos %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+
+                                <h5 class="text-primary">Diagnóstico #{{ loop.index }}</h5>
+                                <p><b>Código:</b> {{ dx.diagnostico_info.codigo }}</p>
+                                <p><b>Descripción:</b> {{ dx.diagnostico_info.descripcion }}</p>
+                                <p><b>Fecha asignación:</b> {{ dx.fecha }}</p>
+
+                                <!-- TRATAMIENTOS -->
+                                {% if dx.tratamientos %}
+
+                                    <h6 class="mt-3 text-success">Tratamiento farmacológico</h6>
+
+                                    {% for t in dx.tratamientos %}
+                                        <div class="border rounded p-2 mb-2">
+
+                                            {% if t.medicamentos %}
+                                                <ul class="list-group list-group-flush">
+                                                    {% for mt in t.medicamentos %}
+                                                    <li class="list-group-item">
+                                                        <b>{{ mt.medicamento.nombre_comercial }}</b><br>
+                                                        <small>Dosis: {{ mt.dosis }}</small><br>
+                                                        <small>Frecuencia: {{ mt.frecuencia }}</small><br>
+                                                        <small>Inicio: {{ mt.fecha_inicio }}</small><br>
+                                                        <small>Fin: {{ mt.fecha_fin }}</small>
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                <p>No hay medicamentos registrados.</p>
+                                            {% endif %}
+
+                                        </div>
+                                    {% endfor %}
+
+                                {% else %}
+                                    <p class="text-muted">No hay tratamiento registrado</p>
+                                {% endif %}
+
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-danger">No hay diagnósticos registrados</div>
+        {% endif %}
+
+    </div>
+</div>
+
+
+{% endblock %}

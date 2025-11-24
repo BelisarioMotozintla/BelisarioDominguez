@@ -91,6 +91,32 @@
         td {
             padding: 0.75rem;
         }
+        nav {
+            display: flex;
+            gap:5px;
+            align-items:center;
+        }
+
+        .submenu {
+            position: relative;
+        }
+
+        .submenu-items {
+            display: none;
+            position: absolute;
+            background: #006341;
+            list-style: none;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .submenu-items li {
+            margin: 5px 0;
+        }
+
+        .submenu:hover .submenu-items {
+            display: block;
+        }
     </style>
     
 	<meta name="google-site-verification" content="2tixrCNW1pWHuw1wvMrEOlzak0eYyRt4pyylNqQe6Mg" />
@@ -103,8 +129,16 @@
         <span>Bienvenido, {{ usuario or 'Invitado' }}</span>
 
         {% if usuario %}
-            <a href="{{ url_for('main.home') }}">Principal</a>
-            <a href="{{ url_for('pagos.mis_pagos') }}">Mis Pagos</a>
+         <div class="submenu">
+                <a href="{{ url_for('main.home') }}">Principal</a>
+                <ul class="submenu-items">
+                    <li><a href="{{ url_for('pagos.mis_pagos') }}">Perfil</a></li>
+                    <li><a href="{{ url_for('pagos.mis_pagos') }}">Pagos</a></li>
+                
+                </ul>
+            </div>
+            
+            
             <a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
         {% else %}
             <a href="{{ url_for('auth.login') }}">Iniciar sesión</a>

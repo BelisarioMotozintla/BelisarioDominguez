@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<ul class="nav nav-tabs" id="manualTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="instructivo1-tab" data-bs-toggle="tab"
+            data-bs-target="#instructivo1" type="button" role="tab">
+            Pacientes Registrados
+        </button>
+    </li>
+
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="instructivo2-tab" data-bs-toggle="tab"
+            data-bs-target="#instructivo2" type="button" role="tab">
+            Reportes
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content mt-4" id="manualTabsContent">
+
+    <!-- TAB 1 -->
+    <div class="tab-pane fade show active" id="instructivo1" role="tabpanel">
+        <h2>Pacientes registrados</h2>
+
+        <a href="{{ url_for('enfermeria.formulario') }}" class="btn btn-secondary mb-3">
+            ← Volver Hoja de Enfermería
+        </a>
+
+        <form method="GET" class="d-flex mb-3">
+            <input type="text" name="q" class="form-control"
+                   placeholder="Buscar por nombre, CURP o expediente..."
+                   value="{{ buscar }}">
+            <button class="btn btn-primary ms-2">Buscar</button>
+        </form>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>CURP</th>
+                    <th>No. Expediente</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for archivo in pacientes %}
+                <tr>
+                    <td>{{ archivo.paciente.nombre }}</td>
+                    <td>{{ archivo.paciente.curp }}</td>
+                    <td>{{ archivo.numero_expediente }}</td>
+                    <td>
+                        {% if archivo.paciente.controles|length > 0 %}
+                            <a href="{{ url_for('cronicos.lista_controles', id_paciente=archivo.paciente.id_paciente) }}"
+                               class="btn btn-primary btn-sm">Ver controles</a>
+                        {% else %}
+                            <a href="{{ url_for('cronicos.nuevo_control', id_paciente=archivo.paciente.id_paciente) }}"
+                               class="btn btn-success btn-sm">Nuevo control</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TAB 2 -->
+    <div class="tab-pane fade" id="instructivo2" role="tabpanel">
+        <div class="card shadow-sm p-4 mt-3">
+            <h3 class="mb-3 text-primary">
+                <i class="bi bi-file-earmark-excel"></i> Exportar pacientes registrados
+            </h3>
+
+            <form action="{{ url_for('cronicos.generar_reporte_excel') }}" method="POST">
+
+                <!-- Fecha Inicio -->
+                <div class="col-md-6">
+                    <label for="fecha_inicio" class="form-label fw-bold">Fecha inicio:</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" required>
+                </div>
+
+                <!-- Fecha Fin -->
+                <div class="col-md-6">
+                    <label for="fecha_fin" class="form-label fw-bold">Fecha fin:</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" required>
+                </div>
+
+                <!-- Botón -->
+                <div class="col-12 mt-3">
+                    <button class="btn btn-success w-100" type="submit">
+                        <i class="bi bi-download"></i> Exportar Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const fechaInicio = document.getElementById('fecha_inicio');
+                const fechaFin = document.getElementById('fecha_fin');
+
+                fechaInicio.addEventListener('change', () => {
+                    fechaFin.min = fechaInicio.value;
+                });
+            });
+        </script>
+    </div>
+
+</div>
+{% endblock %}

@@ -225,6 +225,10 @@ class Diagnostico(db.Model):
     id_diagnostico = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(10), nullable=False, unique=True)  # Ej. "J45.9"
     descripcion = db.Column(db.String(255), nullable=False)
+    
+# Relación con diagnósticos asignados a pacientes diagnostico_paciente
+
+    diagnosticos_paciente = db.relationship("DiagnosticoPaciente", back_populates="diagnostico_info")
 
 class RecetaMedica(db.Model):
     __tablename__ = 'RecetaMedica'
@@ -239,6 +243,7 @@ class RecetaMedica(db.Model):
     tipo_surtimiento = Column(String(20), default="No surtida", nullable=False)
     nota_id = db.Column(db.Integer, db.ForeignKey("nota_consulta_externa.id_nota"), unique=True, nullable=False)
     diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico.id_diagnostico'), nullable=False)
+    
    
 
     # Relaciones

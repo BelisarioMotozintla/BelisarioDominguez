@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Controles de {{ paciente.nombre }}</h2>
+
+<!-- Botones superiores -->
+<div class="mb-3">
+    <a href="{{ url_for('cronicos.nuevo_control', id_paciente=paciente.id_paciente) }}"
+       class="btn btn-success">➕ Nuevo control</a>
+
+    <a href="{{ url_for('cronicos.pacientes_cronicos') }}"
+       class="btn btn-secondary">← Volver a pacientes</a>
+</div>
+
+<!-- Tabla de controles -->
+<table class="table table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Fecha</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for control in controles %}
+        <tr>
+            <td>{{ control.fecha_control }}</td>
+            <td>
+                <a href="{{ url_for('cronicos.detalle_control', id_control=control.id_control) }}"
+                   class="btn btn-primary btn-sm">Ver Detalle</a>
+                <form action="{{ url_for('cronicos.eliminar_control', id_control=control.id_control) }}"
+      method="POST" style="display:inline;">
+    <button type="submit" class="btn btn-danger btn-sm"
+            onclick="return confirm('¿Seguro que deseas eliminar este control?')">
+        🗑 Eliminar
+    </button>
+</form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if controles|length == 0 %}
+<div class="alert alert-warning">Este paciente aún no tiene controles registrados.</div>
+{% endif %}
+
+{% endblock %}

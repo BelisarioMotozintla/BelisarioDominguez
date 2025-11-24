@@ -45,6 +45,12 @@ class Paciente(db.Model):
     recetas = relationship('RecetaMedica', back_populates='paciente')  # <- esto puede quedarse como string si viene de otro archivo
     solicitud_expediente = relationship('SolicitudExpediente', back_populates='paciente')
     
+    # cronicos relaciones
+    diagnosticos = db.relationship("DiagnosticoPaciente", back_populates="paciente", lazy=True)
+    controles = db.relationship("ControlClinico", back_populates="paciente", lazy=True)
+
+
+    
     @property
     def edad(self):
         if self.fecha_nacimiento:

@@ -84,3 +84,170 @@ class FolioCertificado(db.Model):
         if ultimo:
             return ultimo.folio + 1
         return 1
+#========================================================cronicos====================================================
+class DiagnosticoPaciente(db.Model):
+    __tablename__ = 'diagnostico_paciente'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    id_paciente = db.Column(db.Integer, db.ForeignKey('Paciente.id_paciente'), nullable=False)
+    id_diagnostico = db.Column(db.Integer, db.ForeignKey('diagnostico.id_diagnostico'), nullable=False)
+    id_control = db.Column(
+    db.Integer,
+    db.ForeignKey('control_clinico.id_control', ondelete="CASCADE"),
+    nullable=False
+)
+    fecha = db.Column(db.Date)
+
+    # Relaciones limpias
+    paciente = db.relationship("Paciente", back_populates="diagnosticos")
+    diagnostico_info = db.relationship("Diagnostico", back_populates="diagnosticos_paciente")
+
+ 
+    tratamientos = db.relationship(
+        "TratamientoFarmacologico",
+        back_populates="diagnostico",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy=True
+    )
+class TratamientoFarmacologico(db.Model):
+    __tablename__ = 'tratamiento_farmacologico'
+
+    id_tratamiento = db.Column(db.Integer, primary_key=True)
+    id_dx = db.Column(
+        db.Integer, 
+        db.ForeignKey('diagnostico_paciente.id', ondelete='CASCADE'),
+        nullable=False
+    )
+
+    diagnostico = db.relationship("DiagnosticoPaciente", back_populates="tratamientos")
+
+    medicamentos = db.relationship(
+        "MedicamentoTratamiento",
+        back_populates="tratamiento",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
+
+
+class MedicamentoTratamiento(db.Model):
+    __tablename__ = 'medicamento_tratamiento'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    id_tratamiento = db.Column(
+        db.Integer, 
+        db.ForeignKey('tratamiento_farmacologico.id_tratamiento', ondelete='CASCADE')
+    )
+
+    id_medicamento = db.Column(
+        db.Integer, 
+        db.ForeignKey('Medicamento.id_medicamento'), 
+        nullable=False
+    )
+
+    dosis = db.Column(db.String(100))
+    frecuencia = db.Column(db.String(100))
+    fecha_inicio = db.Column(db.Date)
+    fecha_fin = db.Column(db.Date)
+
+    tratamiento = db.relationship("TratamientoFarmacologico", back_populates="medicamentos")
+    medicamento = db.relationship("Medicamento")
+
+
+class ControlClinico(db.Model):
+    __tablename__ = 'control_clinico'
+
+    id_control = db.Column(db.Integer, primary_key=True)
+    id_paciente = db.Column(db.Integer, db.ForeignKey('Paciente.id_paciente'), nullable=False)
+
+    fecha_control = db.Column(db.Date)
+
+    paciente = db.relationship("Paciente", back_populates="controles")
+
+    laboratorio = db.relationship(
+        "Laboratorio",
+        uselist=False,
+        back_populates="control",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    signos_vitales = db.relationship(
+        "SignosVitales",
+        uselist=False,
+        back_populates="control",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    pie_diabetico = db.relationship(
+        "PieDiabetico",
+        uselist=False,
+        back_populates="control",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
+    diagnosticos = db.relationship(
+        "DiagnosticoPaciente",
+        backref="control",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy=True
+    )
+
+class Laboratorio(db.Model):
+    __tablename__ = 'laboratorio'
+
+    id_laboratorio = db.Column(db.Integer, primary_key=True)
+    id_control = db.Column(db.Integer, db.ForeignKey('control_clinico.id_control', ondelete="CASCADE"), nullable=False )
+    glucosa = db.Column(db.Float)
+    colesterol_total = db.Column(db.Float)
+    hdl = db.Column(db.Float)
+    ldl = db.Column(db.Float)
+    trigliceridos = db.Column(db.Float)
+    hba1c = db.Column(db.Float)
+    microalbumina = db.Column(db.Float)
+
+    control = db.relationship("ControlClinico", back_populates="laboratorio")
+
+
+
+class SignosVitales(db.Model):
+    __tablename__ = 'signos_vitales'
+
+    id_sv = db.Column(db.Integer, primary_key=True)
+    id_control = db.Column(
+        db.Integer,
+        db.ForeignKey('control_clinico.id_control', ondelete="CASCADE"),
+        nullable=False
+    )
+
+    talla = db.Column(db.Float)
+    peso = db.Column(db.Float)
+    imc = db.Column(db.Float)
+    cintura = db.Column(db.Float)
+
+    presion_sistolica = db.Column(db.Integer)
+    presion_diastolica = db.Column(db.Integer)
+
+    control = db.relationship("ControlClinico", back_populates="signos_vitales")
+
+
+
+class PieDiabetico(db.Model):
+    __tablename__ = 'pie_diabetico'
+
+    id_pie = db.Column(db.Integer, primary_key=True)
+    id_control = db.Column(
+        db.Integer,
+        db.ForeignKey('control_clinico.id_control', ondelete="CASCADE"),
+        nullable=False
+    )
+
+    clasificacion_pie = db.Column(db.String(10))
+    observaciones = db.Column(db.Text)
+
+    control = db.relationship("ControlClinico", back_populates="pie_diabetico")

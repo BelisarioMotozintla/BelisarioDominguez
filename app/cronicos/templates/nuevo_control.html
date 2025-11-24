@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Nuevo Control Clínico</h2>
+
+<form method="POST">
+
+    <!-- Diagnóstico CIE-10 -->
+    <label for="id_diagnostico">Diagnóstico (CIE-10):</label>
+    <select id="id_diagnostico" name="id_diagnostico" required style="width: 100%">
+    <option value="">Seleccione diagnóstico...</option>
+    {% for dx in diagnosticos %}
+    <option value="{{ dx.id_diagnostico }}"
+        {% if request.form.get('id_diagnostico') == dx.id_diagnostico|string %}selected{% endif %}>
+        {{ dx.codigo }} — {{ dx.descripcion }}
+    </option>
+    {% endfor %}
+</select>
+    <br><br>
+
+    <label>Fecha:</label>
+    <div class="row g-3">
+         <div class="col-md-4">
+            <input type="date" name="fecha_control" required class="form-control"
+            value="{{ request.form.get('fecha_control', '') }}">
+         </div>
+    </div>
+
+    <h3>Signos Vitales</h3>
+     <div class="row g-3">
+         <div class="col-md-4">
+            <input type="number" step="0.1" name="peso" placeholder="Peso (kg)" class="form-control"
+            value="{{ request.form.get('peso', '') }}">
+            </div>
+            <div class="col-md-4">
+            <input type="number" step="0.1" name="talla" placeholder="Talla (cm)" class="form-control"
+                value="{{ request.form.get('talla', '') }}">
+            </div>
+            <div class="col-md-4">  
+            <input type="number" step="0.1" name="cintura" placeholder="Cintura (C.C.)" class="form-control"
+                value="{{ request.form.get('cintura', '') }}">
+            </div>
+            <div class="col-md-4">  
+            <input type="number" name="ps" placeholder="Presión Sistólica" class="form-control"
+                value="{{ request.form.get('ps', '') }}">
+            </div>
+            <div class="col-md-4">  
+            <input type="number" name="pd" placeholder="Presión Diastólica" class="form-control"
+                value="{{ request.form.get('pd', '') }}">
+        </div>
+    </div>
+    <h3>Laboratorio</h3>
+    <div class="row g-3">
+
+    <!-- Glucosa -->
+    <div class="col-md-4">
+        <label class="form-label">Glucosa (mg/dL)</label>
+        <input type="number" step="0.1" min="0" name="glucosa" class="form-control"
+               placeholder="Ej. 110"
+               value="{{ request.form.get('glucosa', '') }}">
+    </div>
+
+    <!-- Colesterol Total -->
+    <div class="col-md-4">
+        <label class="form-label">Colesterol Total (mg/dL)</label>
+        <input type="number" step="0.1" min="0" name="colesterol" class="form-control"
+               placeholder="Ej. 180"
+               value="{{ request.form.get('colesterol', '') }}">
+    </div>
+
+    <!-- HDL -->
+    <div class="col-md-4">
+        <label class="form-label">HDL (mg/dL)</label>
+        <input type="number" step="0.1" min="0" name="hdl" class="form-control"
+               placeholder="Ej. 45"
+               value="{{ request.form.get('hdl', '') }}">
+    </div>
+
+    <!-- LDL -->
+    <div class="col-md-4">
+        <label class="form-label">LDL (mg/dL)</label>
+        <input type="number" step="0.1" min="0" name="ldl" class="form-control"
+               placeholder="Ej. 120"
+               value="{{ request.form.get('ldl', '') }}">
+    </div>
+
+    <!-- Triglicéridos -->
+    <div class="col-md-4">
+        <label class="form-label">Triglicéridos (mg/dL)</label>
+        <input type="number" step="0.1" min="0" name="trigliceridos" class="form-control"
+               placeholder="Ej. 150"
+               value="{{ request.form.get('trigliceridos', '') }}">
+    </div>
+
+    <!-- Hemoglobina glicosilada -->
+    <div class="col-md-4">
+        <label class="form-label">HbA1c (%)</label>
+        <input type="number" step="0.1" min="0" name="hba1c" class="form-control"
+               placeholder="Ej. 6.5"
+               value="{{ request.form.get('hba1c', '') }}">
+    </div>
+
+    <!-- Microalbúmina -->
+    <div class="col-md-4">
+        <label class="form-label">Microalbúmina (mg/g)</label>
+        <input type="number" step="0.1" min="0" name="microalbumina" class="form-control"
+               placeholder="Ej. 25"
+               value="{{ request.form.get('microalbumina', '') }}">
+    </div>
+</div>
+
+    <h3>Pie Diabético (Wagner)</h3>
+
+<div class="row g-3">
+    <div class="col-md-4">  
+        <select name="clasificacion_pie" id="clasificacion_pie" onchange="mostrarWagner()" required name="clasificacion_pie">
+            <option value="">Seleccione...</option>
+            {% for n in [0,1,2,3,4,5] %}
+            <option value="{{ n }}"
+                {% if request.form.get('clasificacion_pie') == n|string %}selected{% endif %}>
+                {{ n }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    
+
+    <!-- DONDE APARECERÁ LA DESCRIPCIÓN -->
+    <div class="col-md-12 mt-2">
+        <strong>Descripción:</strong>
+        <div id="descripcion_wagner" class="mt-1" style="font-size: 1.1em;"></div>
+    </div>
+    <div class="col-md-4">
+        <textarea name="obs" placeholder="Observaciones">{{ request.form.get('obs', '') }}</textarea>
+    </div>
+</div>
+    <h3>Tratamiento Farmacológico</h3>
+
+<div id="medicamentos-container">
+
+    <!-- FILA PLANTILLA (la que se clonará) -->
+    <div class="row g-3 medicamento-item mb-3">
+
+        <!-- SELECT MEDICAMENTO -->
+        <div class="col-md-3">
+            <select name="id_medicamento[]">
+                {% for med in medicamentos %}
+                <option value="{{ med.id_medicamento }}">
+                    {{ med.nombre_comercial }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- DOSIS -->
+        <div class="col-md-2">
+            <input name="dosis[]" placeholder="Dosis">
+        </div>
+
+        <!-- FRECUENCIA -->
+        <div class="col-md-2">
+            <input name="frecuencia[]" placeholder="Frecuencia">
+        </div>
+
+        <!-- FECHA INICIO -->
+        <div class="col-md-2">
+            <input type="date" name="fecha_inicio[]">
+        </div>
+
+        <!-- FECHA FIN -->
+        <div class="col-md-2">
+            <input type="date" name="fecha_fin[]">
+        </div>
+
+        <!-- BOTÓN ELIMINAR -->
+        <div class="col-md-1 d-flex align-items-center">
+            <button type="button" class="btn btn-danger btn-sm"
+                    onclick="eliminarMedicamento(this)">❌</button>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- BOTÓN AGREGAR -->
+<button type="button" class="btn btn-primary mt-3" onclick="agregarMedicamento()">
+    ➕ Agregar otro medicamento
+</button>
+
+   
+    <br><br>
+
+    <button class="btn btn-primary">Guardar</button>
+</form>
+
+<a href="{{ url_for('cronicos.lista_controles', id_paciente=id_paciente) }}" class="btn btn-secondary">
+    Regresar
+</a>
+<script>
+const wagner = {
+    0: "0 – Pie de riesgo / Sin úlcera",
+    1: "1 – Úlcera superficial (piel)",
+    2: "2 – Úlcera profunda (tendón, ligamento, cápsula)",
+    3: "3 – Osteomielitis, absceso profundo o infección severa",
+    4: "4 – Gangrena localizada en antepié o talón",
+    5: "5 – Gangrena extensa del pie"
+};
+
+function mostrarWagner() {
+    const grado = document.getElementById("clasificacion_pie").value;
+    const div = document.getElementById("descripcion_wagner");
+
+    if (wagner[grado]) {
+        div.textContent = wagner[grado];
+    } else {
+        div.textContent = "";
+    }
+}
+
+// Ejecutar al cargar (por si el form vuelve con datos)
+document.addEventListener("DOMContentLoaded", mostrarWagner);
+</script>
+
+<script>
+// Validar todo el formulario antes de enviar
+document.querySelector("form").addEventListener("submit", function(e) {
+
+    // --- Validar Signos Vitales ---
+    const peso = document.querySelector('input[name="peso"]').value;
+    const talla = document.querySelector('input[name="talla"]').value;
+    const ps = document.querySelector('input[name="ps"]').value;
+    const pd = document.querySelector('input[name="pd"]').value;
+
+    if (peso && (peso < 20 || peso > 350)) {
+        alert("El peso debe estar entre 20 y 350 kg.");
+        e.preventDefault();
+        return;
+    }
+
+    if (talla && (talla < 80 || talla > 230)) {
+        alert("La talla debe estar entre 80 y 230 cm.");
+        e.preventDefault();
+        return;
+    }
+
+    if (ps && (ps < 70 || ps > 260)) {
+        alert("La presión sistólica debe estar entre 70 y 260.");
+        e.preventDefault();
+        return;
+    }
+
+    if (pd && (pd < 40 || pd > 150)) {
+        alert("La presión diastólica debe estar entre 40 y 150.");
+        e.preventDefault();
+        return;
+    }
+
+    // --- Validar laboratorio ---
+    const glucosa = document.querySelector('input[name="glucosa"]').value;
+    const colesterol = document.querySelector('input[name="colesterol"]').value;
+
+    if (glucosa && (glucosa < 40 || glucosa > 600)) {
+        alert("La glucosa debe estar entre 40 y 600 mg/dL.");
+        e.preventDefault();
+        return;
+    }
+
+    if (colesterol && (colesterol < 70 || colesterol > 500)) {
+        alert("El colesterol debe estar entre 70 y 500 mg/dL.");
+        e.preventDefault();
+        return;
+    }
+
+    // --- Validar pie diabético ---
+    const pie = document.getElementById("clasificacion_pie").value;
+    if (!pie) {
+        alert("Debe seleccionar la clasificación de pie diabético.");
+        e.preventDefault();
+        return;
+    }
+
+    // --- Validar medicamentos ---
+    const meds = document.querySelectorAll(".medicamento-item");
+
+    for (let m of meds) {
+        const dosis = m.querySelector('input[name="dosis[]"]').value.trim();
+        const frec = m.querySelector('input[name="frecuencia[]"]').value.trim();
+        const inicio = m.querySelector('input[name="fecha_inicio[]"]').value;
+        const fin = m.querySelector('input[name="fecha_fin[]"]').value;
+
+        if (!dosis || !frec || !inicio) {
+            alert("Todos los medicamentos deben tener dosis, frecuencia y fecha de inicio.");
+            e.preventDefault();
+            return;
+        }
+
+        if (fin && inicio > fin) {
+            alert("La fecha fin no puede ser menor que la fecha de inicio.");
+            e.preventDefault();
+            return;
+        }
+    }
+});
+</script>
+
+
+<script>
+function agregarMedicamento() {
+    const cont = document.getElementById("medicamentos-container");
+    const original = cont.children[0];  // la primera fila es la plantilla
+    const copia = original.cloneNode(true);
+
+    // limpiar inputs
+    copia.querySelectorAll("input").forEach(input => input.value = "");
+
+    // resetear selects
+    copia.querySelectorAll("select").forEach(sel => sel.selectedIndex = 0);
+
+    cont.appendChild(copia);
+}
+
+function eliminarMedicamento(btn) {
+    const fila = btn.closest(".medicamento-item");
+    
+    // evitar borrar la última fila (para siempre dejar una)
+    const cont = document.getElementById("medicamentos-container");
+    if (cont.children.length === 1) {
+        alert("Debe haber al menos un medicamento.");
+        return;
+    }
+
+    fila.remove();
+}
+</script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- Activar Select2 -->
+<script>
+$(document).ready(function() {
+    $('#id_diagnostico').select2({
+        placeholder: "Buscar diagnóstico por código o nombre",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+
+{% endblock %}
