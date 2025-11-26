@@ -16,8 +16,8 @@ class Medicamento(db.Model):
     stock_maximo = Column(Integer, default=100) # nivel óptimo
     principio_activo = Column(Text)
     presentacion = Column(Text)
-    via_administracion = Column(Text)
-    concentracion = Column(Text)
+    via_administracion = Column(Text) #oral , inyectable
+    concentracion = Column(Text)# gramaje 100 grm, 15 ml 
     unidad = Column(Text)
     en_catalogo = Column(Boolean, default=True)  # True = catálogo, False = fuera
     # CPM y nivel de movimiento

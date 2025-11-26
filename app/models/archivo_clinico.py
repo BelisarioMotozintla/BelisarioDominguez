@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKe
 from sqlalchemy.orm import relationship
 from app.utils.db import db
 from app.models.personal import Usuario,Servicio
+from app.models.citas import Cita
 from datetime import date
 
 
@@ -48,7 +49,10 @@ class Paciente(db.Model):
     # cronicos relaciones
     diagnosticos = db.relationship("DiagnosticoPaciente", back_populates="paciente", lazy=True)
     controles = db.relationship("ControlClinico", back_populates="paciente", lazy=True)
-
+    
+    # citas
+    citas = db.relationship("Cita", back_populates="paciente")
+  #  citas = relationship(Cita, back_populates="paciente")
 
     
     @property

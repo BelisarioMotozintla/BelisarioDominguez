@@ -3,6 +3,7 @@ import os
 from config import DevelopmentConfig
 from .utils.db import db, crear_base_datos
 from app.utils.extensions import login_manager
+from app.utils.extensions import mail
 
 
 def create_app():
@@ -14,9 +15,13 @@ def create_app():
     from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
+    from app.models.citas import Cita,Consultorio,Disponibilidad,Notificacion
     
     app = Flask(__name__, static_folder='static', static_url_path='/static')
     app.config.from_object(DevelopmentConfig)
+    
+    # inicializar mail
+    mail.init_app(app)
     
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'  # Ruta para login si usuario no autenticado
@@ -31,6 +36,7 @@ def create_app():
 
     # ✅ Inicializar SQLAlchemy con la app
     db.init_app(app)
+
 
     with app.app_context():
         # 🧠 Confirmar que modelos estén registrados
@@ -69,7 +75,8 @@ def create_app():
     from app.control_mac import control_mac_bp
     from app.pagos import pagos_bp
     from app.cronicos import cronicos_bp
-
+    from app.citas import citas_bp
+    from app.public import public_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(enfermeria_bp, url_prefix='/enfermeria')
@@ -87,6 +94,8 @@ def create_app():
     app.register_blueprint(control_mac_bp, url_prefix='/control_mac')
     app.register_blueprint(pagos_bp, url_prefix='/pagos')
     app.register_blueprint(cronicos_bp, url_prefix='/cronicos')
+    app.register_blueprint(citas_bp, url_prefix='/citas')
+    app.register_blueprint(public_bp, url_prefix='/public')
 
 
 

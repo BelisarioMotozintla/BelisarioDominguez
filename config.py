@@ -9,6 +9,13 @@ from sqlalchemy.pool import NullPool  # Se importa aquí
 env_path = Path(__file__).resolve().parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USE_TLS = True
+MAIL_USERNAME = 'belisario.dominguez.calidad@gmail.com'
+MAIL_PASSWORD = 'TXW7@HLI'
+MAIL_DEFAULT_SENDER = ('Citas Médicas', 'belisario.dominguez.calidad@gmail.com')
+
 class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.getenv('SECRET_KEY', 'clave-segura-por-defecto')
