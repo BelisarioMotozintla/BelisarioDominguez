@@ -30,6 +30,8 @@ class Paciente(db.Model):
     fecha_nacimiento = Column(Date)
     sexo = Column(Text)
     direccion = Column(Text)
+    municipio = db.Column(db.String(120))   # ← NUEVO
+    celular = db.Column(db.String(15))  # ← NUEVO CAMPO
     es_cronico = Column(Boolean, default=False)
     tipo_cronicidad = Column(String(100)) # 'Diabético', 'Hipertenso', 'Metabólico', etc.
     esta_embarazada = Column(Boolean, default=False)

@@ -2,6 +2,7 @@
 from sqlite3 import IntegrityError
 from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session,make_response
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
+from app.models.citas import Cita
 from app.models.personal import Usuario,Servicio
 from app.models.medicos import Consulta
 from app.utils.helpers import roles_required
@@ -132,6 +133,26 @@ def agregar_archivo():
         fecha_hoy=date.today().strftime("%Y-%m-%d"),
         paciente_preseleccionado=paciente_preseleccionado
     )
+
+@bp.route("/ver_expediente/<int:id_paciente>")
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+def ver_expediente(id_paciente):
+    paciente = Paciente.query.get_or_404(id_paciente)
+    if not paciente:
+        flash("El paciente no existe", "danger")
+        return redirect(url_for("archivo_clinico.lista_pacientes"))
+    # citas del paciente
+    citas = Cita.query.filter_by(paciente_id=id_paciente)\
+        .order_by(Cita.fecha_hora.desc()).all()
+
+    # buscar expediente clínico del paciente
+    archivo = ArchivoClinico.query.options(joinedload(ArchivoClinico.paciente))\
+        .filter_by(id_paciente=id_paciente).first()
+
+    return render_template("archivo_clinico/ver_expediente.html",
+                           paciente=paciente,
+                           citas=citas,
+                           archivo=archivo)
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])

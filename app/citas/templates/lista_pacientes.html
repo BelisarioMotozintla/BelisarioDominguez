@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+    
+    <h2>Citas pendientes</h2>
+
+{% if pendientes %}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>No. Expediente</th>
+            <th>Nombre</th>
+            <th>CURP</th>
+            <th>Fecha cita</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for cita in pendientes %}
+        <tr>
+            <td>{{ cita.paciente.id_paciente }}</td>
+            <td>{{ cita.paciente.nombre }}</td>
+            <td>{{ cita.paciente.curp }}</td>
+            <td>{{ cita.fecha_hora.strftime("%d/%m/%Y %H:%M") }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+<h2>Buscar pacientes para programar cita</h2>
+
+<form method="GET" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="q" value="{{ q }}" class="form-control"
+               placeholder="Buscar por nombre o expediente">
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary w-100">Buscar</button>
+    </div>
+</form>
+
+{% if q %}
+    <h4>Resultados de búsqueda:</h4>
+
+    {% if resultados %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Expediente</th>
+                <th>Nombre</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for archivo in resultados %}
+            <tr>
+                <td>{{ archivo.numero_expediente }}</td>
+                <td>{{ archivo.paciente.nombre }}</td>
+                <td>
+                    <a href="{{ url_for('citas.programar', id_paciente=archivo.id_paciente) }}"
+                       class="btn btn-sm btn-success">
+                        Programar cita
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="text-muted">Sin resultados.</p>
+    {% endif %}
+{% endif %}
+
+</div>
+
+{% endblock %}

@@ -2,6 +2,11 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Registrar Paciente</h2>
+  {% if id_cita %}
+<div class="alert alert-info">
+    Al guardar, se asociará esta alta a la cita #{{ id_cita }} automáticamente.
+</div>
+{% endif %}
   <form method="POST">
     {% include 'paciente/_form.html' %}
     <button type="submit" class="btn btn-primary">Guardar</button>

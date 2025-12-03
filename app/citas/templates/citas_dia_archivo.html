@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Citas del día - Archivo Clínico</h2>
+
+    <form method="GET" class="mb-3">
+        <input type="date" name="fecha" value="{{ fecha }}" class="form-control w-25 d-inline">
+        <button class="btn btn-info">Buscar</button>
+    </form>
+
+    {% if citas %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Paciente / Solicitante</th>
+                    <th>Consultorio</th>
+                    <th>Hora</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cita in citas %}
+                <tr>
+                    <td>
+                        {% if cita.paciente %}
+                            <strong>{{ cita.paciente.nombre }}</strong>
+                        {% else %}
+                            <span class="text-muted">
+                                {{ cita.solicitante_nombre or 'Solicitante sin registro' }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if cita.consultorio %}
+                            {{ cita.consultorio.nombre }}
+                        {% else %}
+                            <span class="text-muted">Sin consultorio</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ cita.fecha_hora.strftime("%d-%m-%Y") }} / {{ cita.fecha_hora.strftime('%H:%M') }}</td>
+
+                    <td>
+                        {% if cita.paciente %}
+                            
+                            <a href="{{ url_for('archivo_clinico.ver_expediente',
+                                               id_paciente=cita.paciente.id_paciente) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                📁 Ver Expediente
+                            </a>
+
+                        {% else %}
+
+                            <span class="text-danger">Paciente no registrado</span><br>
+                            
+                           <a href="{{ url_for('paciente.alta_paciente',
+                                               id_cita=cita.id) }}"
+                               class="btn btn-sm btn-warning mt-1">
+                                ➕ Registrar paciente
+                            </a>
+
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No hay citas para esta fecha.</p>
+    {% endif %}
+     <a href="{{ url_for('archivo_clinico.index') }}"
+                               class="btn btn-sm btn-outline-primary">
+                                📁 Regresar
+                            </a>
+</div>
+{% endblock %}
+
+

@@ -32,7 +32,24 @@
                         required
                         placeholder="Ej. Juan Pérez López">
                 </div>
-
+                <!-- curp -->
+                <div class="mb-3">
+                    <label class="form-label" for="curp">CURP *</label>
+                    <input 
+                        type="text"
+                        class="form-control"
+                        id="curp"
+                        name="curp"
+                        required
+                        maxlength="18"
+                        minlength="18"
+                        pattern="^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$"
+                        oninput="this.value = this.value.toUpperCase(); validarCURP();"
+                        placeholder="Ej. GARC900101HDFRRN08">
+                    <div id="curpError" class="text-danger mt-1" style="display:none;">
+                        ⚠ La CURP no tiene un formato válido.
+                    </div>
+                </div>
                 <!-- Teléfono -->
                 <div class="mb-3">
                     <label class="form-label">Teléfono *</label>
@@ -90,5 +107,21 @@
         </div>
     </div>
 </div>
+<script>
+function validarCURP() {
+    const curpInput = document.getElementById("curp");
+    const errorDiv = document.getElementById("curpError");
+    
+    const regex = /^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$/;
 
+    if (curpInput.value.length === 18 && !regex.test(curpInput.value)) {
+        errorDiv.style.display = "block";
+        curpInput.classList.add("is-invalid");
+    } else {
+        errorDiv.style.display = "none";
+        curpInput.classList.remove("is-invalid");
+        curpInput.classList.add("is-valid");
+    }
+}
+</script>
 {% endblock %}

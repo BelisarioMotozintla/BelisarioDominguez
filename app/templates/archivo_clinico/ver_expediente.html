@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>📁 Expediente de {{ paciente.nombre }}</h2>
+
+<!-- DATOS GENERALES -->
+<div class="card p-3 mt-3">
+    <h4>🧍 Datos Generales</h4>
+    <p><strong>Edad:</strong> {{ paciente.edad }}</p>
+    <p><strong>CURP:</strong> {{ paciente.curp }}</p>
+    <p><strong>Celular:</strong> {{ paciente.celular }}</p>
+    <p><strong>Dirección:</strong> {{ paciente.direccion }}, {{ paciente.municipio }}</p>
+</div>
+
+<!-- ARCHIVO CLÍNICO -->
+{% if archivo %}
+<div class="card p-3 mt-3">
+    <h4>🗂️ Archivo Clínico Físico</h4>
+    <p><strong>Número de expediente:</strong> {{ archivo.numero_expediente }}</p>
+    <p><strong>Ubicación:</strong> {{ archivo.ubicacion_fisica }}</p>
+    <p><strong>Fecha de creación:</strong> {{ archivo.fecha_creacion.strftime('%d/%m/%Y') }}</p>
+
+    <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-warning btn-sm">Editar</a>
+    
+</div>
+{% else %}
+<div class="alert alert-warning mt-3">
+    ⚠️ Este paciente aún NO tiene expediente físico.
+    <br>
+    <a href="{{ url_for('archivo_clinico.nuevo_archivo', paciente_id=paciente.id_paciente) }}"
+       class="btn btn-success btn-sm mt-2">Crear expediente</a>
+</div>
+{% endif %}
+
+<hr>
+
+<!-- HISTORIAL DE CITAS -->
+<h4>📅 Historial de Citas</h4>
+<table class="table table-bordered">
+    <thead class="table-light">
+        <tr>
+            <th>Fecha</th>
+            <th>Duración</th>
+            <th>Estado</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in citas %}
+        <tr>
+            <td>{{ c.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ c.duracion_min }} min</td>
+            <td>{{ c.estado if c.estado else 'Pendiente' }}</td>
+            <td>
+               <a href="{{ url_for('public.detalle_cita', uuid=c.uuid_publico) }}"
+                    class="btn btn-sm btn-primary">
+                        Ver Detalle
+                </a>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('archivo_clinico.index') }}" class="btn btn-secondary mt-3">Volver</a>
+{% endblock %}
+

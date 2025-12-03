@@ -23,6 +23,9 @@
             <a href="{{ url_for('paciente.reporte_condicion') }}" class="btn btn-sm btn-outline-info" title="Unidad médica">
               <i class="bi bi-hospital"></i>Paciente segun Condición
             </a>
+            <a href="{{ url_for('citas.citas_hoy') }}" class="btn btn-sm btn-outline-info"   title="Citas">
+               <i class="bi bi-calendar2-check"></i> Citas
+            </a>
           </div>
         </td>
     </tr>
@@ -56,6 +59,7 @@
             <td>{{ archivo.numero_expediente }}</td>
             <td>{{ archivo.fecha_creacion.strftime('%Y-%m-%d') }}</td>
             <td>
+                <a href="{{ url_for('archivo_clinico.ver_expediente', id_paciente=archivo.paciente.id_paciente) }}" class="btn btn-sm btn-outline-primary">Ver Expediente</a>
                 <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-sm btn-outline-primary">Editar</a>
                 <form method="POST" action="{{ url_for('archivo_clinico.eliminar_archivo', id=archivo.id_archivo) }}" style="display:inline;">
                     <button type="submit" onclick="return confirm('¿Eliminar archivo?')" class="btn btn-sm btn-outline-danger">Eliminar</button>

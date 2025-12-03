@@ -37,6 +37,7 @@ class Cita(db.Model):
 
     # Datos del solicitante (si no existe paciente registrado)
     solicitante_nombre = db.Column(db.String(250))
+    curp = db.Column(db.String(18))  # 👈 AGREGADO
     telefono = db.Column(db.String(30))
     email = db.Column(db.String(120))
 

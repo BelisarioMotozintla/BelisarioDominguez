@@ -3,6 +3,7 @@ from flask import send_file
 import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash,jsonify,session
 from app.models.archivo_clinico import Paciente,UnidadSalud,PacienteUnidad
+from app.models.citas import Cita
 from app.utils.helpers import roles_required
 from app import db
 from sqlalchemy import and_, extract, func, or_, cast, Date
@@ -39,9 +40,28 @@ def listar_pacientes():
 
 
 @bp.route('/alta', methods=['GET', 'POST'])
+@bp.route('/alta/<int:id_cita>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador', 'USUARIOMEDICO', 'UsuarioPasante'])
-def alta_paciente():
+def alta_paciente(id_cita=None):   # 👈 IMPORTANTE
     faltantes = []  # ✅ Inicializamos siempre
+    # Captura id_cita de la URL: /alta?id_cita=10
+    id_cita_arg = request.args.get('id_cita', type=int)
+
+    # Elige el que exista: primero el de la query, luego el de la ruta
+    id_cita = id_cita_arg if id_cita_arg is not None else id_cita
+
+    cita = None
+
+    if id_cita:
+        cita = Cita.query.get(id_cita)
+    
+    #id_cita = request.args.get('id_cita', None, type=int)   # 🟢 CAPTURAR CITA SI VIENE DE ARCHIVO CLÍNICO
+    
+    
+    #if id_cita:
+     #   cita = Cita.query.get(id_cita)   # Busca la cita en la BD
+    
+   # cita = None
 
     if request.method == 'POST':
         # --- Obtener datos del formulario ---
@@ -49,6 +69,8 @@ def alta_paciente():
         curp = request.form.get('curp', '').strip().upper()
         sexo = request.form.get('sexo', '').strip()
         direccion = request.form.get('direccion', '').strip()
+        municipio = request.form.get('municipio', '').strip()    # ← NUEVO
+        celular = request.form.get('celular', '').strip()        # ← NUEVO
         id_unidad = request.form.get('id_unidad')
         tipo_relacion = request.form.get('tipo_relacion')
 
@@ -58,9 +80,12 @@ def alta_paciente():
             'CURP': curp,
             'Sexo': sexo,
             'Dirección': direccion,
+            'Municipio': municipio,      # ← NUEVO
+            'Celular': celular,          # ← NUEVO
             'Unidad de salud': id_unidad,
             'Tipo de relación': tipo_relacion
         }
+
         faltantes = [campo for campo, valor in campos_requeridos.items() if not valor]
         if faltantes:
             flash(f"Faltan los siguientes campos obligatorios: {', '.join(faltantes)}", "danger")
@@ -106,6 +131,8 @@ def alta_paciente():
             fecha_nacimiento=fecha_nac,
             sexo=sexo,
             direccion=direccion,
+            municipio=municipio,   # ← NUEVO
+            celular=celular,       # ← NUEVO
             es_cronico=es_cronico,
             tipo_cronicidad=tipo_cronicidad,
             esta_embarazada=esta_embarazada,
@@ -123,7 +150,16 @@ def alta_paciente():
         )
         db.session.add(relacion)
         db.session.commit()
+        # 🟢 SI EL REGISTRO VIENE DE UNA CITA → ASOCIAR AUTOMÁTICAMENTE
+        if id_cita:
+            cita = Cita.query.get(id_cita)
+            if cita:
+                cita.paciente_id = nuevo.id_paciente
+                db.session.commit()
+                flash("Paciente registrado y asociado a la cita correctamente.", "success")
+                return redirect(url_for('archivo_clinico.citas_dia'))
 
+        db.session.commit()
         flash('Paciente registrado correctamente.', 'success')
 
         rol = session.get('rol')
@@ -142,13 +178,15 @@ def alta_paciente():
     unidades = UnidadSalud.query.order_by(UnidadSalud.nombre).all()
     hoy = date.today().isoformat()
 
-    # ✅ Siempre retornar algo (GET o recarga del form)
+    # Siempre retornar la vista
     return render_template(
         'paciente/alta.html',
         unidades=unidades,
         hoy=hoy,
         paciente=None,
         volver_url=volver_url,
+        id_cita=id_cita,
+        cita=cita,
         faltantes=faltantes
     )
 
@@ -178,11 +216,11 @@ def editar_paciente(id):
         elif planificacion:
             esta_embarazada = False
 
-        # Datos del paciente
+        # 🔹 Datos del paciente
         paciente.nombre = request.form['nombre']
         paciente.curp = request.form['curp']
 
-        # Parseo seguro de fecha
+        # Fecha segura
         fecha_nacimiento_str = request.form.get('fecha_nacimiento')
         if fecha_nacimiento_str:
             try:
@@ -192,12 +230,17 @@ def editar_paciente(id):
 
         paciente.sexo = request.form['sexo']
         paciente.direccion = request.form.get('direccion')
+
+        # 🔥 Nuevos campos
+        paciente.municipio = request.form.get('municipio')
+        paciente.celular = request.form.get('celular')
+
         paciente.es_cronico = es_cronico
         paciente.tipo_cronicidad = tipo_cronicidad
         paciente.esta_embarazada = esta_embarazada
         paciente.planificacion = planificacion
-       
-        # Datos de relación con la unidad
+
+        # 🔹 Relación Paciente–Unidad
         id_unidad = request.form.get('id_unidad')
         tipo_relacion = request.form.get('tipo_relacion')
 
@@ -223,6 +266,7 @@ def editar_paciente(id):
         relacion=relacion,
         unidades=unidades
     )
+
 @bp.route('/buscar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def buscar_paciente():

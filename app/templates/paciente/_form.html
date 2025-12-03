@@ -3,10 +3,10 @@
 <div class="mb-3">
   <label for="nombre" class="form-label">Nombre, Apellido Paterno, Apellido Materno</label>
   <input type="text" 
-         name="nombre" 
-         class="form-control {% if faltantes and 'nombre' in faltantes %}is-invalid{% endif %}" 
-         value="{{ paciente.nombre if paciente else '' }}" 
-         required>
+       name="nombre" 
+       class="form-control {% if faltantes and 'nombre' in faltantes %}is-invalid{% endif %}" 
+       value="{% if paciente %}{{ paciente.nombre }}{% elif cita %}{{ cita.solicitante_nombre }}{% else %}{% endif %}"
+       required>
   {% if faltantes and 'nombre' in faltantes %}
     <div class="invalid-feedback">Este campo es obligatorio.</div>
   {% endif %}
@@ -103,7 +103,30 @@
     <div class="invalid-feedback">La dirección es obligatoria.</div>
   {% endif %}
 </div>
+<div class="mb-3">
+  <label for="municipio" class="form-label">Municipio</label>
+  <input type="text"
+         name="municipio"
+         class="form-control {% if faltantes and 'municipio' in faltantes %}is-invalid{% endif %}"
+         value="{{ paciente.municipio if paciente else '' }}"
+         required>
+  {% if faltantes and 'municipio' in faltantes %}
+    <div class="invalid-feedback">El municipio es obligatorio.</div>
+  {% endif %}
+</div>
 
+<div class="mb-3">
+  <label for="celular" class="form-label">Celular</label>
+  <input type="text"
+         name="celular"
+         maxlength="15"
+         class="form-control {% if faltantes and 'celular' in faltantes %}is-invalid{% endif %}"
+         value="{{ paciente.celular if paciente else '' }}"
+         required>
+  {% if faltantes and 'celular' in faltantes %}
+    <div class="invalid-feedback">El número de celular es obligatorio.</div>
+  {% endif %}
+</div>
 <div class="mb-3">
   <label for="es_cronico" class="form-label">¿Paciente crónico?</label>
   <select name="es_cronico" class="form-control" id="es_cronico">
