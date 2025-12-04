@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Editar / Confirmar Cita</h3>
+<p><strong>Paciente:</strong> {{ cita.paciente.nombre }}</p>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.consultorio_id.label }}  
+        {{ form.consultorio_id(class="form-control") }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.fecha.label }}
+        {{ form.fecha(class="form-control") }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.hora.label }}
+        {{ form.hora(class="form-control") }}
+    </div>
+
+    <div class="mb-3">
+        {{ form.duracion_min.label }}
+        {{ form.duracion_min(class="form-control") }}
+    </div>
+
+    <button class="btn btn-primary">Guardar y confirmar</button>
+</form>
+
+{% endblock %}

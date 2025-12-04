@@ -1,8 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import DateTimeLocalField, IntegerField, SubmitField
-from wtforms.validators import DataRequired
+from wtforms import SelectField, DateField, TimeField, IntegerField, SubmitField
+from wtforms.validators import DataRequired, NumberRange
 
 class ProgramarCitaForm(FlaskForm):
-    fecha_hora = DateTimeLocalField("Fecha y hora", format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
-    duracion_min = IntegerField("Duración (min)", default=30)
-    submit = SubmitField("Programar cita")
+    consultorio_id = SelectField("Consultorio", coerce=int, validators=[DataRequired()])
+    fecha = DateField("Fecha", validators=[DataRequired()])
+    hora = TimeField("Hora", validators=[DataRequired()])
+    duracion_min = IntegerField(
+        "Duración (minutos)",
+        validators=[DataRequired(), NumberRange(min=5, max=180)]
+    )
+    submit = SubmitField("Programar Cita")

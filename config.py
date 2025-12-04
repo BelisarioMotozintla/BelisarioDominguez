@@ -9,12 +9,6 @@ from sqlalchemy.pool import NullPool  # Se importa aquí
 env_path = Path(__file__).resolve().parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 587
-MAIL_USE_TLS = True
-MAIL_USERNAME = 'belisario.dominguez.calidad@gmail.com'
-MAIL_PASSWORD = 'TXW7@HLI'
-MAIL_DEFAULT_SENDER = ('Citas Médicas', 'belisario.dominguez.calidad@gmail.com')
 
 class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -42,6 +36,14 @@ class DevelopmentConfig(Config):
         'poolclass': NullPool
     }
 
+     # 🔹 CONFIG CORREO — SE AGREGAN AQUÍ
+    MAIL_SERVER = os.getenv('MAIL_SERVER')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'True'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = MAIL_USERNAME  # opcional
 
 class ProductionConfig(DevelopmentConfig):
     DEBUG = False
+

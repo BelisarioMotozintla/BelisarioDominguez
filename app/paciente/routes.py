@@ -157,7 +157,7 @@ def alta_paciente(id_cita=None):   # 👈 IMPORTANTE
                 cita.paciente_id = nuevo.id_paciente
                 db.session.commit()
                 flash("Paciente registrado y asociado a la cita correctamente.", "success")
-                return redirect(url_for('archivo_clinico.citas_dia'))
+                return redirect(url_for('citas.citas_hoy'))
 
         db.session.commit()
         flash('Paciente registrado correctamente.', 'success')

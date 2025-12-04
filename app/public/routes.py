@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from datetime import datetime
 from app.models.archivo_clinico import Paciente
-from app.utils.extensions import  mail
+from app import  mail
 from app.utils.db import db
 from app.models.citas import Cita
 from app.utils.helpers import roles_required
+from app.utils.mail_service import enviar_correo_confirmacion
 from flask_mail import Message
 import qrcode
 import io
@@ -24,32 +25,6 @@ def generar_qr(texto):
     buf.seek(0)
 
     return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-
-def enviar_correo_confirmacion(email, nombre, fecha, id_publico):
-    if not email:
-        return
-
-    msg = Message(
-        subject="Confirmación de cita",
-        sender="belisario.dominguez.calidad@gmail.com",
-        recipients=[email]
-    )
-
-    msg.body = f"""
-Hola {nombre}.
-
-Tu cita está registrada para el día {fecha.strftime('%d/%m/%Y %H:%M')}.
-
-ID de cita: {id_publico}
-"""
-    if email:
-        try:
-            mail.send(msg)
-        except Exception as e:
-            print("Error enviando correo:", e)
-   
-
 
 @bp.route('/citas/nueva', methods=['GET', 'POST'])
 def nueva_cita():
@@ -106,7 +81,19 @@ def nueva_cita():
         qr_base64 = generar_qr(contenido_qr)
 
         # Enviar correo
-        enviar_correo_confirmacion(email, nombre, fecha_hora, cita.uuid_publico)
+        subject="Registro de cita"
+        mensaje = f"""
+            Hola {nombre}.
+
+            Tu cita está registrada para el día {fecha_hora.strftime('%d/%m/%Y %H:%M')}.
+
+            Espere la confirmación.
+
+            ID de cita: {cita.uuid_publico}
+
+            Gracias por su preferencia.
+            """
+        enviar_correo_confirmacion(email,mensaje,subject)
 
         flash('Solicitud recibida. Revisa los detalles abajo.', 'success')
 

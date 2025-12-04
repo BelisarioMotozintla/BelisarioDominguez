@@ -1,11 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import uuid
-from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, Date, TIMESTAMP, ForeignKey, CheckConstraint,Boolean, UniqueConstraint,func
 from sqlalchemy.orm import relationship
 from app.utils.db import db
 from datetime import date
 from sqlalchemy import and_, or_
-from datetime import datetime, timezone
+
+
 
 
 class Consultorio(db.Model):
@@ -113,15 +114,30 @@ class Notificacion(db.Model):
 
 
 def hay_solapamiento(session, consultorio_id, start_dt, end_dt, exclude_cita_id=None):
-    q = session.query(Cita).filter(Cita.consultorio_id == consultorio_id)
+    """
+    Verifica si hay solapamiento de citas en un consultorio dado.
+    
+    Parámetros:
+    - session: sesión de SQLAlchemy
+    - consultorio_id: ID del consultorio
+    - start_dt: datetime de inicio de la nueva cita
+    - end_dt: datetime de fin de la nueva cita
+    - exclude_cita_id: si quieres excluir una cita (útil para reprogramar)
+    
+    Retorna: True si hay choque, False si no
+    """
+    # Traemos todas las citas del consultorio
+    query = session.query(Cita).filter(Cita.consultorio_id == consultorio_id)
+    
     if exclude_cita_id:
-        q = q.filter(Cita.id != exclude_cita_id)
-    # condición de solapamiento
-    q = q.filter(
-        or_(
-            and_(Cita.fecha_hora <= start_dt, (Cita.fecha_hora + func.make_interval(mins=Cita.duracion_min)) > start_dt),
-            and_(Cita.fecha_hora < end_dt, (Cita.fecha_hora + func.make_interval(mins=Cita.duracion_min)) >= end_dt),
-            and_(Cita.fecha_hora >= start_dt, (Cita.fecha_hora + func.make_interval(mins=Cita.duracion_min)) <= end_dt)
-        )
-    )
-    return session.query(q.exists()).scalar()
+        query = query.filter(Cita.id != exclude_cita_id)
+    
+    citas = query.all()
+    
+    # Verificamos solapamiento
+    for cita in citas:
+        cita_fin = cita.fecha_hora + timedelta(minutes=cita.duracion_min)
+        if start_dt < cita_fin and end_dt > cita.fecha_hora:
+            return True  # hay solapamiento
+    
+    return False  # no hay solapamiento

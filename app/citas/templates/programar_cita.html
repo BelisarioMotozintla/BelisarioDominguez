@@ -4,13 +4,13 @@
 <div class="container mt-4">
     <h2>Programar cita para {{ paciente.nombre }} {{ paciente.apellidos }}</h2>
 
-    <form action="{{ url_for('citas.programar_cita', paciente_id=paciente.id_paciente) }}" method="POST">
+    <form action="{{ url_for('citas.programar', id_paciente=paciente.id_paciente) }}" method="POST">
         {{ form.hidden_tag() }}
 
         <!-- Consultorio -->
         <div class="mb-3">
-            {{ form.consultorio.label(class="form-label") }}
-            {{ form.consultorio(class="form-select") }}
+            {{ form.consultorio_id.label(class="form-label") }}
+            {{ form.consultorio_id(class="form-select") }}
         </div>
 
         <!-- Fecha -->
@@ -25,8 +25,14 @@
             {{ form.hora(class="form-control", type="time") }}
         </div>
 
+        <!-- Duración -->
+        <div class="mb-3">
+            {{ form.duracion_min.label(class="form-label") }}
+            {{ form.duracion_min(class="form-control") }}
+        </div>
+
         <button type="submit" class="btn btn-primary">Programar Cita</button>
-        <a href="{{ url_for('citas.lista_pacientes') }}" class="btn btn-secondary">Cancelar</a>
+       <a href="{{ url_for('citas.solicitudes_pendientes') }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 {% endblock %}
