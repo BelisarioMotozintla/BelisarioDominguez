@@ -39,44 +39,68 @@ def perfil_home():
 @bp.route("/capturar", methods=["GET", "POST"])
 @usuarios_con_rol_requerido
 def capturar_empleado():
+    usuario = current_user
 
-    if current_user.empleado:
+    # Si ya tiene empleado, no debe estar aquí
+    if usuario.empleado:
         return redirect(url_for("perfil.ver_perfil"))
+
+    puestos = Puesto.query.all()
+    turnos = Turno.query.all()
+    unidades = UnidadSalud.query.all()
+    servicios = Servicio.query.all()
 
     if request.method == "POST":
 
         # FOTO
         archivo = request.files.get("foto")
-        ruta_foto = None
-
+        nombre_foto = None
+        
         if archivo and archivo.filename != "":
             filename = secure_filename(archivo.filename)
-            ruta = os.path.join(UPLOAD_FOLDER, filename)
+            nombre_foto = filename
+            ruta = os.path.join("static/uploads/fotos_empleado", filename)
             archivo.save(ruta)
-            ruta_foto = f"/{ruta}"
 
-        emp = Empleado(
+        nuevo = Empleado(
+            tipo_trabajador=request.form.get("tipo_trabajador"),
+            curp=request.form.get("curp"),
+            rfc=request.form.get("rfc"),
+            no_biometrico=request.form.get("no_biometrico"),
             nombre=request.form.get("nombre"),
             apellido_paterno=request.form.get("apellido_paterno"),
             apellido_materno=request.form.get("apellido_materno"),
-            curp=request.form.get("curp"),
-            rfc=request.form.get("rfc"),
+            titulo=request.form.get("titulo"),
+            cedula=request.form.get("cedula"),
+            fecha_ingreso=request.form.get("fecha_ingreso"),
+            horario=request.form.get("horario"),
+            dias_laborables=request.form.get("dias_laborables"),
+            horas_laborales=request.form.get("horas_laborales"),
             email=request.form.get("email"),
             telefono=request.form.get("telefono"),
             direccion=request.form.get("direccion"),
-            foto=ruta_foto
+            foto=nombre_foto,
+            id_puesto=request.form.get("id_puesto"),
+            id_turno=request.form.get("id_turno"),
+            id_unidad=request.form.get("id_unidad"),
+            id_servicio=request.form.get("id_servicio"),
         )
 
-        db.session.add(emp)
-        db.session.flush()
-
-        current_user.id_empleado = emp.id_empleado
+        db.session.add(nuevo)
         db.session.commit()
 
-        flash("Datos de empleado registrados correctamente.", "success")
+        usuario.id_empleado = nuevo.id_empleado
+        db.session.commit()
+
+        flash("Datos guardados correctamente.", "success")
         return redirect(url_for("perfil.ver_perfil"))
 
-    return render_template("capturar_empleado.html")
+    return render_template("capturar_empleado.html",
+                           puestos=puestos,
+                           turnos=turnos,
+                           unidades=unidades,
+                           servicios=servicios)
+
 
 @bp.route("/ver")
 @usuarios_con_rol_requerido

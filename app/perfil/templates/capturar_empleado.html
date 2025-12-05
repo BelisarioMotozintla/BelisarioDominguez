@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h2 class="mb-3">Completar mis datos de empleado</h2>
 
 <form method="POST" enctype="multipart/form-data">
@@ -23,7 +24,8 @@
         }
     </script>
 
-    <!-- DATOS -->
+    <!-- DATOS PERSONALES -->
+    <h4>Datos personales</h4>
     <div class="row">
         <div class="col-md-4">
             <label>Nombre</label>
@@ -43,6 +45,25 @@
 
     <div class="row mt-3">
         <div class="col-md-4">
+            <label>Título</label>
+            <input type="text" name="titulo" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>Cédula</label>
+            <input type="text" name="cedula" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>Fecha ingreso</label>
+            <input type="date" name="fecha_ingreso" class="form-control">
+        </div>
+    </div>
+
+    <!-- IDENTIFICACIÓN -->
+    <h4 class="mt-4">Identificación</h4>
+    <div class="row">
+        <div class="col-md-4">
             <label>CURP</label>
             <input type="text" name="curp" class="form-control" required>
         </div>
@@ -53,23 +74,102 @@
         </div>
 
         <div class="col-md-4">
-            <label>Correo</label>
-            <input type="email" name="email" class="form-control">
+            <label>No. biométrico</label>
+            <input type="text" name="no_biometrico" class="form-control">
+        </div>
+    </div>
+
+    <!-- LABORAL -->
+    <h4 class="mt-4">Datos laborales</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <label>Tipo trabajador</label>
+            <input type="text" name="tipo_trabajador" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>Horario</label>
+            <input type="text" name="horario" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>Días laborables</label>
+            <input type="text" name="dias_laborables" class="form-control">
         </div>
     </div>
 
     <div class="row mt-3">
-        <div class="col-md-6">
+        <div class="col-md-4">
+            <label>Horas laborales</label>
+            <input type="number" name="horas_laborales" class="form-control">
+        </div>
+    </div>
+
+    <!-- CONTACTO -->
+    <h4 class="mt-4">Contacto</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <label>Email</label>
+            <input type="email" name="email" class="form-control">
+        </div>
+
+        <div class="col-md-4">
             <label>Teléfono</label>
             <input type="text" name="telefono" class="form-control">
         </div>
 
-        <div class="col-md-6">
+        <div class="col-md-4">
             <label>Dirección</label>
             <input type="text" name="direccion" class="form-control">
         </div>
     </div>
 
-    <button class="btn btn-primary mt-4">Guardar</button>
+    <!-- ADSCRIPCIÓN -->
+    <h4 class="mt-4">Adscripción</h4>
+    <div class="row">
+        <div class="col-md-3">
+            <label>Puesto</label>
+            <select name="id_puesto" class="form-control" required>
+                <option value="">Seleccione...</option>
+                {% for p in puestos %}
+                <option value="{{ p.id_puesto }}">{{ p.descripcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Turno</label>
+            <select name="id_turno" class="form-control" required>
+                <option value="">Seleccione...</option>
+                {% for t in turnos %}
+                <option value="{{ t.id_turno }}">{{ t.nombre_turno }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Unidad</label>
+            <select name="id_unidad" class="form-control" required>
+                <option value="">Seleccione...</option>
+                {% for u in unidades %}
+                <option value="{{ u.id_unidad }}">{{ u.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Servicio</label>
+            <select name="id_servicio" class="form-control" required>
+                <option value="">Seleccione...</option>
+                {% for s in servicios %}
+                <option value="{{ s.id_servicio }}">{{ s.nombre_servicio }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <button class="btn btn-primary mt-4">Guardar datos</button>
+
 </form>
+
 {% endblock %}
