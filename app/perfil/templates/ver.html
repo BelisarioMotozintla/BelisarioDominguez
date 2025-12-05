@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Mi Perfil</h2>
+
+
+
+{% if empleado.foto %}
+    <img src="{{ url_for('static',
+        filename='uploads/fotos_empleado/' ~ empleado.foto) }}"
+        class="img-thumbnail"
+        width="150">
+{% else %}
+    <img src="{{ url_for('static', filename='default_user.png') }}"
+        class="img-thumbnail"
+        width="150">
+        <form method="POST" action="{{ url_for('perfil.subir_foto') }}" enctype="multipart/form-data">
+    <input type="file" name="foto" class="form-control mt-2" accept="image/*">
+    <button class="btn btn-primary btn-sm mt-2">Subir Foto</button>
+</form>
+{% endif %}
+
+<table class="table table-bordered mt-4">
+
+    <tr><th>Tipo de trabajador</th><td>{{ empleado.tipo_trabajador }}</td></tr>
+    <tr><th>Número biométrico</th><td>{{ empleado.no_biometrico }}</td></tr>
+
+    <tr><th>Nombre Completo</th>
+        <td>{{ empleado.nombre }} {{ empleado.apellido_paterno }} {{ empleado.apellido_materno }}</td>
+    </tr>
+
+    <tr><th>Título</th><td>{{ empleado.titulo }}</td></tr>
+    <tr><th>Cédula profesional</th><td>{{ empleado.cedula }}</td></tr>
+
+    <tr><th>CURP</th><td>{{ empleado.curp }}</td></tr>
+    <tr><th>RFC</th><td>{{ empleado.rfc }}</td></tr>
+
+    <tr><th>Fecha de ingreso</th><td>{{ empleado.fecha_ingreso }}</td></tr>
+
+    <tr><th>Horario</th><td>{{ empleado.horario }}</td></tr>
+    <tr><th>Días laborables</th><td>{{ empleado.dias_laborables }}</td></tr>
+    <tr><th>Horas laborales</th><td>{{ empleado.horas_laborales }}</td></tr>
+
+    <tr><th>Correo</th><td>{{ empleado.email }}</td></tr>
+    <tr><th>Teléfono</th><td>{{ empleado.telefono }}</td></tr>
+    <tr><th>Dirección</th><td>{{ empleado.direccion }}</td></tr>
+
+    <tr><th>Puesto</th><td>{{ empleado.puesto.descripcion if empleado.puesto }}</td></tr>
+    <tr><th>Turno</th><td>{{ empleado.turno.nombre_turno if empleado.turno }}</td></tr>
+    <tr><th>Unidad de Salud</th><td>{{ empleado.unidad.nombre if empleado.unidad }}</td></tr>
+    <tr><th>Servicio</th><td>{{ empleado.servicio.nombre_servicio if empleado.servicio }}</td></tr>
+
+</table>
+
+<a href="{{ url_for('perfil.editar_perfil') }}" class="btn btn-primary">Editar</a>
+<a href="{{ url_for('main.home') }}" class="btn btn-secondary">Principal</a>
+
+{% endblock %}

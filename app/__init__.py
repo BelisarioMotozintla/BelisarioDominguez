@@ -77,6 +77,7 @@ def create_app():
     from app.cronicos import cronicos_bp
     from app.citas import citas_bp
     from app.public import public_bp
+    from app.perfil import perfil_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(enfermeria_bp, url_prefix='/enfermeria')
@@ -96,6 +97,7 @@ def create_app():
     app.register_blueprint(cronicos_bp, url_prefix='/cronicos')
     app.register_blueprint(citas_bp, url_prefix='/citas')
     app.register_blueprint(public_bp, url_prefix='/public')
+    app.register_blueprint(perfil_bp, url_prefix='/perfil')
 
 
 

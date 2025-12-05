@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Editar mis datos</h3>
+
+<form method="POST">
+
+    <h4>Datos Personales</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <label>Nombre</label>
+            <input type="text" name="nombre" value="{{ empleado.nombre }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Apellido paterno</label>
+            <input type="text" name="apellido_paterno" value="{{ empleado.apellido_paterno }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Apellido materno</label>
+            <input type="text" name="apellido_materno" value="{{ empleado.apellido_materno }}" class="form-control">
+        </div>
+    </div>
+
+    <h4 class="mt-4">Datos laborales</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <label>Tipo trabajador</label>
+            <input type="text" name="tipo_trabajador" value="{{ empleado.tipo_trabajador }}" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>No. biométrico</label>
+            <input type="text" name="no_biometrico" value="{{ empleado.no_biometrico }}" class="form-control">
+        </div>
+
+        <div class="col-md-4">
+            <label>Fecha ingreso</label>
+            <input type="date" name="fecha_ingreso" value="{{ empleado.fecha_ingreso }}" class="form-control">
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <label>Horario</label>
+            <input type="text" name="horario" value="{{ empleado.horario }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Días laborables</label>
+            <input type="text" name="dias_laborables" value="{{ empleado.dias_laborables }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Horas laborales</label>
+            <input type="number" name="horas_laborales" value="{{ empleado.horas_laborales }}" class="form-control">
+        </div>
+    </div>
+
+    <h4 class="mt-4">Contacto</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ empleado.email }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Teléfono</label>
+            <input type="text" name="telefono" value="{{ empleado.telefono }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Dirección</label>
+            <input type="text" name="direccion" value="{{ empleado.direccion }}" class="form-control">
+        </div>
+    </div>
+
+    <h4 class="mt-4">Adscripción</h4>
+    <div class="row">
+        <div class="col-md-3">
+            <label>Puesto</label>
+            <select name="id_puesto" class="form-control">
+                {% for p in puestos %}
+                    <option value="{{ p.id_puesto }}"
+                        {% if empleado.id_puesto == p.id_puesto %}selected{% endif %}>
+                        {{ p.descripcion }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Turno</label>
+            <select name="id_turno" class="form-control">
+                {% for t in turnos %}
+                    <option value="{{ t.id_turno }}"
+                        {% if empleado.id_turno == t.id_turno %}selected{% endif %}>
+                        {{ t.nombre_turno }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Unidad</label>
+            <select name="id_unidad" class="form-control">
+                {% for u in unidades %}
+                    <option value="{{ u.id_unidad }}"
+                        {% if empleado.id_unidad == u.id_unidad %}selected{% endif %}>
+                        {{ u.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label>Servicio</label>
+            <select name="id_servicio" class="form-control">
+                {% for s in servicios %}
+                    <option value="{{ s.id_servicio }}"
+                        {% if empleado.id_servicio == s.id_servicio %}selected{% endif %}>
+                        {{ s.nombre_servicio }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <button class="btn btn-primary mt-4" type="submit">Guardar cambios</button>
+    <a href="{{ url_for('perfil.ver_perfil') }}" class="btn btn-secondary mt-4">Cancelar</a>
+
+</form>
+
+{% endblock %}

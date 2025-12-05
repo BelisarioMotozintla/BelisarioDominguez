@@ -75,6 +75,7 @@ class Empleado(db.Model):
     email = Column(String(120))
     telefono = Column(String(20))
     direccion = Column(Text)
+    foto = Column(String(200))
 
     id_puesto = Column(Integer, ForeignKey('Puesto.id_puesto'))
     id_turno = Column(Integer, ForeignKey('Turno.id_turno'))
