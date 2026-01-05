@@ -52,12 +52,25 @@
     <tbody>
         {% for archivo in archivos %}
         <tr>
-            <td>{{ archivo.id_archivo }}</td>
-            <td>{{ archivo.paciente.nombre }} {{ archivo.paciente.curp }}</td>
-            <td>{{ archivo.ubicacion_fisica }}</td>
-            <td>{{ archivo.estado }}</td>
-            <td>{{ archivo.numero_expediente }}</td>
-            <td>{{ archivo.fecha_creacion.strftime('%Y-%m-%d') }}</td>
+           <td>{{ archivo.id_archivo }}</td>
+
+            <td>
+                {% if archivo.paciente %}
+                    {{ archivo.paciente.nombre }} {{ archivo.paciente.curp }}
+                {% else %}
+                    <span class="text-danger">SIN PACIENTE</span>
+                {% endif %}
+            </td>
+
+            <td>{{ archivo.ubicacion_fisica or '—' }}</td>
+
+            <td>{{ archivo.estado or '—' }}</td>
+
+            <td>{{ archivo.numero_expediente or '—' }}</td>
+
+            <td>
+                {{ archivo.fecha_creacion.strftime('%Y-%m-%d') if archivo.fecha_creacion else '—' }}
+            </td>
             <td>
                 <a href="{{ url_for('archivo_clinico.ver_expediente', id_paciente=archivo.paciente.id_paciente) }}" class="btn btn-sm btn-outline-primary">Ver Expediente</a>
                 <a href="{{ url_for('archivo_clinico.editar_archivo', id=archivo.id_archivo) }}" class="btn btn-sm btn-outline-primary">Editar</a>

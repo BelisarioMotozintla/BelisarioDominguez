@@ -18,20 +18,34 @@ bp = Blueprint('archivo_clinico', __name__, template_folder='templates/archivo_c
 @bp.route('/')
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def index():
-    # Obtener término de búsqueda
     query = request.args.get('q', '').strip()
 
-    archivos = ArchivoClinico.query.options(joinedload(ArchivoClinico.paciente))
+    archivos_query = ArchivoClinico.query.options(
+        joinedload(ArchivoClinico.paciente)
+    )
 
     if query:
-        archivos = archivos.join(Paciente).filter(
+        archivos_query = archivos_query.join(Paciente).filter(
             (Paciente.nombre.ilike(f"%{query}%")) |
             (cast(ArchivoClinico.numero_expediente, String).ilike(f"%{query}%"))
         )
 
-    archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(0).all()  # limitar a 50 registros
+    try:
+        archivos = (
+            archivos_query
+            .order_by(ArchivoClinico.fecha_creacion.desc())
+            .limit(10)
+            .all()
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error archivos clínicos: {e}")
+        archivos = []
 
-    return render_template('archivo_clinico/listar.html', archivos=archivos, query=query)
+    return render_template(
+        'archivo_clinico/listar.html',
+        archivos=archivos,
+        query=query
+    )
 
 @bp.route('/buscar_json')
 def buscar_archivo_json():
