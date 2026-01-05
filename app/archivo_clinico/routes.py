@@ -29,7 +29,7 @@ def index():
             (cast(ArchivoClinico.numero_expediente, String).ilike(f"%{query}%"))
         )
 
-    archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(10).all()  # limitar a 50 registros
+    archivos = archivos.order_by(ArchivoClinico.fecha_creacion.desc()).limit(0).all()  # limitar a 50 registros
 
     return render_template('archivo_clinico/listar.html', archivos=archivos, query=query)
 
