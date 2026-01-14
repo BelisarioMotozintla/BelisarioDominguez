@@ -32,6 +32,72 @@
 </div>
 {% endif %}
 
+{% if archivo %}
+<hr>
+
+<h4>📤 Registro de Solicitudes del Expediente</h4>
+
+{% if solicitudes %}
+<table class="table table-bordered table-striped">
+    <thead class="table-light">
+        <tr>
+            <th>Fecha solicitud</th>
+            <th>Servicio</th>
+            <th>Solicita</th>
+            <th>Autoriza</th>
+            <th>Entrega</th>
+            <th>Devolución</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in solicitudes %}
+        <tr>
+            <td>{{ s.fecha_solicitud.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td>{{ s.servicio.nombre if s.servicio else '-' }}</td>
+            <td>{{ s.usuario_solicita.nombre }}</td>
+            <td>{{ s.usuario_autoriza.nombre if s.usuario_autoriza else '-' }}</td>
+            <td>
+                {% if s.fecha_entrega %}
+                    {{ s.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                {% if s.fecha_devolucion %}
+                    {{ s.fecha_devolucion.strftime('%d/%m/%Y %H:%M') }}
+                {% else %}
+                    <span class="badge bg-warning text-dark">Pendiente</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if s.estado_solicitud == 'pendiente' %}
+                    <span class="badge bg-secondary">Pendiente</span>
+                {% elif s.estado_solicitud == 'entregado' %}
+                    <span class="badge bg-primary">Entregado</span>
+                {% elif s.estado_solicitud == 'devuelto' %}
+                    <span class="badge bg-success">Devuelto</span>
+                {% elif s.estado_solicitud == 'cancelado' %}
+                    <span class="badge bg-danger">Cancelado</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">
+    📁 Este expediente no tiene solicitudes registradas.
+</div>
+{% endif %}
+
+<a href="{{ url_for('archivo_clinico.nueva_solicitud', archivo_id=archivo.id_archivo) }}"
+   class="btn btn-primary btn-sm">
+   Nueva solicitud de expediente
+</a>
+{% endif %}
+
 <hr>
 
 <!-- HISTORIAL DE CITAS -->

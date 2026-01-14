@@ -152,21 +152,29 @@ def agregar_archivo():
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def ver_expediente(id_paciente):
     paciente = Paciente.query.get_or_404(id_paciente)
-    if not paciente:
-        flash("El paciente no existe", "danger")
-        return redirect(url_for("archivo_clinico.lista_pacientes"))
-    # citas del paciente
+
     citas = Cita.query.filter_by(paciente_id=id_paciente)\
         .order_by(Cita.fecha_hora.desc()).all()
 
-    # buscar expediente clínico del paciente
-    archivo = ArchivoClinico.query.options(joinedload(ArchivoClinico.paciente))\
-        .filter_by(id_paciente=id_paciente).first()
+    archivo = ArchivoClinico.query.filter_by(
+        id_paciente=id_paciente
+    ).first()
 
-    return render_template("archivo_clinico/ver_expediente.html",
-                           paciente=paciente,
-                           citas=citas,
-                           archivo=archivo)
+    solicitudes = []
+    if archivo:
+        solicitudes = SolicitudExpediente.query.filter_by(
+            id_archivo=archivo.id_archivo
+        ).order_by(
+            SolicitudExpediente.fecha_solicitud.desc()
+        ).all()
+
+    return render_template(
+        "archivo_clinico/ver_expediente.html",
+        paciente=paciente,
+        citas=citas,
+        archivo=archivo,
+        solicitudes=solicitudes
+    )
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])

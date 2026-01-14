@@ -80,7 +80,7 @@ class PacienteUnidad(db.Model):
 class ArchivoClinico(db.Model):
     __tablename__ = 'ArchivoClinico'
     id_archivo = Column(Integer, primary_key=True)
-    id_paciente = Column(Integer, ForeignKey('Paciente.id_paciente'))
+    id_paciente = Column(Integer, ForeignKey('Paciente.id_paciente'),nullable=False)
     ubicacion_fisica = Column(Text)
     estado = Column(Text)  # disponible, prestado, extraviado
     tipo_archivo = Column(Text)
