@@ -124,8 +124,38 @@
 </head>
 <body>
 <header>
-    <h1>{% block encabezado %}Sistema IMSS-BIENESTAR{% endblock %}</h1>
+   
+    {% if empleado %}
+    <div style="display:flex; align-items:center; gap:10px;">
+        
+        {# FOTO #}
+        {% if empleado.foto %}
+            <img src="{{ url_for('static',
+                filename='uploads/fotos_empleado/' ~ empleado.foto) }}"
+                style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
+        {% else %}
+            <img src="{{ url_for('static', filename='default_user.png') }}"
+                style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
+        {% endif %}
 
+        <div>
+            {# NOMBRE #}
+            <div>
+                Bienvenido, {{ usuario }}
+            </div>
+
+            {# 👇 UBICACIÓN #}
+            <div style="font-size:12px; color:#cfe8dc;">
+                {{ empleado.unidad.nombre if empleado.unidad else '' }}
+                {% if empleado.servicio %}
+                    - {{ empleado.servicio.nombre_servicio }}
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+{% endif %}
+ <h1>{% block encabezado %}Sistema IMSS-BIENESTAR{% endblock %}</h1>
     <nav>
         <span>Bienvenido, {{ usuario or 'Invitado' }}</span>
 

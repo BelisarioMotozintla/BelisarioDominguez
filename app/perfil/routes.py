@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template, request, redirect, flash, session, url_for
+from flask import Blueprint, abort, current_app, render_template, request, redirect, flash, session, url_for
 from flask_login import login_required,current_user
 from app.models import Usuario
 from app.models.archivo_clinico import UnidadSalud
@@ -102,35 +102,77 @@ def capturar_empleado():
                            servicios=servicios)
 
 
+
+@bp.route("/ver-admin")
+@roles_required(['SuperUsuario', 'Administrador'])
+def ver_perfil_admin():
+    id_empleado = request.args.get('id_empleado', type=int)
+    if not id_empleado:
+        abort(400)
+
+    empleado = Empleado.query.get_or_404(id_empleado)
+
+    return render_template(
+    "ver.html",
+    empleado=empleado,
+    es_admin=True
+)
+
 @bp.route("/ver")
 @usuarios_con_rol_requerido
 def ver_perfil():
     empleado = current_user.empleado
+    if not empleado:
+        abort(403)
+
     print("Puesto:", empleado.id_puesto)
     print("Turno:", empleado.id_turno)
     print("Unidad:", empleado.id_unidad)
     print("Servicio:", empleado.id_servicio)
-    return render_template("ver.html", empleado=empleado)
 
-
+    return render_template(
+    "ver.html",
+    empleado=empleado,
+    es_admin=False
+)
 
 
 @bp.route("/editar", methods=["GET", "POST"])
 @usuarios_con_rol_requerido
 def editar_perfil():
-    empleado = current_user.empleado
+    id_empleado = request.args.get("id_empleado", type=int)
 
-    # Si el usuario no tiene empleado vinculado, no puede editar
+    # =========================
+    # ADMIN editando a otro
+    # =========================
+    if id_empleado:
+        # Validar rol admin
+        if current_user.rol.nombre_rol not in ['Administrador', 'SuperUsuario']:
+            abort(403)
+
+        empleado = Empleado.query.get_or_404(id_empleado)
+
+    # =========================
+    # USUARIO editando el suyo
+    # =========================
+    else:
+        empleado = current_user.empleado
+
     if not empleado:
-        flash("Aún no tienes un registro de empleado asignado.", "warning")
+        flash("No tienes un empleado asignado.", "warning")
         return redirect(url_for("perfil.ver_perfil"))
 
+    # =========================
     # Cargar catálogos
+    # =========================
     puestos = Puesto.query.all()
     turnos = Turno.query.all()
     unidades = UnidadSalud.query.all()
     servicios = Servicio.query.all()
 
+    # =========================
+    # Guardar cambios
+    # =========================
     if request.method == "POST":
         # Datos personales
         empleado.nombre = request.form.get("nombre")
@@ -159,16 +201,32 @@ def editar_perfil():
         db.session.commit()
 
         flash("Datos actualizados correctamente.", "success")
-        return redirect(url_for("perfil.ver_perfil"))
 
+        # =========================
+        # Redirección correcta
+        # =========================
+        if id_empleado:
+            return redirect(url_for(
+                "perfil.ver_perfil_admin",
+                id_empleado=empleado.id_empleado
+            ))
+        else:
+            return redirect(url_for("perfil.ver_perfil"))
+
+    # =========================
+    # GET
+    # =========================
     return render_template(
         "editar.html",
         empleado=empleado,
         puestos=puestos,
         turnos=turnos,
         unidades=unidades,
-        servicios=servicios
+        servicios=servicios,
+        es_admin=bool(id_empleado)
     )
+
+
 
 
 

@@ -1,5 +1,7 @@
 from flask import Flask,session
 import os
+
+from flask_login import current_user
 from config import DevelopmentConfig
 from .utils.db import db, crear_base_datos
 from app.utils.extensions import login_manager
@@ -32,8 +34,14 @@ def create_app():
     
     @app.context_processor
     def inject_usuario():
-        return dict(usuario=session.get('usuario'))
+        empleado = None
+        if current_user.is_authenticated:
+            empleado = getattr(current_user, 'empleado', None)
 
+        return dict(
+            usuario=session.get('usuario'),
+            empleado=empleado
+        )
     # ✅ Inicializar SQLAlchemy con la app
     db.init_app(app)
 

@@ -25,12 +25,21 @@
             <td>{{ e.nombre }}</td>
             <td>{{ e.usuarios[0].usuario if e.usuarios|length > 0 else '' }}</td>
             <td>{{ e.usuarios[0].rol.nombre_rol if e.usuarios|length > 0 else '' }}</td>
-            <td>
-                <a href="{{ url_for('personal.editar', id_empleado=e.id_empleado) }}" class="btn btn-sm btn-warning">Editar</a>
-                <form action="{{ url_for('personal.eliminar', id_empleado=e.id_empleado) }}" method="post" style="display:inline-block" onsubmit="return confirm('Eliminar empleado?')">
-                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
-                </form>
-            </td>
+         <td>
+            <a href="{{ url_for('perfil.ver_perfil_admin', id_empleado=e.id_empleado) }}"
+   class="btn btn-sm btn-info">
+   Perfil
+</a>
+
+            <a href="{{ url_for('personal.editar', id_empleado=e.id_empleado) }}"
+            class="btn btn-sm btn-warning">Editar</a>
+
+            <form action="{{ url_for('personal.eliminar', id_empleado=e.id_empleado) }}"
+                method="post" style="display:inline-block"
+                onsubmit="return confirm('Eliminar empleado?')">
+                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+            </form>
+        </td>
         </tr>
     {% endfor %}
     </tbody>

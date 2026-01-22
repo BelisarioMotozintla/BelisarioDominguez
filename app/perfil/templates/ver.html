@@ -51,8 +51,18 @@
     <tr><th>Servicio</th><td>{{ empleado.servicio.nombre_servicio if empleado.servicio }}</td></tr>
 
 </table>
+{% if es_admin %}
+    <a href="{{ url_for('personal.editar', id_empleado=empleado.id_empleado) }}"
+       class="btn btn-primary">
+       Editar
+    </a>
+{% else %}
+    <a href="{{ url_for('perfil.editar_perfil') }}"
+       class="btn btn-primary">
+       Editar
+    </a>
+{% endif %}
+<a href="{{ request.referrer or url_for('main.home') }}"   class="btn btn-secondary">    Regresar </a>
 
-<a href="{{ url_for('perfil.editar_perfil') }}" class="btn btn-primary">Editar</a>
-<a href="{{ url_for('main.home') }}" class="btn btn-secondary">Principal</a>
 
 {% endblock %}
