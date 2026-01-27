@@ -1,0 +1,137 @@
+    {% extends 'base.html' %}
+{% block content %}
+
+<h2>Búsqueda Global de Expedientes</h2>
+<form method="get" class="mb-3">
+
+    <div class="row g-2 align-items-center">
+
+        <!-- TEXTO -->
+         {% if filtro and not query %}
+            <div class="alert alert-info">
+            Escriba un texto para buscar por {{ filtro }}.
+            </div>
+        {% endif %}
+        <div class="col-md-5">
+            <input type="text" name="q" id="q" class="form-control"
+                placeholder="Escriba lo que desea buscar..."
+                value="{{ query }}"
+                oninput="this.value = this.value.toUpperCase();">
+        </div>
+
+        <!-- FILTRO OCULTO (se cambia con botones) -->
+        <input type="hidden" name="filtro" id="filtro" value="{{ filtro or 'todo' }}">
+
+        <!-- BOTONES DE FILTRO -->
+        <div class="col-md-5">
+            <div class="btn-group w-100" role="group">
+
+              <button type="button" class="btn btn-sm  btn-outline-secondary"
+                      onclick="setFiltro('nombre')">
+                Nombre
+              </button>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="setFiltro('curp')">
+                CURP
+              </button>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="setFiltro('expediente')">
+                Expediente
+              </button>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="setFiltro('direccion')">
+                Domicilio
+              </button>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="setFiltro('municipio')">
+                Municipio
+              </button>
+
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      onclick="setFiltro('celular')">
+                Celular
+              </button>
+
+            </div>
+        </div>
+
+        <!-- BOTÓN BUSCAR -->
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-primary">
+                🔍 Buscar
+            </button>
+        </div>
+
+    </div>
+</form>
+
+
+
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            
+            <th>Paciente</th>
+            <th>CURP</th>
+            <th>Domicilio</th>
+            <th>Estado</th>
+            <th>No. Expediente</th>
+            <th>Fecha</th>
+            <th>celular</th>
+            <th>Acción</th>
+
+        </tr>
+    </thead>
+    <tbody>
+        {% for archivo in archivos %}
+        <tr>
+          
+
+            <td>
+                {{ archivo.paciente.nombre if archivo.paciente else '—' }}
+            </td>
+
+            <td>
+                {{ archivo.paciente.curp if archivo.paciente else '—' }}
+            </td>
+
+            <td>{{ archivo.paciente.direccion or '—' }}</td>
+            <td>{{ archivo.estado or '—' }}</td>
+            <td>{{ archivo.numero_expediente or '—' }}</td>
+
+            <td>
+                {{ archivo.fecha_creacion.strftime('%Y-%m-%d') if archivo.fecha_creacion else '—' }}
+            </td>
+            <td>{{ archivo.paciente.celular or '—' }}</td>
+            <td>
+                {% if archivo.paciente %}
+                <a href="{{ url_for('archivo_clinico.ver_expediente', id_paciente=archivo.paciente.id_paciente) }}"
+                   class="btn btn-sm btn-outline-primary">
+                    Ver 
+                </a>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="8" class="text-center">No se encontraron expedientes.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+function setFiltro(valor) {
+    document.getElementById('filtro').value = valor;
+    // Enviar automáticamente el form
+    document.querySelector('form').submit();
+}
+</script>
+
+{% endblock %}

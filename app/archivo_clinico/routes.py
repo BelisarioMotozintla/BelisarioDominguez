@@ -1,6 +1,6 @@
 # app/archivo_clinico/routes.py
 from sqlite3 import IntegrityError
-from flask import Blueprint, render_template, redirect, url_for, flash, request,jsonify,session,make_response
+from flask import Blueprint, current_app, render_template, redirect, url_for, flash, request,jsonify,session,make_response
 from app.models.archivo_clinico import ArchivoClinico,Paciente,SolicitudExpediente
 from app.models.citas import Cita
 from app.models.personal import Usuario,Servicio
@@ -11,6 +11,7 @@ from datetime import date, datetime
 from sqlalchemy import func,cast, String,or_
 from sqlalchemy.orm import joinedload, aliased
 from weasyprint import HTML
+from app.utils.helpers import usuarios_con_rol_requerido
 from flask_login import current_user
 
 bp = Blueprint('archivo_clinico', __name__, template_folder='templates/archivo_clinico')
@@ -72,6 +73,62 @@ def buscar_archivo_json():
             }
         } for a in archivos
     ])
+@bp.route('/buscar')
+@usuarios_con_rol_requerido
+def buscar_expedientes():
+    query = request.args.get('q', '').strip().upper()
+    filtro = request.args.get('filtro', 'todo')
+
+    archivos_query = ArchivoClinico.query.options(
+        joinedload(ArchivoClinico.paciente)
+    ).join(Paciente)
+
+    current_app.logger.info(f"DEBUG BUSCAR => filtro={filtro} | q='{query}'")
+
+    if query:
+        condiciones = []
+
+        if filtro in ('todo', 'nombre'):
+            condiciones.append(Paciente.nombre.ilike(f"%{query}%"))
+
+        if filtro in ('todo', 'curp'):
+            condiciones.append(Paciente.curp.ilike(f"%{query}%"))
+
+        if filtro in ('todo', 'direccion'):
+            condiciones.append(Paciente.direccion.ilike(f"%{query}%"))
+
+        if filtro in ('todo', 'municipio'):
+            condiciones.append(Paciente.municipio.ilike(f"%{query}%"))
+
+        if filtro in ('todo', 'celular'):
+            condiciones.append(Paciente.celular.ilike(f"%{query}%"))
+
+        if filtro in ('todo', 'expediente'):
+            condiciones.append(
+                cast(ArchivoClinico.numero_expediente, String)
+                .ilike(f"%{query}%")
+            )
+
+        archivos_query = archivos_query.filter(or_(*condiciones))
+
+    # ✅ ORDENAR (SIEMPRE)
+    archivos_query = archivos_query.order_by(
+        ArchivoClinico.fecha_creacion.desc()
+    )
+
+    # ✅ LÍMITE SEGÚN SI HAY BÚSQUEDA
+    if query:
+        archivos = archivos_query.all()          # o .limit(100).all()
+    else:
+        archivos = archivos_query.limit(5).all()
+
+    # ✅ RETURN SIEMPRE (FUERA DE IFs)
+    return render_template(
+        'archivo_clinico/buscar_global.html',
+        archivos=archivos,
+        query=query,
+        filtro=filtro
+    )
 
 @bp.route('/alta', methods=['GET', 'POST'])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
@@ -149,7 +206,8 @@ def agregar_archivo():
     )
 
 @bp.route("/ver_expediente/<int:id_paciente>")
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@usuarios_con_rol_requerido
+#@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def ver_expediente(id_paciente):
     paciente = Paciente.query.get_or_404(id_paciente)
 
