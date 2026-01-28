@@ -6,10 +6,14 @@
 <!-- DATOS GENERALES -->
 <div class="card p-3 mt-3">
     <h4>🧍 Datos Generales</h4>
+    <p><strong>Cronico:</strong>{{ paciente.tipo_cronicidad if paciente.es_cronico else "No" }}</p>
+    <p><strong>Embarazada:</strong>{{ "Sí" if paciente.esta_embarazada else "No" }}</p>
+    <p><strong>Planifica:</strong>{{ "Sí" if paciente.planificacion else "No" }}</p>
     <p><strong>Edad:</strong> {{ paciente.edad }}</p>
     <p><strong>CURP:</strong> {{ paciente.curp }}</p>
     <p><strong>Celular:</strong> {{ paciente.celular }}</p>
     <p><strong>Dirección:</strong> {{ paciente.direccion }}, {{ paciente.municipio }}</p>
+    
 </div>
 
 <!-- ARCHIVO CLÍNICO -->
@@ -54,9 +58,9 @@
         {% for s in solicitudes %}
         <tr>
             <td>{{ s.fecha_solicitud.strftime('%d/%m/%Y %H:%M') }}</td>
-            <td>{{ s.servicio.nombre if s.servicio else '-' }}</td>
-            <td>{{ s.usuario_solicita.nombre }}</td>
-            <td>{{ s.usuario_autoriza.nombre if s.usuario_autoriza else '-' }}</td>
+            <td>{{ s.servicio.nombre_servicio if s.servicio else '-' }}</td>
+            <td>{{ s.usuario_solicita.usuario }}</td>
+            <td>{{ s.usuario_autoriza.usuario if s.usuario_autoriza else '-' }}</td>
             <td>
                 {% if s.fecha_entrega %}
                     {{ s.fecha_entrega.strftime('%d/%m/%Y %H:%M') }}

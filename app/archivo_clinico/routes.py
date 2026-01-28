@@ -207,25 +207,52 @@ def agregar_archivo():
 
 @bp.route("/ver_expediente/<int:id_paciente>")
 @usuarios_con_rol_requerido
-#@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+# @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def ver_expediente(id_paciente):
     paciente = Paciente.query.get_or_404(id_paciente)
 
-    citas = Cita.query.filter_by(paciente_id=id_paciente)\
-        .order_by(Cita.fecha_hora.desc()).all()
+    citas = (
+        Cita.query
+        .filter_by(paciente_id=id_paciente)
+        .order_by(Cita.fecha_hora.desc())
+        .all()
+    )
 
-    archivo = ArchivoClinico.query.filter_by(
-        id_paciente=id_paciente
-    ).first()
+    archivo = (
+        ArchivoClinico.query
+        .filter_by(id_paciente=id_paciente)
+        .first()
+    )
 
     solicitudes = []
     if archivo:
-        solicitudes = SolicitudExpediente.query.filter_by(
-            id_archivo=archivo.id_archivo
-        ).order_by(
-            SolicitudExpediente.fecha_solicitud.desc()
-        ).all()
+        solicitudes = (
+        SolicitudExpediente.query
+        .join(ArchivoClinico)
+        .filter(ArchivoClinico.id_paciente == id_paciente)
+        .options(
+            joinedload(SolicitudExpediente.usuario_solicita),
+            joinedload(SolicitudExpediente.usuario_autoriza),
+            joinedload(SolicitudExpediente.servicio)
+        )
+        .order_by(SolicitudExpediente.fecha_solicitud.desc())
+        .all()
+    )
+    print("PACIENTE:", paciente.id_paciente)
+    print("ARCHIVO:", archivo)
+    print("ID ARCHIVO:", archivo.id_archivo)
 
+    solicitudes_raw = SolicitudExpediente.query.all()
+    print("TOTAL SOLICITUDES EN BD:", len(solicitudes_raw))
+
+    for s in solicitudes_raw:
+        print(
+            "SOL:",
+            s.id_solicitud,
+            "ARCHIVO:", s.id_archivo,
+            "SOLICITA:", s.id_usuario_solicita,
+            "AUTORIZA:", s.id_usuario_autoriza
+        )
     return render_template(
         "archivo_clinico/ver_expediente.html",
         paciente=paciente,
