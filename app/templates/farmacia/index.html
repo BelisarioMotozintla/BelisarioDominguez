@@ -17,30 +17,32 @@
 
     <!-- 2. MOVIMIENTOS ALMACÉN → FARMACIA -->
     <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-left-right"></i> Movimientos
+      <i class="bi bi-arrow-left-right"></i> <br>Movi<br>mientos
     </a>
 
     <!-- 3. SALIDA A PACIENTE -->
     <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-danger">
-      <i class="bi bi-box-arrow-up-right"></i> Salidas a Pacientes
+      <i class="bi bi-box-arrow-up-right"></i> Salidas <br>a<br> Pacientes
     </a>
   
     <!-- 5. RECETAS -->
     <a href="{{ url_for('recetas.nuevo_bloque') }}" class="btn btn-sm btn-outline-info">
-      <i class="bi bi-file-earmark-plus"></i> Nuevo Bloque
+      <i class="bi bi-file-earmark-plus"></i> Nuevo <br>Bloque
     </a>
     <a href="{{ url_for('recetas.asignar') }}" class="btn btn-sm btn-outline-success">
-      <i class="bi bi-person-badge"></i> Asignar Bloque
+      <i class="bi bi-person-badge"></i> Asignar <br> Bloque
     </a>
 
     <!-- 6. REPORTES -->
     <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-clipboard-data"></i> Medicamentos
+      <i class="bi bi-clipboard-data"></i><br> Medi<br>camentos
     </a>
     <a href="{{ url_for('farmacia.reporte_inventario') }}" class="btn btn-sm btn-outline-dark">
-  <i class="bi bi-clipboard-check"></i> Reporte Inventario
+  <i class="bi bi-clipboard-check"></i> Reporte <br>Inventario
 </a>
-
+<a href="{{ url_for('at.index') }}" class="btn btn-sm btn-outline-dark">
+  <i class="bi bi-clipboard-check"></i> Reporte <br>at
+</a>
   </div>
 </div>
 

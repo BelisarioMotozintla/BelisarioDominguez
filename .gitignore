@@ -4,6 +4,13 @@ venv/
 .env
 *.env
 
+.venv/
+__pycache__/
+*.pyc
+.env
+instance/
+
+
 # Bytecode de Python
 __pycache__/
 *.py[cod]
