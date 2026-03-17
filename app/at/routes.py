@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, Blueprint
 
+from flask import Flask, render_template, request, Blueprint
 import os
 import pandas as pd
+from app.utils.helpers import roles_required
+from app.utils.helpers import usuarios_con_rol_requerido
 
 bp = Blueprint('at', __name__, template_folder='templates')
 
@@ -31,6 +33,7 @@ def obtener_catalogo_maestro():
     return {}
 
 @bp.route("/", methods=["GET", "POST"])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def index():
     if request.method == "POST":
         if 'archivo' not in request.files: return "No hay archivo"
@@ -196,6 +199,5 @@ def index():
         except Exception as e:
             return f"Error: {str(e)}"
     return render_template("index.html")
-
 
 
