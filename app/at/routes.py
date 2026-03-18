@@ -21,16 +21,39 @@ def cargar_archivo_flexible(ruta):
         return pd.read_csv(ruta, encoding='latin1', sep=None, engine='python')
 
 def obtener_catalogo_maestro():
-    ruta_catalogo = "claves.csv"
+    # 1. Obtiene la ruta de la carpeta donde está este script (app/at/)
+    directorio_actual = os.path.dirname(os.path.abspath(__file__))
+    # 2. Une esa carpeta con el nombre del archivo
+    ruta_catalogo = os.path.join(directorio_actual, "claves.csv")
+    
+    print(f"DEBUG RENDER: Buscando catálogo en {ruta_catalogo}")
+
     if os.path.exists(ruta_catalogo):
         try:
-            df_cat = pd.read_csv(ruta_catalogo, header=None, names=['Clave', 'Descripcion'], dtype=str, encoding='latin1')
-        except:
-            df_cat = pd.read_csv(ruta_catalogo, header=None, names=['Clave', 'Descripcion'], dtype=str, encoding='utf-8')
-        df_cat['Clave'] = df_cat['Clave'].str.strip()
-        df_cat['Descripcion'] = df_cat['Descripcion'].str.strip().fillna("SIN DESCRIPCIÓN")
-        return df_cat.set_index('Clave')['Descripcion'].to_dict()
+            df_cat = pd.read_csv(
+                ruta_catalogo,   
+                header=None, 
+                names=['Clave', 'Descripcion'], 
+                dtype=str, 
+                encoding='latin1',
+                engine='python',
+                on_bad_lines='skip' 
+            )
+            # Limpieza para que coincidan los 330 registros
+            df_cat['Clave'] = df_cat['Clave'].str.replace(r'\r', '', regex=True).str.strip()
+            df_cat['Descripcion'] = df_cat['Descripcion'].str.replace(r'\r', '', regex=True).str.strip().fillna("SIN DESCRIPCIÓN")
+            
+            dicc = df_cat.set_index('Clave')['Descripcion'].to_dict()
+            print(f"ÉXITO: Se cargaron {len(dicc)} claves del maestro")
+            return dicc
+        except Exception as e:
+            print(f"Error leyendo el archivo: {e}")
+            return {}
+            
+    print("ALERTA: El archivo físico NO está en esa ruta")
     return {}
+
+
 
 @bp.route("/", methods=["GET", "POST"])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
@@ -99,8 +122,10 @@ def index():
             
             # 1. Identificar colisiones en el catálogo para saber qué claves dejar a 15 caracteres
             catalogo_crudo = obtener_catalogo_maestro()
+            catalogo_crudo = {str(k).strip().replace('\r', ''): v for k, v in catalogo_crudo.items()}
             if not catalogo_crudo:
                 # Si no hay catálogo, generamos uno base de 12 caracteres desde el DF
+                print("ALERTA: No se encontró claves.csv en Render, usando datos de la receta")
                 catalogo = df[[COL_CLAVE, COL_DESC]].drop_duplicates(COL_CLAVE).set_index(COL_CLAVE)[COL_DESC].to_dict()
             else:
                 # Buscamos bases de 12 que se repiten (ej. .00 y .02)
@@ -114,10 +139,17 @@ def index():
                     base_12 = c_str[:12]
                     # Si la base tiene colisiones, respetamos los 15 caracteres, si no, a 12
                     return c_str[:15] if conteo_bases[base_12] > 1 else base_12
+                 
+                 # Aplicamos la misma limpieza al DataFrame de recetas capturadas
+                df[COL_CLAVE] = df[COL_CLAVE].astype(str).str.strip().str.replace('\r', '', regex=True)
+                df[COL_CLAVE] = df[COL_CLAVE].apply(normalizar_hibrido)
+    
+                # Re-generamos el catálogo usando la misma lógica de normalización
+                catalogo = {normalizar_hibrido(k): v for k, v in catalogo_crudo.items()}
     
                 # Aplicamos la normalización al DataFrame y creamos el catálogo final
-                df[COL_CLAVE] = df[COL_CLAVE].apply(normalizar_hibrido)
-                catalogo = {normalizar_hibrido(k): v for k, v in catalogo_crudo.items()}
+               #df[COL_CLAVE] = df[COL_CLAVE].apply(normalizar_hibrido)
+               #catalogo = {normalizar_hibrido(k): v for k, v in catalogo_crudo.items()}
     
             # Ordenamos para que la descripción más completa quede arriba
             df = df.sort_values(by=[COL_CLAVE, COL_DESC], ascending=[True, False])
