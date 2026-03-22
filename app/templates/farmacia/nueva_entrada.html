@@ -14,17 +14,17 @@
   {% endif %}
 {% endwith %}
 
+
+
+
 <form method="POST">
   <div class="mb-3">
-  <select id="id_medicamento" name="id_medicamento" style="width:100%">
-  <option value="">-- Selecciona un medicamento --</option>
-  {% for med in medicamentos %}
-    <option value="{{ med.id_medicamento }}">
-      {{ med.clave }} | {{ med.nombre_comercial }} | {{ med.principio_activo }}
-    </option>
-  {% endfor %}
-</select>
-  </div>
+    <label for="id_medicamento" class="form-control">Medicamento</label>
+    <select id="id_medicamento" name="id_medicamento" style="width:100%" required>
+        <!-- Se deja vacío, Select2 lo llenará mediante AJAX -->
+    </select>
+</div>
+
 
   <div class="mb-3">
     <label for="cantidad" class="form-label">Cantidad</label>
@@ -56,25 +56,35 @@
   </button>
   <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-secondary">Cancelar</a>
 </form>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
+
 $(document).ready(function() {
     $('#id_medicamento').select2({
-        placeholder: "-- Selecciona un medicamento --",
+        placeholder: "-- Busca por clave, nombre o principio activo --",
         allowClear: true,
+        minimumInputLength: 2, // Espera a que escriban 2 letras para no saturar
         ajax: {
-            url: "{{ url_for('farmacia.buscar_medicamentos') }}",
+            // Ajusta 'farmacia.buscar_medicamentos' al nombre real de tu blueprint
+            url: "{{ url_for('farmacia.buscar_medicamentos') }}", 
             dataType: 'json',
-            delay: 250,
+            delay: 300, // Tiempo de espera para enviar la petición mientras escriben
             data: function (params) {
-                return { q: params.term }; // el texto escrito por el usuario
+                return {
+                    q: params.term // 'q' es lo que espera tu ruta en request.args.get('q')
+                };
             },
             processResults: function (data) {
-                return { results: data };
+                return {
+                    results: data
+                };
             },
             cache: true
         },
-        width: 'resolve'
+        width: '100%' // Asegura que ocupe todo el ancho del contenedor
     });
 });
-</script>{% endblock %}
+</script>
+
+
+{% endblock %}
