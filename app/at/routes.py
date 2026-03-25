@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request, Blueprint
 import os
 import pandas as pd
+import json
 from app.utils.helpers import roles_required
 from app.utils.helpers import usuarios_con_rol_requerido
 
@@ -55,9 +56,9 @@ def obtener_catalogo_maestro():
 
 
 
-@bp.route("/", methods=["GET", "POST"])
+@bp.route("/auditoria", methods=["GET", "POST"])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
-def index():
+def auditoria():
     if request.method == "POST":
         if 'archivo' not in request.files: return "No hay archivo"
         archivo = request.files["archivo"]
@@ -232,4 +233,93 @@ def index():
             return f"Error: {str(e)}"
     return render_template("index.html")
 
+@bp.route("/generador", methods=["GET", "POST"])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+def generador():
+    if request.method == "POST":
+        file_reporte = request.files.get("archivo_reporte")
+        file_catalogo = request.files.get("archivo_catalogo")
+
+        if not file_reporte or not file_catalogo:
+            return "Error: Faltan archivos."
+
+        # 1. CARGAR DATOS
+        df_rep = pd.read_excel(file_reporte)
+        df_cat = pd.read_excel(file_catalogo)
+
+        # 2. NORMALIZACIÓN DE COLUMNAS
+        def normalizar(c):
+            return str(c).strip().upper().replace("Ó", "O").replace("Í", "I")
+
+        df_rep.columns = [normalizar(c) for c in df_rep.columns]
+        df_cat.columns = [normalizar(c) for c in df_cat.columns]
+
+        # 3. BUSCADOR INTELIGENTE
+        col_clave = next((c for c in df_cat.columns if 'CLAVE' in c), 'CLAVE')
+        col_desc = next((c for c in df_cat.columns if 'DESCRIPCION' in c or 'DESC' in c), None)
+        col_existencia = next((c for c in df_cat.columns if 'EXISTENCIA' in c or 'STOCK' in c), None)
+
+        dias_presentes = [str(i) for i in range(1, 32) if str(i) in df_rep.columns]
+
+        # 4. CRUCE DE DATOS
+        df_rep[col_clave] = df_rep[col_clave].astype(str).str.strip()
+        df_cat[col_clave] = df_cat[col_clave].astype(str).str.strip()
+        df_unificado = pd.merge(df_cat, df_rep[[col_clave] + dias_presentes], on=col_clave, how='left').fillna(0)
+
+        # --- CONTROL DE STOCK DINÁMICO ---
+        control_stock = {}
+        for _, row in df_unificado.iterrows():
+            c = str(row[col_clave]).strip()
+            try:
+                control_stock[c] = int(float(row[col_existencia])) if col_existencia else 0
+            except:
+                control_stock[c] = 0
+
+        json_maestro = []
+
+        # 5. CICLO POR DÍA
+        for dia in dias_presentes:
+            fecha_registro = f"2026-03-{int(dia):02d}"
+            
+            for _, row in df_unificado.iterrows():
+                clave = str(row[col_clave]).strip()
+                try:
+                    entrega_dia = int(float(row[dia]))
+                except:
+                    entrega_dia = 0
+                
+                if entrega_dia > 0:
+                    desc_real = str(row[col_desc]).strip() if col_desc and str(row[col_desc]) != "0" else "SIN DESCRIPCIÓN"
+                    
+                    stock_antes_de_entrega = control_stock[clave]
+                    
+                    # REGLA DE RECEPCIÓN (Espejo si no alcanza el stock)
+                    if stock_antes_de_entrega < entrega_dia:
+                        recibida = entrega_dia - stock_antes_de_entrega if stock_antes_de_entrega > 0 else entrega_dia
+                    else:
+                        recibida = 0
+
+                    # --- CÁLCULO DEL STOCK RESULTANTE (EL QUE VA AL JSON) ---
+                    # Stock Inicial + Lo que recibo - Lo que entrego
+                    stock_final = (stock_antes_de_entrega + recibida) - entrega_dia
+                    
+                    json_maestro.append({
+                        "Clave": clave,
+                        "Medicamento": f"{clave} {desc_real}",
+                        "CantidadRecibida": recibida,
+                        "CantidadEntregada": entrega_dia,
+                        "Stock": stock_final,  # <--- YA VA RESTADO
+                        "CLUES": "CSIMB005343",
+                        "Responsable": "PEDRO JESUS GALINDO ESTRADA",
+                        "FechaRegistro": fecha_registro,
+                        "Versión": "Versión 4"
+                    })
+
+                    # Actualizamos el control para el día siguiente
+                    control_stock[clave] = stock_final
+
+        json_string = json.dumps(json_maestro, ensure_ascii=False)
+        return render_template("resultado_json.html", json_data=json_string)
+
+    return render_template("inicio.html")
 

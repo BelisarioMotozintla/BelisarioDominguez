@@ -10,39 +10,47 @@
   <div class="btn-group" role="group" aria-label="Menú Farmacia">
 
     <!-- 1. ENTRADA AL ALMACÉN -->
-    <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-sm btn-outline-success">
+    <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-sm btn-outline-success d-flex flex-column align-items-center justify-content-center">
       <i class="bi bi-box-arrow-in-down"></i> Entradas Almacén
     </a>
-   
 
-    <!-- 2. MOVIMIENTOS ALMACÉN → FARMACIA -->
-    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-left-right"></i> <br>Movi<br>mientos
+    <!-- 2. MOVIMIENTOS -->
+    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-arrow-left-right"></i> Movimientos
     </a>
 
     <!-- 3. SALIDA A PACIENTE -->
-    <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-danger">
-      <i class="bi bi-box-arrow-up-right"></i> Salidas <br>a<br> Pacientes
+    <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-danger d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-box-arrow-up-right"></i> Salidas a Pacientes
     </a>
   
     <!-- 5. RECETAS -->
-    <a href="{{ url_for('recetas.nuevo_bloque') }}" class="btn btn-sm btn-outline-info">
-      <i class="bi bi-file-earmark-plus"></i> Nuevo <br>Bloque
+    <a href="{{ url_for('recetas.nuevo_bloque') }}" class="btn btn-sm btn-outline-info d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-file-earmark-plus"></i> Nuevo Bloque
     </a>
-    <a href="{{ url_for('recetas.asignar') }}" class="btn btn-sm btn-outline-success">
-      <i class="bi bi-person-badge"></i> Asignar <br> Bloque
+    <a href="{{ url_for('recetas.asignar') }}" class="btn btn-sm btn-outline-success d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-person-badge"></i> Asignar Bloque
     </a>
 
     <!-- 6. REPORTES -->
-    <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-clipboard-data"></i><br> Medi<br>camentos
+    <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-clipboard-data"></i> Medicamentos
     </a>
-    <a href="{{ url_for('farmacia.reporte_inventario') }}" class="btn btn-sm btn-outline-dark">
-  <i class="bi bi-clipboard-check"></i> Reporte <br>Inventario
-</a>
-<a href="{{ url_for('at.index') }}" class="btn btn-sm btn-outline-dark">
-  <i class="bi bi-clipboard-check"></i> Reporte <br>at 
-</a>
+    <a href="{{ url_for('farmacia.reporte_inventario') }}" class="btn btn-sm btn-outline-dark d-flex flex-column align-items-center justify-content-center">
+      <i class="bi bi-clipboard-check"></i> Reporte Inventario
+    </a>
+
+    <!-- 7. SUBMENÚ AT SISTEMA ABASTO (DROPDOWN) -->
+    <div class="btn-group" role="group">
+      <button id="btnGroupDrop1" type="button" class="btn btn-sm btn-outline-warning dropdown-toggle d-flex flex-column align-items-center justify-content-center" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-cpu"></i> At 
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+        <li><a class="dropdown-item" href="{{ url_for('at.auditoria') }}">Auditoria Recetas</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('at.generador') }}">Generador Json</a></li>
+      </ul>
+    </div>
+
   </div>
 </div>
 
