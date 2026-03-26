@@ -11,16 +11,21 @@ class Medicamento(db.Model):
     
     id_medicamento = Column(Integer, primary_key=True)
     clave = Column(Text, unique=True, nullable=False)
-    nombre_comercial = Column(Text, nullable=False)
+    principio_activo = Column(Text)
     stock_minimo = Column(Integer, default=10)  # valor crítico
     stock_maximo = Column(Integer, default=100) # nivel óptimo
-    principio_activo = Column(Text)
     presentacion = Column(Text)
     via_administracion = Column(Text) #oral , inyectable
     concentracion = Column(Text)# gramaje 100 grm, 15 ml 
     unidad = Column(Text)
-    en_catalogo = Column(Boolean, default=True)  # True = catálogo, False = fuera
+
+       # 🔹 Nuevos campos para los 3 catálogos
+    es_kit_basico = Column(Boolean, default=False)  # Las 150 claves
+    es_180_claves = Column(Boolean, default=False)  # El de 180 (incluye básicos)
+    es_general = Column(Boolean, default=True)      # Todo lo de la unidad
+
     # CPM y nivel de movimiento
+
     cpm = Column(Float, default=0.0)  # Consumo Promedio Mensual
     nivel_movimiento = Column(
         Enum('Nulo', 'Bajo', 'Medio', 'Alto', name='nivel_movimiento_enum'),
@@ -42,15 +47,24 @@ class Medicamento(db.Model):
         """
         Calcula el Consumo Promedio Mensual basado en salidas de los últimos 'meses' meses.
         """
-        from datetime import datetime, timedelta
-        fecha_limite = datetime.utcnow() - timedelta(days=30*meses)
-        salidas_recientes = [s.cantidad for s in self.salida_farmacia_paciente if s.fecha_salida >= fecha_limite]
+        from datetime import datetime, timedelta, timezone
+        
+        # 1. Usar timezone.utc (utcnow está en proceso de eliminación en Python 3.12+)
+        fecha_limite = datetime.now(timezone.utc) - timedelta(days=30 * meses)
+        
+        # 2. Filtrar asegurando que la fecha no sea None y esté en el rango
+        salidas_recientes = [
+            s.cantidad for s in self.salida_farmacia_paciente 
+            if s.fecha_salida and s.fecha_salida >= fecha_limite
+        ]
+
+        # 3. Calcular promedio
         if salidas_recientes:
             self.cpm = sum(salidas_recientes) / meses
         else:
             self.cpm = 0.0
 
-        # Actualizar nivel de movimiento
+        # 4. Actualizar nivel de movimiento con lógica simplificada
         if self.cpm == 0:
             self.nivel_movimiento = 'Nulo'
         elif self.cpm <= 5:
@@ -59,7 +73,6 @@ class Medicamento(db.Model):
             self.nivel_movimiento = 'Medio'
         else:
             self.nivel_movimiento = 'Alto'
-
 # Modelo EntradaAlmacen
 class EntradaAlmacen(db.Model):
     __tablename__ = 'EntradaAlmacen'
@@ -84,6 +97,8 @@ class MovimientoAlmacenFarmacia(db.Model):
     cantidad = Column(Integer, nullable=False)
     fecha_movimiento = Column(TIMESTAMP)
     observaciones = Column(Text)
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
 
     medicamento = relationship('Medicamento', back_populates='movimiento_almacen_farmacia')
@@ -96,13 +111,20 @@ class SalidaFarmaciaPaciente(db.Model):
     id_salida = Column(Integer, primary_key=True)
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
     cantidad = Column(Integer, nullable=False)
-    fecha_salida = Column(TIMESTAMP)
+    fecha_salida = Column(TIMESTAMP, default=datetime.utcnow)
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
-    folio_receta = Column(Integer, ForeignKey('RecetaMedica.folio'), nullable=False)
+    
+    # CAMBIO: Usamos id_receta (Primary Key) en lugar de folio para la relación
+    id_receta = Column(Integer, ForeignKey('RecetaMedica.id_receta'), nullable=False)
 
     medicamento = relationship('Medicamento', back_populates='salida_farmacia_paciente')
     usuario = relationship('Usuario', back_populates='salida_farmacia_paciente')
+    
+    # SQLAlchemy entiende automáticamente que debe usar id_receta para el "join"
     receta = relationship('RecetaMedica', back_populates='salidas')
+
 
 
 # Modelo TransferenciaSaliente
@@ -112,6 +134,8 @@ class TransferenciaSaliente(db.Model):
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
     cantidad = Column(Integer, nullable=False)
     fecha_transferencia = Column(TIMESTAMP)
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
 
     medicamento = relationship('Medicamento', back_populates='transferencia_saliente')
@@ -124,6 +148,8 @@ class TransferenciaEntrante(db.Model):
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
     cantidad = Column(Integer, nullable=False)
     fecha_transferencia = Column(TIMESTAMP)
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
 
     medicamento = relationship('Medicamento', back_populates='transferencia_entrante')
@@ -135,7 +161,8 @@ class InventarioAlmacen(db.Model):
     id_inventario = Column(Integer, primary_key=True)
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
     cantidad = Column(Integer, nullable=False)
-
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
     medicamento = relationship('Medicamento', back_populates='inventario_almacen')
 
 # Modelo InventarioFarmacia
@@ -144,6 +171,8 @@ class InventarioFarmacia(db.Model):
     id_inventario = Column(Integer, primary_key=True)
     id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
     cantidad = Column(Integer, nullable=False)
+    lote = Column(String(50))
+    fecha_vencimiento = Column(Date)
 
     medicamento = relationship('Medicamento', back_populates='inventario_farmacia')
 

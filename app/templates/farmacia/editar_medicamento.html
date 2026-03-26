@@ -1,52 +1,125 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Editar Medicamento</h2>
-  <form method="POST">
-    <div class="mb-3">
-      <label class="form-label">Clave</label>
-      <input type="text" name="clave" class="form-control" value="{{ medicamento.clave }}" required>
+<div class="container mt-4 mb-5">
+  <div class="card shadow">
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0"><i class="bi bi-pencil-square"></i> Editar Medicamento: {{ medicamento.clave }}</h2>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Nombre Comercial</label>
-      <input type="text" name="nombre_comercial" class="form-control" value="{{ medicamento.nombre_comercial }}" required>
+    <div class="card-body">
+      <form method="POST" class="needs-validation" novalidate>
+        <div class="row">
+          <!-- Datos Básicos -->
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold">Clave</label>
+            <input type="text" name="clave" class="form-control uppercase-input" 
+                   value="{{ medicamento.clave }}" required 
+                   pattern="^[A-Z0-9\.]+$">
+            <div class="invalid-feedback">Clave obligatoria (solo letras, números y puntos).</div>
+          </div>
+          <div class="col-md-8 mb-3">
+            <label class="form-label fw-bold">Principio Activo</label>
+            <input type="text" name="principio_activo" class="form-control uppercase-input" 
+                   value="{{ medicamento.principio_activo }}" required>
+          </div>
+
+          <!-- Especificaciones -->
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Presentación</label>
+            <input type="text" name="presentacion" class="form-control uppercase-input" value="{{ medicamento.presentacion }}">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Vía Administración</label>
+            <input type="text" name="via_administracion" class="form-control uppercase-input" value="{{ medicamento.via_administracion }}">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Concentración</label>
+            <input type="text" name="concentracion" class="form-control uppercase-input" value="{{ medicamento.concentracion }}">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Unidad</label>
+            <input type="text" name="unidad" class="form-control uppercase-input" value="{{ medicamento.unidad }}">
+          </div>
+
+          <!-- Control de Catálogos (Checkboxes) -->
+          <div class="col-12 mb-3">
+            <label class="form-label d-block fw-bold">Pertenencia a Catálogos:</label>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="es_kit_basico" id="kit" 
+                     {% if medicamento.es_kit_basico %}checked{% endif %}>
+              <label class="form-check-label" for="kit">Kit Básico (150)</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="es_180_claves" id="c180"
+                     {% if medicamento.es_180_claves %}checked{% endif %}>
+              <label class="form-check-label" for="c180">180 Claves</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" name="es_general" id="general"
+                     {% if medicamento.es_general %}checked{% endif %}>
+              <label class="form-check-label" for="general">General</label>
+            </div>
+          </div>
+
+          <!-- Niveles de Stock -->
+          <div class="col-md-3 mb-3">
+            <label class="form-label text-danger fw-bold">Stock Mínimo (Crítico)</label>
+            <input type="number" name="stock_minimo" class="form-control" value="{{ medicamento.stock_minimo }}" min="0" required>
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label text-primary fw-bold">Stock Máximo (Óptimo)</label>
+            <input type="number" name="stock_maximo" class="form-control" value="{{ medicamento.stock_maximo }}" min="1" required>
+          </div>
+
+          <!-- Movimiento -->
+          <div class="col-md-3 mb-3">
+            <label class="form-label">CPM</label>
+            <input type="number" step="0.01" name="cpm" class="form-control" value="{{ medicamento.cpm }}" min="0">
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Nivel de Movimiento</label>
+           <select name="nivel_movimiento" class="form-select">
+  <option value="Nulo" {% if medicamento.nivel_movimiento == 'Nulo' %}selected{% endif %}>NULO</option>
+  <option value="Bajo" {% if medicamento.nivel_movimiento == 'Bajo' %}selected{% endif %}>BAJO</option>
+  <option value="Medio" {% if medicamento.nivel_movimiento == 'Medio' %}selected{% endif %}>MEDIO</option>
+  <option value="Alto" {% if medicamento.nivel_movimiento == 'Alto' %}selected{% endif %}>ALTO</option>
+</select>
+
+          </div>
+        </div>
+
+        <div class="mt-4 border-top pt-3 text-end">
+          <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-arrow-repeat"></i> Actualizar Medicamento
+          </button>
+        </div>
+      </form>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Principio Activo</label>
-      <input type="text" name="principio_activo" class="form-control" value="{{ medicamento.principio_activo }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Presentación</label>
-      <input type="text" name="presentacion" class="form-control" value="{{ medicamento.presentacion }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Vía Administración</label>
-      <input type="text" name="via_administracion" class="form-control" value="{{ medicamento.via_administracion }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Concentración</label>
-      <input type="text" name="concentracion" class="form-control" value="{{ medicamento.concentracion }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Unidad</label>
-      <input type="text" name="unidad" class="form-control" value="{{ medicamento.unidad }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">CPM</label>
-      <input type="number" step="0.01" name="cpm" class="form-control" value="{{ medicamento.cpm }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Nivel de Movimiento</label>
-      <select name="nivel_movimiento" class="form-control">
-        <option value="Alto" {% if medicamento.nivel_movimiento == 'Alto' %}selected{% endif %}>Alto</option>
-        <option value="Medio" {% if medicamento.nivel_movimiento == 'Medio' %}selected{% endif %}>Medio</option>
-        <option value="Bajo" {% if medicamento.nivel_movimiento == 'Bajo' %}selected{% endif %}>Bajo</option>
-        <option value="Nulo" {% if medicamento.nivel_movimiento == 'Nulo' %}selected{% endif %}>Nulo</option>
-      </select>
-    </div>
-    <button type="submit" class="btn btn-success">Actualizar</button>
-    <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-secondary">Regresar</a>
-  </form>
+  </div>
 </div>
+
+<script>
+  // Script para mayúsculas automáticas
+  document.querySelectorAll('.uppercase-input').forEach(function(input) {
+    input.addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+  });
+
+  // Validación de Bootstrap
+  (function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+  })()
+</script>
 {% endblock %}

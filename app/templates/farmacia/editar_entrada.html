@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="card shadow">
+    <!-- Encabezado con estilo de Edición -->
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0"><i class="bi bi-pencil-square"></i> Editar Entrada al Almacén: {{ entrada.lote }}</h2>
+    </div>
+    
+    <div class="card-body">
+      <!-- Mensajes Flash -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" class="needs-validation" novalidate>
+        <div class="row">
+          <!-- Selección de Medicamento (Se carga el actual por defecto) -->
+          <div class="col-12 mb-3">
+            <label for="id_medicamento" class="form-label fw-bold">Medicamento</label>
+            <select name="id_medicamento" class="form-select" required>
+              {% for m in medicamentos %}
+                <option value="{{ m.id_medicamento }}" {% if m.id_medicamento == entrada.id_medicamento %}selected{% endif %}>
+                  {{ m.clave }} | {{ m.principio_activo }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback">Selecciona un medicamento válido.</div>
+          </div>
+
+          <!-- Datos de Control (Lote, Cantidad y Caducidad) -->
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold">Número de Lote</label>
+            <input type="text" name="lote" class="form-control uppercase-input" 
+                   value="{{ entrada.lote }}" required>
+            <div class="invalid-feedback">El lote es obligatorio.</div>
+          </div>
+
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold">Cantidad</label>
+            <input type="number" name="cantidad" class="form-control" 
+                   value="{{ entrada.cantidad }}" min="1" required>
+            <div class="invalid-feedback">Ingresa una cantidad válida.</div>
+          </div>
+
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold">Fecha de Caducidad</label>
+            <input type="date" name="fecha_caducidad" class="form-control" 
+                   value="{{ entrada.fecha_caducidad.strftime('%Y-%m-%d') if entrada.fecha_caducidad else '' }}" required>
+            <div class="invalid-feedback">La fecha es obligatoria.</div>
+          </div>
+
+          <!-- Proveedor y Observaciones -->
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Proveedor</label>
+            <input type="text" name="proveedor" class="form-control uppercase-input" 
+                   value="{{ entrada.proveedor or '' }}">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Observaciones</label>
+            <textarea name="observaciones" class="form-control uppercase-input" rows="1">{{ entrada.observaciones or '' }}</textarea>
+          </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="mt-4 border-top pt-3 text-end">
+          <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-arrow-repeat"></i> Actualizar Entrada
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts de validación y Mayúsculas -->
+<script>
+  // Forzar MAYÚSCULAS en tiempo real
+  document.querySelectorAll('.uppercase-input').forEach(function(input) {
+    input.addEventListener('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+  });
+
+  // Validación de Bootstrap 5
+  (function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+        form.classList.add('was-validated')
+      }, false)
+    })
+  })()
+</script>
+{% endblock %}

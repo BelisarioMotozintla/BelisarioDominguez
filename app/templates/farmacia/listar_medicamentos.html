@@ -1,61 +1,91 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>Medicamentos</h2>
-
-  <div class="mb-3">
-    <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-sm btn-outline-success">
-      <i class="bi bi-plus-square"></i> Nuevo Medicamento
-    </a>
-    <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-clipboard-data"></i> Regresar
-    </a>
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-capsule"></i> Catálogo de Medicamentos</h2>
+    <div>
+      <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-success">
+        <i class="bi bi-plus-circle"></i> Nuevo Medicamento
+      </a>
+      <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Regresar
+      </a>
+    </div>
   </div>
 
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Clave</th>
-        <th>Nombre Comercial</th>
-        <th>Principio Activo</th>
-        <th>Presentación</th>
-        <th>Via Administración</th>
-        <th>Concentración</th>
-        <th>Unidad</th>
-        <th>CPM</th>
-        <th>Nivel Movimiento</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for medicamento in medicamentos %}
-      <tr>
-        <td>{{ medicamento.id_medicamento }}</td>
-        <td>{{ medicamento.clave }}</td>
-        <td>{{ medicamento.nombre_comercial }}</td>
-        <td>{{ medicamento.principio_activo }}</td>
-        <td>{{ medicamento.presentacion }}</td>
-        <td>{{ medicamento.via_administracion }}</td>
-        <td>{{ medicamento.concentracion }}</td>
-        <td>{{ medicamento.unidad }}</td>
-        <td>{{ medicamento.cpm }}</td>
-        <td>{{ medicamento.nivel_movimiento }}</td>
-        <td>
-         <form method="POST" action="{{ url_for('farmacia.eliminar_medicamento', id_medicamento=medicamento.id_medicamento) }}" style="display:inline;">
-  <button type="submit" onclick="return confirm('¿Eliminar medicamento?')" class="btn btn-sm btn-outline-danger">Eliminar</button>
-</form>
+  <!-- Buscador -->
+  <form method="GET" action="{{ url_for('farmacia.listar_medicamentos') }}" class="mb-4">
+    <div class="input-group">
+      <input type="text" name="q" class="form-control" placeholder="Buscar por clave o principio activo..." value="{{ query or '' }}">
+      <button class="btn btn-primary" type="submit">Buscar</button>
+    </div>
+  </form>
 
-<a href="{{ url_for('farmacia.editar_medicamento', id_medicamento=medicamento.id_medicamento) }}" class="btn btn-sm btn-outline-primary">Editar</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="11" class="text-center">No hay medicamentos registrados.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Clave</th>
+          <th>Principio Activo / Concentración</th>
+          <th>Presentación / Vía</th>
+          <th>Catálogos</th>
+          <th>Stock (Min/Max)</th>
+          <th>CPM</th>
+          <th>Movimiento</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for medicamento in medicamentos %}
+        <tr>
+          <td class="fw-bold">{{ medicamento.clave }}</td>
+          <td>
+            {{ medicamento.principio_activo }}<br>
+            <small class="text-muted">{{ medicamento.concentracion }} {{ medicamento.unidad }}</small>
+          </td>
+          <td>
+            {{ medicamento.presentacion }}<br>
+            <small class="badge bg-light text-dark border">{{ medicamento.via_administracion }}</small>
+          </td>
+          <td>
+            {% if medicamento.es_kit_basico %}<span class="badge bg-info text-dark">Básico</span>{% endif %}
+            {% if medicamento.es_180_claves %}<span class="badge bg-warning text-dark">180</span>{% endif %}
+            {% if medicamento.es_general %}<span class="badge bg-secondary">General</span>{% endif %}
+          </td>
+          <td><small>{{ medicamento.stock_minimo }} / {{ medicamento.stock_maximo }}</small></td>
+          <td>{{ "%.2f"|format(medicamento.cpm) }}</td>
+          <td>
+            {% if medicamento.nivel_movimiento == 'Alto' %}
+              <span class="text-danger fw-bold"><i class="bi bi-graph-up-arrow"></i> Alto</span>
+            {% elif medicamento.nivel_movimiento == 'Medio' %}
+              <span class="text-primary fw-bold">Medio</span>
+            {% else %}
+              <span class="text-muted">Bajo/Nulo</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="btn-group">
+              <a href="{{ url_for('farmacia.editar_medicamento', id_medicamento=medicamento.id_medicamento) }}" 
+                 class="btn btn-sm btn-outline-primary" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{{ url_for('farmacia.eliminar_medicamento', id_medicamento=medicamento.id_medicamento) }}" 
+                    onsubmit="return confirm('¿Seguro que deseas eliminar este medicamento?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Eliminar">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">No se encontraron medicamentos.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}
