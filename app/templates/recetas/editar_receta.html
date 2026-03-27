@@ -1,70 +1,183 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-4">Editar Receta Médica</h2>
+<div class="container mt-4 mb-5">
+    <div class="card shadow border-0">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Receta Folio: {{ receta.folio }}</h4>
+            <span class="badge bg-dark text-white fs-6">Paciente: {{ receta.paciente.nombre }}</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="form-editar" class="needs-validation" novalidate>
+                
+                <!-- Diagnóstico -->
+                <div class="mb-4">
+                    <label for="diagnostico_id" class="form-label fw-bold">Diagnóstico (CIE-10)</label>
+                    <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
+                        {% for diag in diagnosticos %}
+                        <option value="{{ diag.id_diagnostico }}" {% if diag.id_diagnostico == receta.diagnostico_id %}selected{% endif %}>
+                            {{ diag.codigo }} - {{ diag.descripcion }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-  <form method="POST">
-    <!-- Diagnóstico con búsqueda -->
-    <div class="mb-3">
-      <label for="diagnostico_id" class="form-label">Diagnóstico</label>
-      <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
-        <option value="">-- Buscar por clave o descripción --</option>
-        {% for diag in diagnosticos %}
-          <option value="{{ diag.id_diagnostico }}"
-                  {% if receta.diagnostico_id == diag.id_diagnostico %}selected{% endif %}>
-            {{ diag.codigo }} - {{ diag.descripcion }}
-          </option>
-        {% endfor %}
-      </select>
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-secondary mb-0">Medicamentos Prescritos (Máximo 3)</h5>
+                    <button type="button" id="btn-agregar" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus-circle"></i> Agregar Clave
+                    </button>
+                </div>
+                
+                <div class="row g-3" id="contenedor-meds">
+                    <!-- Medicamentos actuales -->
+                    {% for detalle in receta.detalle %}
+                    <div class="col-12 item-med" data-tipo="existente" data-id-med="{{ detalle.id_medicamento }}">
+                        <div class="card border-warning-subtle shadow-sm mb-2">
+                            <div class="card-body bg-light-subtle">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="badge bg-warning text-dark">Clave Guardada</span>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input check-borrar" type="checkbox" name="eliminar_detalle" value="{{ detalle.id_detalle }}">
+                                        <label class="form-check-label text-danger small fw-bold">Eliminar</label>
+                                    </div>
+                                </div>
+                                <div class="row g-2 div-datos">
+                                    <div class="col-md-8">
+                                        <label class="small fw-bold">Medicamento</label>
+                                        <input type="text" class="form-control form-control-sm bg-light" 
+                                               value="{{ detalle.medicamento.clave }} - {{ detalle.medicamento.principio_activo }}" readonly>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold">Cantidad</label>
+                                        <input type="number" name="cantidad_{{ detalle.id_detalle }}" class="form-control form-control-sm" value="{{ detalle.cantidad }}" min="1">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" name="dosis_{{ detalle.id_detalle }}" class="form-control form-control-sm uppercase-input" value="{{ detalle.dosis }}" placeholder="Dosis">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <input type="text" name="indicaciones_{{ detalle.id_detalle }}" class="form-control form-control-sm uppercase-input" value="{{ detalle.indicaciones }}" placeholder="Indicaciones">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between">
+                    <a href="{{ url_for('recetas.detalle_receta', id_receta=receta.id_receta) }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-warning px-5 fw-bold text-dark shadow">Guardar Receta</button>
+                </div>
+            </form>
+        </div>
     </div>
-
-    <!-- Medicamentos -->
-    <h4 class="mt-4">Medicamentos</h4>
-    {% for detalle in receta.detalle %}
-      <div class="mb-3 border rounded p-3 shadow-sm">
-        <p><strong>{{ detalle.medicamento.nombre_comercial }} {{ detalle.medicamento.presentacion }}</strong></p>
-
-        <div class="mb-2">
-          <label class="form-label">Cantidad</label>
-          <input type="number" name="cantidad_{{ detalle.id_detalle }}" 
-                 value="{{ detalle.cantidad }}" class="form-control" min="1" required>
-        </div>
-
-        <div class="mb-2">
-          <label class="form-label">Dosis</label>
-          <input type="text" name="dosis_{{ detalle.id_detalle }}" 
-                 value="{{ detalle.dosis }}" class="form-control" required>
-        </div>
-
-        <div class="mb-2">
-          <label class="form-label">Indicaciones</label>
-          <textarea name="indicaciones_{{ detalle.id_detalle }}" 
-                    class="form-control" rows="2" required>{{ detalle.indicaciones }}</textarea>
-        </div>
-      </div>
-    {% endfor %}
-
-    <div class="d-flex justify-content-between">
-      <a href="{{ url_for('recetas.detalle_receta', id_receta=receta.id_receta) }}" 
-         class="btn btn-secondary">
-        Cancelar
-      </a>
-      <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-    </div>
-  </form>
 </div>
 
-<!-- Select2 JS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- Template para JS -->
+<template id="nuevo-med-template">
+    <div class="col-12 item-med" data-tipo="nuevo">
+        <div class="card border-primary shadow-sm mb-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="badge bg-primary text-white">Nueva Clave</span>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 btn-quitar">Quitar</button>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <select name="nuevo_medicamento_id[]" class="form-select form-select-sm select2-nuevo" required>
+                            <option value="">Seleccionar medicamento...</option>
+                            {% for m in todos_medicamentos %}
+                            <option value="{{ m.id_medicamento }}">{{ m.clave }} - {{ m.principio_activo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" name="nuevo_cantidad[]" class="form-control form-control-sm" placeholder="Cant." min="1" required>
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" name="nuevo_dosis[]" class="form-control form-control-sm uppercase-input" placeholder="Dosis (Ej. 1 CADA 8 HRS)">
+                    </div>
+                    <div class="col-md-7">
+                        <input type="text" name="nuevo_indicaciones[]" class="form-control form-control-sm uppercase-input" placeholder="Indicaciones">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
 <script>
 $(document).ready(function() {
-    $('#diagnostico_id').select2({
-        placeholder: "-- Buscar por clave o descripción --",
-        allowClear: true,
-        width: '100%'
+    $('.select2').select2({ theme: 'bootstrap-5' });
+
+    function contarActivos() {
+        let existentes = $('.item-med[data-tipo="existente"]').filter(function() {
+            return !$(this).find('.check-borrar').is(':checked');
+        }).length;
+        let nuevos = $('.item-med[data-tipo="nuevo"]').length;
+        return existentes + nuevos;
+    }
+
+    // Agregar nuevo
+    $('#btn-agregar').click(function() {
+        if (contarActivos() >= 3) {
+            alert("Solo se permiten 3 claves.");
+            return;
+        }
+        let temp = document.getElementById('nuevo-med-template').content.cloneNode(true);
+        $('#contenedor-meds').append(temp);
+        $('.select2-nuevo').last().select2({ theme: 'bootstrap-5' });
     });
+
+    // Quitar nuevo
+    $(document).on('click', '.btn-quitar', function() {
+        $(this).closest('.item-med').remove();
+    });
+
+    // Deshabilitar visualmente si se marca para borrar
+    $(document).on('change', '.check-borrar', function() {
+        let card = $(this).closest('.item-med');
+        if(this.checked) {
+            card.find('.div-datos').css('opacity', '0.4').css('pointer-events', 'none');
+        } else {
+            if(contarActivos() > 3) {
+                alert("No puedes reactivar este medicamento, excederías el límite de 3.");
+                this.checked = true;
+                return;
+            }
+            card.find('.div-datos').css('opacity', '1').css('pointer-events', 'auto');
+        }
+    });
+
+    // Validar antes de enviar
+    $('#form-editar').submit(function(e) {
+        let ids = [];
+        // Obtener IDs de los que quedan
+        $('.item-med[data-tipo="existente"]').each(function() {
+            if(!$(this).find('.check-borrar').is(':checked')) {
+                ids.push($(this).data('id-med').toString());
+            }
+        });
+        // IDs de los nuevos
+        $('select[name="nuevo_medicamento_id[]"]').each(function() {
+            if($(this).val()) ids.push($(this).val());
+        });
+
+        // Duplicados
+        if(new Set(ids).size !== ids.length) {
+            e.preventDefault();
+            alert("Error: Hay medicamentos duplicados.");
+            return;
+        }
+
+        // Cantidad
+        if(ids.length === 0) {
+            e.preventDefault();
+            alert("La receta no puede estar vacía.");
+        }
+    });
+
+    $(document).on('input', '.uppercase-input', function() { this.value = this.value.toUpperCase(); });
 });
 </script>
-
 {% endblock %}

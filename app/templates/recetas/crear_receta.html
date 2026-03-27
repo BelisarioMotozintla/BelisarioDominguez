@@ -1,119 +1,105 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card shadow border-0">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-file-earmark-plus"></i> Nueva Receta Médica</h4>
+            <span class="badge bg-light text-dark fs-6">Folio: {{ folio }}</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" class="needs-validation" novalidate>
+                <!-- Info Paciente y Médico -->
+                <div class="row mb-4 bg-light p-3 rounded mx-0">
+                    <div class="col-md-6 border-end">
+                        <label class="text-muted small d-block text-uppercase">Paciente</label>
+                        <span class="fw-bold h5">{{ paciente.nombre }}</span>
+                    </div>
+                    <div class="col-md-6 ps-md-4">
+                        <label class="text-muted small d-block text-uppercase">Médico Prescriptor</label>
+                        <span class="fw-bold">{{ current_user.usuario }}</span>
+                    </div>
+                </div>
 
-<h2>Crear Receta Médica</h2>
+                <!-- Diagnóstico -->
+                <div class="mb-4">
+                    <label for="diagnostico_id" class="form-label fw-bold">Diagnóstico (CIE-10)</label>
+                    <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
+                        <option value="">-- Buscar diagnóstico --</option>
+                        {% for diag in diagnosticos %}
+                        <option value="{{ diag.id_diagnostico }}">{{ diag.codigo }} - {{ diag.descripcion }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-<form method="POST">
-  <!-- Paciente fijo -->
-  <div class="mb-3">
-    <label><strong>Paciente:</strong></label>
-    <p>{{ consulta.paciente.nombre }}</p>
-    <input type="hidden" name="id_paciente" value="{{ consulta.paciente.id_paciente }}">
-  </div>
+                <!-- Medicamentos -->
+                <h5 class="border-bottom pb-2 mb-3 text-secondary">Prescripción de Medicamentos</h5>
+                <div class="row g-3">
+                    {% for i in range(1, 4) %}
+                    <div class="col-12">
+                        <div class="card border shadow-sm h-100">
+                            <div class="card-body bg-light-subtle">
+                                <div class="row g-2">
+                                    <div class="col-md-8">
+                                        <label class="form-label small fw-bold">Medicamento {{ i }}</label>
+                                        <select name="med_{{ i }}" class="form-select form-select-sm select-med" onchange="updateStock(this, {{ i }})">
+                                            <option value="">-- Seleccionar medicamento --</option>
+                                            {% for med in medicamentos %}
+                                            <option value="{{ med.id }}" data-existencia="{{ med.existencia }}">
+                                                {{ med.descripcion }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold">Cantidad</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" name="cant_{{ i }}" id="cant_{{ i }}" class="form-control" min="1" placeholder="0">
+                                            <span class="input-group-text bg-white small text-muted" id="stock_label_{{ i }}">Stock: 0</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" name="dosis_{{ i }}" class="form-control form-control-sm mt-1 uppercase-input" placeholder="Dosis (Ej: 1 CADA 8 HRS)">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <input type="text" name="indicaciones_{{ i }}" class="form-control form-control-sm mt-1 uppercase-input" placeholder="Indicaciones (Ej: DURANTE 5 DIAS)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
 
-  <!-- Médico autenticado -->
-  <div class="mb-3">
-    <label><strong>Médico:</strong></label>
-    <p>{{ current_user.empleado.nombre if current_user.empleado else current_user.username }}</p>
-    <input type="hidden" name="id_medico" value="{{ current_user.id_usuario }}">
-    <p><strong>Folio de la receta:</strong> {{ folio }}</p>
-  </div>
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between">
+                    <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 shadow">
+                        <i class="bi bi-save"></i> Generar Receta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-  <!-- Diagnóstico con búsqueda -->
-  <div class="mb-3">
-    <label for="diagnostico_id" class="form-label">Diagnóstico</label>
-    <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
-      <option value="">-- Buscar por clave o descripción --</option>
-      {% for diag in diagnosticos %}
-        <option value="{{ diag.id_diagnostico }}"
-          {% if request.form.get("diagnostico_id") == diag.id_diagnostico|string %}selected{% endif %}>
-          {{ diag.codigo }} - {{ diag.descripcion }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <!-- Selección de medicamentos (3 máximo) -->
-  {% for i in range(1, 4) %}
-  <div class="mb-3 border rounded p-3 shadow-sm">
-    <label><strong>Medicamento {{ i }}</strong></label>
-    <select name="med_{{ i }}" class="form-select" onchange="updateCantidadOptions(this, {{ i }})">
-      <option value="">-- Seleccionar medicamento --</option>
-      {% for med in medicamentos %}
-        <option value="{{ med.id }}"
-          {% if request.form.get('med_' ~ i) == med.id|string %}selected{% endif %}>
-          {{ med.descripcion }} (Disp: {{ med.existencia }})
-        </option>
-      {% endfor %}
-    </select>
-
-    <!-- Combo de cantidad -->
-    <select name="cant_{{ i }}" id="cant_{{ i }}" class="form-select mt-2">
-      <option value="">-- Cantidad --</option>
-      {% if request.form.get('cant_' ~ i) %}
-        <option selected>{{ request.form.get('cant_' ~ i) }}</option>
-      {% endif %}
-    </select>
-
-    <!-- Dosis -->
-    <input type="text" name="dosis_{{ i }}" class="form-control mt-2"
-           placeholder="Ej: 1 tableta cada 8h" value="{{ request.form.get('dosis_' ~ i, '') }}">
-
-    <!-- Indicaciones -->
-    <textarea name="indicaciones_{{ i }}" class="form-control mt-2"
-              rows="2" placeholder="Indicaciones al paciente">{{ request.form.get('indicaciones_' ~ i, '') }}</textarea>
-  </div>
-  {% endfor %}
-
-  <button type="submit" class="btn btn-success">Crear Receta</button>
-</form>
-
-<a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}"
-   class="btn btn-sm btn-outline-secondary mt-2">
-   <i class="bi bi-arrow-return-left"></i> Regresar a la nota
-</a>
-
-<!-- Inventario JS -->
 <script>
-  const inventario = {
-    {% for med in medicamentos %}
-      {{ med.id }}: {{ med.existencia }},
-    {% endfor %}
-  };
-
-  function updateCantidadOptions(selectMed, index) {
-    const idMed = selectMed.value;
-    const selectCantidad = document.getElementById("cant_" + index);
-    selectCantidad.innerHTML = "";
-
-    if (idMed && inventario[idMed]) {
-      const max = inventario[idMed];
-      for (let i = 1; i <= max; i++) {
-        const opt = document.createElement("option");
-        opt.value = i;
-        opt.text = i;
-        selectCantidad.appendChild(opt);
-      }
-    } else {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.text = "-- Sin existencia --";
-      selectCantidad.appendChild(opt);
+    // Actualizar visualización de stock dinámico
+    function updateStock(select, index) {
+        const option = select.options[select.selectedIndex];
+        const stock = option.getAttribute('data-existencia') || 0;
+        document.getElementById('stock_label_' + index).innerText = "Stock: " + stock;
+        const inputCant = document.getElementById('cant_' + index);
+        inputCant.max = stock;
     }
-  }
-</script>
 
-<!-- Select2 -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script>
-$(document).ready(function() {
-    $('#diagnostico_id').select2({
-        placeholder: "-- Buscar por clave o descripción --",
-        allowClear: true,
-        width: '100%'
+    $(document).ready(function() {
+        $('.select2').select2({ theme: 'bootstrap-5' });
+        
+        // Convertir a mayúsculas
+        $('.uppercase-input').on('input', function() {
+            this.value = this.value.toUpperCase();
+        });
     });
-});
 </script>
-
 {% endblock %}

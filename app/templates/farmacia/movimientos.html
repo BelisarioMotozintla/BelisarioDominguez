@@ -3,6 +3,19 @@
 {% block content %}
 <h3 class="text-primary">Movimientos de Almacén a Farmacia</h3>
 
+<!-- Formulario de Búsqueda -->
+<form method="GET" action="{{ url_for('farmacia.listar_movimientos') }}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Buscar por medicamento, usuario u observaciones..." value="{{ query or '' }}">
+        <button class="btn btn-primary" type="submit">
+            <i class="bi bi-search"></i> Buscar
+        </button>
+        {% if query %}
+            <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-outline-secondary">Limpiar</a>
+        {% endif %}
+    </div>
+</form>
+
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     {% for category, message in messages %}
@@ -22,27 +35,42 @@
       <th>Fecha Movimiento</th>
       <th>Usuario</th>
       <th>Observaciones</th>
+      <th>Acciones</th>
     </tr>
   </thead>
   <tbody>
     {% for mov in movimientos %}
     <tr>
-      <td>{{ mov.medicamento.nombre_comercial }}</td>
+      <td>{{ mov.medicamento.principio_activo }}</td>
       <td>{{ mov.cantidad }}</td>
       <td>{{ mov.fecha_movimiento.strftime('%d/%m/%Y %H:%M') }}</td>
       <td>{{ mov.usuario.usuario }}</td>
       <td>{{ mov.observaciones or '-' }}</td>
+      
+      <td>
+    <a href="{{ url_for('farmacia.editar_movimiento', id=mov.id_movimiento) }}" class="btn btn-sm btn-warning">
+        <i class="bi bi-pencil"></i>
+    </a>
+    <form action="{{ url_for('farmacia.eliminar_movimiento', id=mov.id_movimiento) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar movimiento y devolver stock al almacén?');">
+        <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
+    </form>
+</td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="5" class="text-center">No se encontraron movimientos.</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<a href="{{ url_for('farmacia.nuevo_movimiento') }}" class="btn btn-success mt-3">
-  <i class="bi bi-plus-square"></i> Nuevo Movimiento
-</a>
-<!-- 4. TRANSFERENCIAS ENTRE UNIDADES -->
-    <a href="{{ url_for('farmacia.listar_transferencias') }}" class="btn btn-sm btn-outline-dark">
+<div class="mt-3">
+    <a href="{{ url_for('farmacia.nuevo_movimiento') }}" class="btn btn-success">
+      <i class="bi bi-plus-square"></i> Nuevo Movimiento
+    </a>
+    <a href="{{ url_for('farmacia.listar_transferencias') }}" class="btn btn-outline-dark">
       <i class="bi bi-arrow-repeat"></i> Transferencias
     </a>
- <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+    <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+</div>
 {% endblock %}

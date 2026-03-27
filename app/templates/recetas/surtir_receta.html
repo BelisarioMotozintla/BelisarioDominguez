@@ -1,57 +1,87 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card shadow border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi- bag-check"></i> Surtimiento de Receta: {{ receta.folio }}</h4>
+            <span class="badge bg-light text-dark">Emisión: {{ receta.fecha_emision.strftime('%d/%m/%Y') }}</span>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p class="mb-1 text-muted">Paciente:</p>
+                    <h5 class="fw-bold">{{ receta.paciente.nombre }}</h5>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-1 text-muted">Médico:</p>
+                    <h5 class="fw-bold">{{ receta.usuario.usuario }}</h5>
+                </div>
+            </div>
 
-<h2>Surtir Receta Médica</h2>
-<p><strong>Folio:</strong> {{ receta.folio }}</p>
-<p><strong>Paciente:</strong> {{ receta.paciente.nombre }}</p>
-<p><strong>Médico:</strong> {{ receta.usuario.empleado.nombre if receta.usuario.empleado else receta.usuario.username }}</p>
-<p><strong>Fecha:</strong> {{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</p>
+            <form method="POST" class="needs-validation" novalidate>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Medicamento (Principio Activo)</th>
+                                <th class="text-center">Recetado</th>
+                                <th class="text-center">Ya Surtido</th>
+                                <th class="text-center">Disponible</th>
+                                <th class="text-center" style="width: 150px;">A Entregar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set receta_completa = namespace(valor=true) %}
+                            {% for det in receta.detalle %}
+                                {% set pendiente = det.cantidad - (det.cantidad_surtida or 0) %}
+                                {% set stock = inventario[det.id_medicamento] %}
+                                <tr>
+                                    <td>
+                                        <span class="fw-bold text-primary">{{ det.medicamento.clave }}</span><br>
+                                        <small>{{ det.medicamento.principio_activo }}</small>
+                                    </td>
+                                    <td class="text-center">{{ det.cantidad }}</td>
+                                    <td class="text-center">{{ det.cantidad_surtida or 0 }}</td>
+                                    <td class="text-center">
+                                        {% if stock > 0 %}
+                                            <span class="badge bg-info text-dark">{{ stock }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Sin Stock</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pendiente > 0 and stock > 0 %}
+                                            {% set max_posible = [pendiente, stock]|min %}
+                                            <input type="number" name="cant_{{ det.id_detalle }}" 
+                                                   class="form-control form-control-sm text-center border-success" 
+                                                   min="0" max="{{ max_posible }}" value="{{ max_posible }}">
+                                            {% set receta_completa.valor = false %}
+                                        {% else %}
+                                            <input type="number" class="form-control form-control-sm text-center bg-light" value="0" readonly>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-<form method="POST">
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Medicamento</th>
-        <th>Recetado</th>
-        <th>Surtido</th>
-        <th>Stock disponible</th>
-        <th>Cantidad a entregar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% set receta_completa = True %}
-      {% for det in receta.detalle %}
-      {% set pendiente = det.cantidad - (det.cantidad_surtida or 0) %}
-      <tr>
-        <td>{{ det.medicamento.nombre_comercial }}</td>
-        <td>{{ det.cantidad }}</td>
-        <td>{{ det.cantidad_surtida or 0 }}</td>
-        <td>{{ inventario[det.id_medicamento] }}</td>
-        <td>
-          {% if pendiente > 0 and inventario[det.id_medicamento] > 0 %}
-            <input type="number" name="cant_{{ det.id_detalle }}" 
-                   min="0" max="{{ [pendiente, inventario[det.id_medicamento]|int]|min }}" 
-                   value="{{ [pendiente, inventario[det.id_medicamento]|int]|min }}" 
-                   class="form-control">
-            {% set receta_completa = False %}
-          {% else %}
-            <input type="number" value="0" class="form-control" disabled>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if not receta_completa %}
-    <button type="submit" class="btn btn-success">Surtir</button>
-  {% else %}
-    <div class="alert alert-info">✅ Todos los medicamentos ya fueron surtidos.</div>
-  {% endif %}
-</form>
-
-<a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-secondary mt-2">
-  <i class="bi bi-arrow-return-left"></i> Volver a pendientes
-</a>
-
+                <div class="mt-4 border-top pt-3 d-flex justify-content-between">
+                    <a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                    {% if not receta_completa.valor %}
+                        <button type="submit" class="btn btn-success px-5 shadow">
+                            <i class="bi bi-check2-square"></i> Confirmar Entrega
+                        </button>
+                    {% else %}
+                        <div class="alert alert-info py-2 mb-0">
+                            <i class="bi bi-info-circle"></i> No hay artículos pendientes por surtir o no hay stock.
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

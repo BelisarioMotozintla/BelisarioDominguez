@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="h5 mb-0"><i class="bi bi-pencil-square"></i> Editar Movimiento: Folio #{{ movimiento.id_movimiento }}</h4>
+        </div>
+        <div class="card-body">
+            
+            <!-- Alertas de error/éxito -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <div class="alert alert-info">
+                <small><i class="bi bi-info-circle"></i> Solo puedes modificar la cantidad y las observaciones. Los cambios afectarán automáticamente el stock de Almacén y Farmacia.</small>
+            </div>
+
+            <form method="POST" class="needs-validation" novalidate>
+                <div class="row">
+                    <!-- Datos No Editables (Readonly) -->
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label fw-bold">Medicamento / Principio Activo</label>
+                        <input type="text" class="form-control bg-light" 
+                               value="{{ movimiento.medicamento.principio_activo }} - {{ movimiento.medicamento.nombre_comercial }}" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Lote</label>
+                        <input type="text" class="form-control bg-light" value="{{ movimiento.lote }}" readonly>
+                    </div>
+
+                    <!-- Cantidad Editable -->
+                    <div class="col-md-6 mb-3">
+                        <label for="cantidad" class="form-label fw-bold">Cantidad Trasladada</label>
+                        <div class="input-group">
+                            <input type="number" name="cantidad" id="cantidad" class="form-control" 
+                                   value="{{ movimiento.cantidad }}" min="1" required>
+                            <span class="input-group-text">piezas</span>
+                        </div>
+                        <div class="invalid-feedback">Ingrese una cantidad válida.</div>
+                        <small class="text-muted">Originalmente se enviaron: <strong>{{ movimiento.cantidad }}</strong> piezas.</small>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="col-md-12 mb-3">
+                        <label for="observaciones" class="form-label fw-bold">Observaciones / Motivo del Cambio</label>
+                        <textarea name="observaciones" id="observaciones" class="form-control" 
+                                  rows="3" placeholder="DESCRIBA POR QUÉ SE EDITA EL MOVIMIENTO...">{{ movimiento.observaciones }}</textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 border-top pt-3 text-end">
+                    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold">
+                        <i class="bi bi-arrow-repeat"></i> Actualizar Movimiento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Convertir observaciones a mayúsculas automáticamente
+    $('#observaciones').on('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+
+    // Validación de Bootstrap
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    });
+});
+</script>
+{% endblock %}

@@ -67,127 +67,179 @@ def lista_recetas():
     return render_template("recetas/lista_recetas.html", recetas=recetas)
 #=================================================================================== SALIDA DE RECETAS ================================
 
-@bp.route("/salida_lista", methods=["GET"])
+@bp.route('/salidas/listar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
-    # Traer todas las salidas, ordenadas por fecha descendente
-    salidas = SalidaFarmaciaPaciente.query.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
-    print(salidas)
-    print(len(salidas))
+    # Capturar búsqueda (folio, paciente, etc.)
+    query = request.args.get('q', '').strip()
     
-    # Asegurarse de que cada salida tenga acceso a receta, medicamento y usuario
-    return render_template("recetas/listar_salidas.html", salidas=salidas)
+    # Base de la consulta usando los modelos reales
+    # Nota: Asegúrate de que las relaciones estén definidas en tus modelos
+    salidas_query = SalidaFarmaciaPaciente.query\
+        .join(Medicamento)\
+        .outerjoin(RecetaMedica)\
+        .outerjoin(Paciente)
+
+    if query:
+        # Buscamos ignorando mayúsculas/minúsculas
+        search = f"%{query}%"
+        salidas_query = salidas_query.filter(
+            (RecetaMedica.folio.ilike(search)) |
+            (Paciente.nombre.ilike(search)) |
+            (Medicamento.principio_activo.ilike(search)) |
+            (SalidaFarmaciaPaciente.lote.ilike(search))
+        )
+
+    # Ordenar por fecha de salida descendente
+    salidas = salidas_query.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
+    
+    return render_template('recetas/listar_salidas.html', 
+                           salidas=salidas, 
+                           query=query)
+
+
 
 @bp.route("/recetas/crear/<int:id_nota>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
 def crear_receta(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
-   
-    # Obtener la consulta a través de la nota
     consulta = nota.consulta  
     paciente = consulta.paciente  
+    id_medico = current_user.id_usuario
 
-    # Traer medicamentos + existencia en farmacia
+    # Medicamentos con stock en farmacia (usando Clave y Principio Activo)
+    medicamentos_db = db.session.query(Medicamento, InventarioFarmacia).outerjoin(
+        InventarioFarmacia, InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
+    ).all()
+
     medicamentos = [
         {
             "id": m.id_medicamento,
-            "descripcion": f"{m.nombre_comercial} {m.presentacion} {m.concentracion} (Clave: {m.clave})",
+            "descripcion": f"{m.clave} - {m.principio_activo} ({m.presentacion})",
             "existencia": inv.cantidad if inv else 0
-        }
-        for m, inv in db.session.query(Medicamento, InventarioFarmacia).outerjoin(
-            InventarioFarmacia, InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
-        )
+        } for m, inv in medicamentos_db
     ]
 
-    # Diagnósticos disponibles
-    diagnosticos = Diagnostico.query.order_by(Diagnostico.codigo).all()
-
-    # Médico logueado
-    id_medico = current_user.id_usuario
-
-    # Última asignación de folios para ese médico
-    asignacion = AsignacionReceta.query.filter_by(id_medico=id_medico) \
+    asignacion = AsignacionReceta.query.filter_by(id_medico=id_medico)\
                                       .order_by(AsignacionReceta.id_asignacion.desc()).first()
 
     if not asignacion:
-        flash("⚠️ No tienes bloque de recetas asignado.", "danger")
-        return redirect(url_for('medicos.menu_medico'))
-
-    # Folio solo para mostrar (no se consume aún)
-    folio_mostrar = asignacion.proximo_folio()
+        flash("⚠️ No tienes un bloque de recetas asignado. Contacta al administrador.", "danger")
+        return redirect(url_for('medicos.ver_nota', id_nota=id_nota))
 
     if request.method == "POST":
-        # Consumir el folio real
         folio = asignacion.siguiente_folio()
         if not folio:
-            flash("⚠️ Tu bloque asignado ya está agotado.", "danger")
-            return redirect(url_for('recetas.crear_receta', id_nota=id_nota))
+            flash("⚠️ Tu bloque de folios se ha agotado.", "danger")
+            return redirect(request.url)
 
-        # Crear la receta
-        receta = RecetaMedica(
-            id_asignacion=asignacion.id_asignacion,
-            id_paciente=paciente.id_paciente,
-            id_usuario=id_medico,
-            folio=folio,
-            nota_id=nota.id_nota,
-            diagnostico_id=request.form.get("diagnostico_id")  # 🔹 ahora también se guarda el diagnóstico
-        )
-        db.session.add(receta)
-        db.session.flush()  # obtener id_receta
+        try:
+            nueva_receta = RecetaMedica(
+                id_asignacion=asignacion.id_asignacion,
+                id_paciente=paciente.id_paciente,
+                id_usuario=id_medico,
+                folio=folio,
+                nota_id=nota.id_nota,
+                diagnostico_id=request.form.get("diagnostico_id")
+            )
+            db.session.add(nueva_receta)
+            db.session.flush()
 
-        # Guardar hasta 3 medicamentos con dosis e indicaciones
-        for i in range(1, 4):
-            id_med = request.form.get(f"med_{i}")
-            cantidad = request.form.get(f"cant_{i}")
-            dosis = request.form.get(f"dosis_{i}")
-            indicaciones = request.form.get(f"indicaciones_{i}")
+            for i in range(1, 4):
+                id_med = request.form.get(f"med_{i}")
+                cant = request.form.get(f"cant_{i}")
+                if id_med and cant:
+                    detalle = DetalleReceta(
+                        id_receta=nueva_receta.id_receta,
+                        id_medicamento=int(id_med),
+                        cantidad=int(cant),
+                        dosis=request.form.get(f"dosis_{i}").upper(),
+                        indicaciones=request.form.get(f"indicaciones_{i}").upper()
+                    )
+                    db.session.add(detalle)
 
-            if id_med and cantidad:
-                detalle = DetalleReceta(
-                    id_receta=receta.id_receta,
-                    id_medicamento=int(id_med),
-                    cantidad=int(cantidad),
-                    dosis=dosis,
-                    indicaciones=indicaciones
-                )
-                db.session.add(detalle)
+            db.session.commit()
+            flash(f"✅ Receta folio {folio} creada exitosamente.", "success")
+            return redirect(url_for("recetas.detalle_receta", id_receta=nueva_receta.id_receta))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error al crear receta: {str(e)}", "danger")
 
-        db.session.commit()
-        flash(f"✅ Receta creada con folio {folio}", "success")
-        return redirect(url_for("recetas.detalle_receta", id_receta=receta.id_receta))
-
-    # Renderizar formulario
-    return render_template(
-        "recetas/crear_receta.html",
-        nota=nota,
-        consulta=consulta,
-        paciente=paciente,
-        medicamentos=medicamentos,
-        diagnosticos=diagnosticos,
-        folio=folio_mostrar
-    )
-
+    return render_template("recetas/crear_receta.html", 
+                           nota=nota, consulta=consulta, paciente=paciente,
+                           medicamentos=medicamentos, 
+                           diagnosticos=Diagnostico.query.order_by(Diagnostico.codigo).all(),
+                           folio=asignacion.proximo_folio())
 @bp.route("/editar/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
 def editar_receta(id_receta):
     receta = RecetaMedica.query.get_or_404(id_receta)
+    
+    # SEGURIDAD: No editar si ya hay surtimiento
+    if receta.tipo_surtimiento_calculado not in ["No surtida", None]:
+        flash("❌ No es posible editar la receta: ya tiene surtimientos registrados.", "danger")
+        return redirect(url_for('recetas.detalle_receta', id_receta=id_receta))
+
     diagnosticos = Diagnostico.query.order_by(Diagnostico.codigo).all()
+    todos_medicamentos = Medicamento.query.all()
 
     if request.method == "POST":
         try:
-            # Actualizar diagnóstico
-            receta.diagnostico_id = request.form.get("diagnostico_id", receta.diagnostico_id)
+            # 1. Actualizar Diagnóstico
+            receta.diagnostico_id = request.form.get("diagnostico_id")
 
-            # Actualizar cada detalle de medicamento
+            # 2. Identificar qué eliminar
+            ids_a_eliminar = request.form.getlist("eliminar_detalle")
+            
+            # 3. Recolectar IDs finales para validar duplicados y límite
+            ids_medicamentos_finales = []
+
+            # Procesar existentes que se quedan
             for detalle in receta.detalle:
-                cantidad = request.form.get(f"cantidad_{detalle.id_detalle}")
-                dosis = request.form.get(f"dosis_{detalle.id_detalle}")
-                indicaciones = request.form.get(f"indicaciones_{detalle.id_detalle}")
+                if str(detalle.id_detalle) not in ids_a_eliminar:
+                    ids_medicamentos_finales.append(str(detalle.id_medicamento))
+                    # Actualizar datos del que se queda
+                    detalle.cantidad = int(request.form.get(f"cantidad_{detalle.id_detalle}"))
+                    detalle.dosis = request.form.get(f"dosis_{detalle.id_detalle}").upper()
+                    detalle.indicaciones = request.form.get(f"indicaciones_{detalle.id_detalle}").upper()
+                else:
+                    db.session.delete(detalle)
 
-                if cantidad:
-                    detalle.cantidad = int(cantidad)
-                detalle.dosis = dosis
-                detalle.indicaciones = indicaciones
+            # Procesar nuevos
+            nuevos_ids = request.form.getlist("nuevo_medicamento_id[]")
+            nuevas_cantidades = request.form.getlist("nuevo_cantidad[]")
+            nuevas_dosis = request.form.getlist("nuevo_dosis[]")
+            nuevas_inds = request.form.getlist("nuevo_indicaciones[]")
+
+            for i in range(len(nuevos_ids)):
+                if nuevos_ids[i]: # Si seleccionó un medicamento
+                    ids_medicamentos_finales.append(str(nuevos_ids[i]))
+                    nuevo_det = DetalleReceta(
+                        id_receta=receta.id_receta,
+                        id_medicamento=nuevos_ids[i],
+                        cantidad=int(nuevas_cantidades[i]),
+                        dosis=nuevas_dosis[i].upper(),
+                        indicaciones=nuevas_inds[i].upper()
+                    )
+                    db.session.add(nuevo_det)
+
+            # --- VALIDACIONES CRÍTICAS ---
+            # A. Validar Duplicados
+            if len(ids_medicamentos_finales) != len(set(ids_medicamentos_finales)):
+                db.session.rollback()
+                flash("❌ Error: No se puede recetar el mismo medicamento dos veces.", "danger")
+                return redirect(url_for('recetas.editar_receta', id_receta=id_receta))
+
+            # B. Validar Límite de 3
+            if len(ids_medicamentos_finales) > 3:
+                db.session.rollback()
+                flash("❌ Error: Máximo 3 claves por receta.", "danger")
+                return redirect(url_for('recetas.editar_receta', id_receta=id_receta))
+            
+            if len(ids_medicamentos_finales) == 0:
+                db.session.rollback()
+                flash("❌ Error: La receta debe tener al menos un medicamento.", "danger")
+                return redirect(url_for('recetas.editar_receta', id_receta=id_receta))
 
             db.session.commit()
             flash("✅ Receta actualizada con éxito", "success")
@@ -195,13 +247,12 @@ def editar_receta(id_receta):
 
         except Exception as e:
             db.session.rollback()
-            flash(f"❌ Error al actualizar la receta: {e}", "danger")
+            flash(f"❌ Error al actualizar: {str(e)}", "danger")
 
-    return render_template(
-        "recetas/editar_receta.html",
-        receta=receta,
-        diagnosticos=diagnosticos
-    )
+    return render_template("recetas/editar_receta.html", 
+                           receta=receta, 
+                           diagnosticos=diagnosticos, 
+                           todos_medicamentos=todos_medicamentos)
 
 
 @bp.route("/salida", methods=["POST"])
@@ -318,104 +369,99 @@ def detalle_recetasss(id_receta):
 def detalle_receta(id_receta):
     receta = RecetaMedica.query.get_or_404(id_receta)
     
-    # Diccionario con cantidades entregadas por medicamento
-    entregados = {s.id_medicamento: s.cantidad for s in receta.salidas}
-    
-    # Lista de médicos
-    medicos = Usuario.query.all()
+    # Calculamos el total entregado por medicamento (sumando todos sus lotes de salida)
+    entregados = {}
+    for salida in receta.salidas:
+        entregados[salida.id_medicamento] = entregados.get(salida.id_medicamento, 0) + salida.cantidad
     
     return render_template(
         "recetas/detalle_receta.html",
         receta=receta,
-        entregados=entregados,
-        medicos=medicos
+        entregados=entregados
     )
+
 #==========================================================================================================surtimiento de receta===============================
 @bp.route("/recetas/pendientes")
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def recetas_pendientes():
-    # Obtener parámetros de búsqueda
-    folio = request.args.get("folio", type=int)
-    paciente_nombre = request.args.get("paciente", type=str)
-
-    # Base query: solo recetas que no estén completas
-    query = RecetaMedica.query.filter(
+    query = request.args.get('q', '').strip().upper()
+    
+    # Base query: recetas no completas con JOIN a Paciente
+    recetas_query = RecetaMedica.query.filter(
         RecetaMedica.tipo_surtimiento_calculado != "Completa"
     ).join(Paciente)
 
-    # Filtrar por folio si se especifica
-    if folio:
-        query = query.filter(RecetaMedica.folio == folio)
+    if query:
+        # Buscamos por nombre de paciente o intentamos convertir query a folio si es número
+        if query.isdigit():
+            recetas_query = recetas_query.filter(RecetaMedica.folio == int(query))
+        else:
+            recetas_query = recetas_query.filter(Paciente.nombre.ilike(f"%{query}%"))
 
-    # Filtrar por nombre de paciente si se especifica
-    if paciente_nombre:
-        query = query.filter(Paciente.nombre.ilike(f"%{paciente_nombre}%"))
+    recetas = recetas_query.order_by(RecetaMedica.fecha_emision.desc()).all()
 
-    # Ordenar por fecha descendente
-    recetas = query.order_by(RecetaMedica.fecha_emision.desc()).all()
-
-    return render_template(
-        "recetas/pendientes.html",
-        recetas=recetas
-    )
+    return render_template("recetas/pendientes.html", 
+                           recetas=recetas, 
+                           query=query)
 
 @bp.route("/surtir/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def surtir_receta(id_receta):
     receta = RecetaMedica.query.get_or_404(id_receta)
 
-    # Inventario actual por medicamento
-    inventario = {
-        det.id_medicamento: (
-            db.session.query(InventarioFarmacia)
-            .filter_by(id_medicamento=det.id_medicamento)
-            .first().cantidad
-            if db.session.query(InventarioFarmacia).filter_by(id_medicamento=det.id_medicamento).first()
-            else 0
-        )
-        for det in receta.detalle
-    }
+    # Diccionario para mostrar stock total disponible por medicamento en el template
+    inventario_total = {}
+    for det in receta.detalle:
+        total = db.session.query(db.func.sum(InventarioFarmacia.cantidad))\
+                  .filter_by(id_medicamento=det.id_medicamento).scalar() or 0
+        inventario_total[det.id_medicamento] = total
 
     if request.method == "POST":
         try:
             for det in receta.detalle:
-                cant_entregada = request.form.get(f"cant_{det.id_detalle}", type=int) or 0
+                cant_a_surtir = request.form.get(f"cant_{det.id_detalle}", type=int) or 0
+                
+                if cant_a_surtir > 0:
+                    # Buscamos lotes disponibles en farmacia ordenados por vencimiento (PEPS)
+                    lotes_disponibles = InventarioFarmacia.query.filter(
+                        InventarioFarmacia.id_medicamento == det.id_medicamento,
+                        InventarioFarmacia.cantidad > 0
+                    ).order_by(InventarioFarmacia.fecha_vencimiento.asc()).all()
 
-                # Validar que no se surta más de lo recetado
-                cant_max = det.cantidad - (det.cantidad_surtida or 0)
-                if cant_entregada > cant_max:
-                    cant_entregada = cant_max
+                    por_surtir = cant_a_surtir
+                    
+                    for inv_lote in lotes_disponibles:
+                        if por_surtir <= 0: break
+                        
+                        cantidad_desde_este_lote = min(inv_lote.cantidad, por_surtir)
+                        
+                        # 1. Crear registro de salida con el lote específico
+                        salida = SalidaFarmaciaPaciente( # Ajustado al nombre de tu modelo de historial
+                            id_receta=receta.id_receta,
+                            id_medicamento=det.id_medicamento,
+                            cantidad=cantidad_desde_este_lote,
+                            lote=inv_lote.lote,
+                            fecha_vencimiento=inv_lote.fecha_vencimiento,
+                            fecha_salida=datetime.utcnow(),
+                            id_usuario=current_user.id_usuario
+                        )
+                        db.session.add(salida)
 
-                # Validar que no se surta más de lo disponible
-                stock = inventario[det.id_medicamento]
-                if cant_entregada > stock:
-                    cant_entregada = stock
+                        # 2. Restar del inventario de ese lote
+                        inv_lote.cantidad -= cantidad_desde_este_lote
+                        por_surtir -= cantidad_desde_este_lote
 
-                if cant_entregada > 0:
-                    # Crear registro de salida en farmacia
-                    salida = SalidaFarmaciaPaciente(
-                        folio_receta=receta.folio,   # ✅ Campo correcto
-                        id_medicamento=det.id_medicamento,
-                        cantidad=cant_entregada,
-                        fecha_salida=datetime.utcnow(),
-                        id_usuario=current_user.id_usuario
-                    )
-                    db.session.add(salida)
-
-                    # Actualizar inventario
-                    inv = InventarioFarmacia.query.filter_by(id_medicamento=det.id_medicamento).first()
-                    if inv:
-                        inv.cantidad = max(inv.cantidad - cant_entregada, 0)
-
-                    # Actualizar cantidad surtida en DetalleReceta
-                    det.cantidad_surtida = (det.cantidad_surtida or 0) + cant_entregada
+                    # 3. Actualizar el acumulado en la receta
+                    det.cantidad_surtida = (det.cantidad_surtida or 0) + cant_a_surtir
 
             db.session.commit()
-            flash("✅ Receta surtida correctamente", "success")
+            flash(f"✅ Receta {receta.folio} surtida correctamente.", "success")
             return redirect(url_for("recetas.recetas_pendientes"))
 
         except Exception as e:
             db.session.rollback()
-            flash(f"❌ Error al surtir la receta: {e}", "danger")
+            flash(f"❌ Error al surtir: {str(e)}", "danger")
 
-    return render_template("recetas/surtir_receta.html", receta=receta, inventario=inventario)
+    return render_template("recetas/surtir_receta.html", 
+                           receta=receta, 
+                           inventario=inventario_total)

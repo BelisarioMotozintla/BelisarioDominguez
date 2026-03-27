@@ -55,30 +55,6 @@ def registrar_salida(id_medicamento):
 
     return render_template('farmacia/salida.html', medicamento=medicamento, medicos=medicos)
 
-@bp.route('/medicamentos/buscar')
-@roles_required(['UsuarioAdministrativo', 'Administrador'])
-def buscar_medicamentos():
-    q = request.args.get('q', '').strip().upper() # Buscamos en mayúsculas para coincidir
-    if not q:
-        return jsonify([])
-
-    # Filtramos solo por los campos que SI existen en tu modelo
-    resultados = Medicamento.query.filter(
-        (Medicamento.clave.ilike(f"%{q}%")) |
-        (Medicamento.principio_activo.ilike(f"%{q}%"))
-    ).limit(20).all()
-
-    # Formateamos para que Select2 muestre la info clara
-    data = []
-    for med in resultados:
-        data.append({
-            'id': med.id_medicamento,
-            # Mostramos Clave y Principio Activo únicamente
-            'text': f"{med.clave} | {med.principio_activo}"
-        })
-
-    return jsonify(data)
-
 
 # Listar salidas
 @bp.route('/salidas')
@@ -416,55 +392,208 @@ def eliminar_entrada(id_entrada):
         
     return redirect(url_for('farmacia.listar_entradas'))
 
+#))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) BUSQUEDAS  ))))))))))))))))))))))))))))))))))))))))))))))
+
+@bp.route('/medicamentos/buscar')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def buscar_medicamentos():
+    q = request.args.get('q', '').strip().upper() # Buscamos en mayúsculas para coincidir
+    if not q:
+        return jsonify([])
+
+    # Filtramos solo por los campos que SI existen en tu modelo
+    resultados = Medicamento.query.filter(
+        (Medicamento.clave.ilike(f"%{q}%")) |
+        (Medicamento.principio_activo.ilike(f"%{q}%"))
+    ).limit(20).all()
+
+    # Formateamos para que Select2 muestre la info clara
+    data = []
+    for med in resultados:
+        data.append({
+            'id': med.id_medicamento,
+            # Mostramos Clave y Principio Activo únicamente
+            'text': f"{med.clave} | {med.principio_activo}"
+        })
+
+    return jsonify(data)
+
+
+
+@bp.route('/buscar_lotes_almacen/<int:id_medicamento>')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def buscar_lotes_almacen(id_medicamento):
+    # Buscamos en InventarioAlmacen los registros con cantidad > 0
+    lotes = InventarioAlmacen.query.filter(
+        InventarioAlmacen.id_medicamento == id_medicamento,
+        InventarioAlmacen.cantidad > 0
+    ).all()
+    
+    return jsonify([{
+        'lote': l.lote, 
+        'cantidad': l.cantidad, 
+        'vencimiento': l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else 'N/A'
+    } for l in lotes])
+
+
+
 #===============================================================================MOVIMIENTO DE ALMACEN A FARMACIA================================
 @bp.route('/movimientos/almacen')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_movimientos():
-    movimientos = MovimientoAlmacenFarmacia.query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
-    return render_template('farmacia/movimientos.html', movimientos=movimientos)
+    # Obtener el parámetro de búsqueda
+    query = request.args.get('q', '').strip().upper()
+    
+    # Base de la consulta con JOINs necesarios
+    movimientos_query = MovimientoAlmacenFarmacia.query.join(Medicamento).join(Usuario)
 
-@bp.route('/movimientos/nuevo', methods=['GET', 'POST'])
+    if query:
+        movimientos_query = movimientos_query.filter(
+            (Medicamento.nombre_comercial.ilike(f'%{query}%')) |
+            (Medicamento.principio_activo.ilike(f'%{query}%')) |
+            (Usuario.usuario.ilike(f'%{query}%')) |
+            (MovimientoAlmacenFarmacia.observaciones.ilike(f'%{query}%'))
+        )
+
+    # Ordenar por los más recientes
+    movimientos = movimientos_query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
+    
+    return render_template('farmacia/movimientos.html', 
+                           movimientos=movimientos, 
+                           query=query)
+
+
+@bp.route('/movimientos/nuevo_movimiento', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_movimiento():
-    medicamentos = Medicamento.query.order_by(Medicamento.nombre_comercial).all()
+    # 1. Obtener datos (esto siempre se ejecuta para el GET)
+    medicamentos = Medicamento.query.order_by(Medicamento.principio_activo).all()
 
     if request.method == 'POST':
-        id_usuario = current_user.id_usuario  # usamos current_user
+        try:
+            id_medicamento = int(request.form['id_medicamento'])
+            cantidad = int(request.form['cantidad'])
+            lote = request.form.get('lote', '').strip().upper()
+            
+            # Validar existencia
+            inv_almacen = InventarioAlmacen.query.filter_by(
+                id_medicamento=id_medicamento, 
+                lote=lote
+            ).first()
 
-        id_medicamento = int(request.form['id_medicamento'])
-        cantidad = int(request.form['cantidad'])
-        observaciones = request.form.get('observaciones', '')
+            if not inv_almacen or inv_almacen.cantidad < cantidad:
+                flash(f"❌ Stock insuficiente en Almacén. Disponible: {inv_almacen.cantidad if inv_almacen else 0}", "danger")
+                return redirect(url_for('farmacia.nuevo_movimiento'))
 
-        # 1. Crear movimiento
-        movimiento = MovimientoAlmacenFarmacia(
-            id_medicamento=id_medicamento,
-            cantidad=cantidad,
-            fecha_movimiento=datetime.utcnow(),
-            observaciones=observaciones,
-            id_usuario=id_usuario
-        )
-        db.session.add(movimiento)
+            # Registrar Movimiento
+            movimiento = MovimientoAlmacenFarmacia(
+                id_medicamento=id_medicamento,
+                cantidad=cantidad,
+                lote=lote,
+                fecha_vencimiento=inv_almacen.fecha_vencimiento,
+                fecha_movimiento=datetime.utcnow(),
+                id_usuario=current_user.id_usuario,
+                observaciones=request.form.get('observaciones', '').upper()
+            )
+            db.session.add(movimiento)
 
-        # 2. Actualizar inventarios
-        inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=id_medicamento).first()
-        inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=id_medicamento).first()
+            # Actualizar Inventarios
+            inv_almacen.cantidad -= cantidad
 
-        if not inv_almacen or inv_almacen.cantidad < cantidad:
-            flash("⚠️ Stock insuficiente en almacén", "danger")
-            return redirect(url_for('farmacia.nuevo_movimiento'))
+            inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=id_medicamento, lote=lote).first()
+            if inv_farmacia:
+                inv_farmacia.cantidad += cantidad
+            else:
+                inv_farmacia = InventarioFarmacia(
+                    id_medicamento=id_medicamento,
+                    cantidad=cantidad,
+                    lote=lote,
+                    fecha_vencimiento=inv_almacen.fecha_vencimiento
+                )
+                db.session.add(inv_farmacia)
 
-        inv_almacen.cantidad -= cantidad
-        if not inv_farmacia:
-            inv_farmacia = InventarioFarmacia(id_medicamento=id_medicamento, cantidad=0)
-            db.session.add(inv_farmacia)
-        inv_farmacia.cantidad += cantidad
+            db.session.commit()
+            flash(f"✅ Traslado exitoso de {cantidad} unidades.", "success")
+            return redirect(url_for('farmacia.listar_movimientos'))
 
-        db.session.commit()
-
-        flash(f"✅ Movimiento registrado: {cantidad} unidades de {movimiento.medicamento.nombre_comercial}", "success")
-        return redirect(url_for('farmacia.listar_movimientos'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error: {str(e)}", "danger")
+            # Si hay error en el POST, el código sigue hacia abajo y vuelve a cargar la página
 
     return render_template('farmacia/nuevo_movimiento.html', medicamentos=medicamentos)
+
+
+@bp.route('/movimientos/editar/<int:id>', methods=['GET', 'POST'])
+@roles_required(['Administrador']) # Sugerido solo para admin por control de stock
+def editar_movimiento(id):
+    movimiento = MovimientoAlmacenFarmacia.query.get_or_404(id)
+    # Guardamos la cantidad original para calcular la diferencia
+    cantidad_anterior = movimiento.cantidad
+    medicamentos = Medicamento.query.order_by(Medicamento.principio_activo).all()
+
+    if request.method == 'POST':
+        try:
+            nueva_cantidad = int(request.form['cantidad'])
+            diferencia = nueva_cantidad - cantidad_anterior
+
+            # 1. Validar stock en almacén si la cantidad aumenta
+            inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
+            inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
+
+            if diferencia > 0 and (not inv_almacen or inv_almacen.cantidad < diferencia):
+                flash(f"❌ No hay suficiente stock extra en almacén (Faltan {diferencia - inv_almacen.cantidad} pzs)", "danger")
+                return redirect(url_for('farmacia.editar_movimiento', id=id))
+
+            # 2. Validar stock en farmacia si la cantidad disminuye (para poder devolver a almacén)
+            if diferencia < 0 and (not inv_farmacia or inv_farmacia.cantidad < abs(diferencia)):
+                flash("❌ No se puede reducir el movimiento: la farmacia ya no tiene suficiente stock para devolver al almacén.", "danger")
+                return redirect(url_for('farmacia.editar_movimiento', id=id))
+
+            # 3. Aplicar cambios
+            inv_almacen.cantidad -= diferencia
+            inv_farmacia.cantidad += diferencia
+            
+            movimiento.cantidad = nueva_cantidad
+            movimiento.observaciones = request.form.get('observaciones', '').upper()
+            
+            db.session.commit()
+            flash("✅ Movimiento y stocks actualizados correctamente.", "success")
+            return redirect(url_for('farmacia.listar_movimientos'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error: {str(e)}", "danger")
+
+    return render_template('farmacia/editar_movimiento.html', movimiento=movimiento, medicamentos=medicamentos)
+
+@bp.route('/movimientos/eliminar/<int:id>', methods=['POST'])
+@roles_required(['Administrador'])
+def eliminar_movimiento(id):
+    movimiento = MovimientoAlmacenFarmacia.query.get_or_404(id)
+    try:
+        # Revertir stocks: Quitar de farmacia, devolver a almacén
+        inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
+        inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
+
+        if not inv_farmacia or inv_farmacia.cantidad < movimiento.cantidad:
+            flash("❌ No se puede eliminar: el stock ya fue consumido en farmacia.", "danger")
+            return redirect(url_for('farmacia.listar_movimientos'))
+
+        inv_farmacia.cantidad -= movimiento.cantidad
+        if inv_almacen:
+            inv_almacen.cantidad += movimiento.cantidad
+        
+        db.session.delete(movimiento)
+        db.session.commit()
+        flash("✅ Movimiento eliminado y stock devuelto a almacén.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Error al eliminar: {str(e)}", "danger")
+    
+    return redirect(url_for('farmacia.listar_movimientos'))
+
+
 #=========================================================================================TRANSFERENCIA DE MEDICAMENTO A OTRA UNIDAD MEDICA =================
 @bp.route('/transferencias')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])

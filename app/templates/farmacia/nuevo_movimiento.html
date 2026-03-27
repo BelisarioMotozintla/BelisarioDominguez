@@ -1,69 +1,152 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h3 class="text-success">Registrar Movimiento de Almacén a Farmacia</h3>
+<div class="container mt-4 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h2 class="h5 mb-0"><i class="bi bi-box-arrow-right"></i> Registrar Movimiento: Almacén a Farmacia</h2>
+        </div>
+        <div class="card-body">
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+            <form method="POST" class="needs-validation" novalidate>
+                <div class="row">
+                    <!-- Selección de Medicamento con Select2 -->
+                    <div class="col-md-12 mb-3">
+                        <label for="id_medicamento" class="form-label fw-bold">Medicamento</label>
+                        <select id="id_medicamento" name="id_medicamento" class="form-select" required>
+                            <!-- Se llena vía AJAX con Select2 -->
+                        </select>
+                        <div class="invalid-feedback">Debe seleccionar un medicamento.</div>
+                    </div>
 
-<form method="POST">
+                    <!-- Lote (Ahora obligatorio según tu nueva lógica) -->
+                    <div class="col-md-6 mb-3">
+                      <label for="lote" class="form-label fw-bold">Lote Disponible en Almacén</label>
+                      <select name="lote" id="lote" class="form-select" required disabled>
+                          <option value="">-- SELECCIONE UN MEDICAMENTO PRIMERO --</option>
+                      </select>
+                      <div class="invalid-feedback">Debe seleccionar un lote válido.</div>
+                      <div id="info-stock" class="form-text text-primary fw-bold"></div>
+                  </div>
 
-  <div class="mb-3">
-    <label for="id_medicamento" class="form-control">Medicamento</label>
-    <select id="id_medicamento" name="id_medicamento" style="width:100%" required>
-        <!-- Se deja vacío, Select2 lo llenará mediante AJAX -->
-    </select>
+                    <!-- Cantidad -->
+                    <div class="col-md-6 mb-3">
+                        <label for="cantidad" class="form-label fw-bold">Cantidad a Trasladar</label>
+                        <input type="number" name="cantidad" id="cantidad" class="form-control" 
+                               min="1" placeholder="0" required>
+                        <div class="invalid-feedback">Ingrese una cantidad válida mayor a 0.</div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="col-md-12 mb-3">
+                        <label for="observaciones" class="form-label fw-bold">Observaciones</label>
+                        <textarea name="observaciones" id="observaciones" class="form-control uppercase-input" 
+                                  rows="3" placeholder="MOTIVO DEL MOVIMIENTO..."></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 border-top pt-3 text-end">
+                    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-success px-4">
+                        <i class="bi bi-save"></i> Guardar Movimiento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
-  <div class="mb-3">
-    <label for="cantidad" class="form-label">Cantidad</label>
-    <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
-  </div>
-
-  <div class="mb-3">
-    <label for="observaciones" class="form-label">Observaciones</label>
-    <textarea class="form-control" id="observaciones" name="observaciones" rows="3"></textarea>
-  </div>
-
-  <button type="submit" class="btn btn-success">
-    <i class="bi bi-plus-square"></i> Guardar Movimiento
-  </button>
-  <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-secondary">Cancelar</a>
-</form>
 <script>
-
 $(document).ready(function() {
+    // 1. Inicializar Select2 con AJAX
     $('#id_medicamento').select2({
-        placeholder: "-- Busca por clave, nombre o principio activo --",
+        theme: 'bootstrap-5',
+        placeholder: "-- BUSCA POR CLAVE O PRINCIPIO ACTIVO --",
         allowClear: true,
-        minimumInputLength: 2, // Espera a que escriban 2 letras para no saturar
+        minimumInputLength: 2,
         ajax: {
-            // Ajusta 'farmacia.buscar_medicamentos' al nombre real de tu blueprint
             url: "{{ url_for('farmacia.buscar_medicamentos') }}", 
             dataType: 'json',
-            delay: 300, // Tiempo de espera para enviar la petición mientras escriben
+            delay: 300,
             data: function (params) {
-                return {
-                    q: params.term // 'q' es lo que espera tu ruta en request.args.get('q')
-                };
+                return { q: params.term };
             },
             processResults: function (data) {
-                return {
-                    results: data
-                };
+                return { results: data };
             },
             cache: true
         },
-        width: '100%' // Asegura que ocupe todo el ancho del contenedor
+        width: '100%'
+    });
+
+    // 2. Convertir a mayúsculas automáticamente
+    document.querySelectorAll('.uppercase-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    });
+
+    // 3. Validación de Bootstrap
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
     });
 });
+$('#id_medicamento').on('change', function() {
+    const id_med = $(this).val();
+    const $loteSelect = $('#lote');
+    const $infoStock = $('#info-stock');
+
+    if (!id_med) {
+        $loteSelect.empty().append('<option value="">-- SELECCIONE MEDICAMENTO --</option>').prop('disabled', true);
+        return;
+    }
+
+    // Llamada AJAX para traer los lotes
+    $.getJSON(`/farmacia/buscar_lotes_almacen/${id_med}`, function(data) {
+        $loteSelect.empty().append('<option value="">-- SELECCIONE UN LOTE --</option>');
+        
+        if (data.length > 0) {
+            data.forEach(function(item) {
+                $loteSelect.append(
+                    `<option value="${item.lote}" data-max="${item.cantidad}">
+                        Lote: ${item.lote} (Disponible: ${item.cantidad} | Vence: ${item.vencimiento})
+                    </option>`
+                );
+            });
+            $loteSelect.prop('disabled', false);
+        } else {
+            $loteSelect.append('<option value="">SIN STOCK EN ALMACÉN</option>').prop('disabled', true);
+        }
+    });
+});
+
+// Opcional: Validar que no escriban más de lo que hay
+$('#lote').on('change', function() {
+    const max = $(this).find(':selected').data('max');
+    if (max) {
+        $('#cantidad').attr('max', max);
+        $('#info-stock').text(`Máximo disponible: ${max} unidades.`);
+    }
+});
+
 </script>
 {% endblock %}

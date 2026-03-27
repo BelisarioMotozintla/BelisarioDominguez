@@ -1,104 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Flash messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+<div class="container mt-4 mb-5">
+    <!-- Encabezado y Navegación -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-primary"><i class="bi bi-file-earmark-medical"></i> Detalle de Receta</h3>
+        <div>
+            {% if current_user.rol.nombre_rol == 'USUARIOMEDICO' or current_user.rol.nombre_rol == 'UsuarioPasante' %}
+    <!-- Contenido visible para médicos y pasantes -->
+                <a href="{{ url_for('recetas.editar_receta', id_receta=receta.id_receta) }}" class="btn btn-warning me-2">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+                <a href="{{ url_for('medicos.ver_nota', id_nota=receta.nota_id) }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Nota
+                </a>
+            {% elif current_user.rol.nombre_rol in ['UsuarioAdministrativo', 'Administrador'] %}
+                <a href="{{ url_for('farmacia.listar_salidas') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver a Salidas
+                </a>
+            {% endif %}
+        </div>
+    </div>
 
-<!-- Mini menú de botones -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>Recetas Médicas</h2>
-  <div>
-    {% if receta %}
-    
+    <!-- Tarjeta de Información General -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-0 text-muted">Folio: <span class="text-dark fw-bold">{{ receta.folio }}</span></h5>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="badge {% if receta.tipo_surtimiento_calculado == 'Completa' %}bg-success{% elif receta.tipo_surtimiento_calculado == 'Parcial' %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6">
+                        Estado: {{ receta.tipo_surtimiento_calculado or 'No Surtida' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted small d-block">Paciente</label>
+                    <span class="fw-bold">{{ receta.paciente.nombre }}</span>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted small d-block">Médico</label>
+                    <span class="fw-bold">{{ receta.usuario.usuario }}</span>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="text-muted small d-block">Fecha de Emisión</label>
+                    <span class="fw-bold">{{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                <div class="col-12">
+                    <label class="text-muted small d-block">Diagnóstico</label>
+                    <span class="fw-bold text-primary">{{ receta.diagnostico.codigo }}</span> - {{ receta.diagnostico.descripcion }}
+                </div>
+            </div>
+        </div>
+    </div>
 
-      {% if current_user.rol.nombre_rol == 'USUARIOMEDICO' %}
-      <!-- Botón: editar receta -->
-      <a href="{{ url_for('recetas.editar_receta', id_receta=receta.id_receta) }}" 
-         class="btn btn-sm btn-outline-warning me-2">
-         <i class="bi bi-pencil-square"></i> Editar Receta
-      </a>
-    <a href="{{ url_for('medicos.ver_nota', id_nota=receta.nota_id) }}"
-       class="btn btn-sm btn-outline-secondary">
-       <i class="bi bi-arrow-return-left"></i> Regresar a la nota
-    </a>
-{% elif current_user.rol.nombre_rol == 'UsuarioAdministrativo' %}
-    <a href="{{ url_for('recetas.listar_salidas') }}"
-       class="btn btn-sm btn-outline-secondary">
-       <i class="bi bi-arrow-return-left"></i> Regresar a salidas
-    </a>
-{% endif %}
-    {% endif %}
-  </div>
-</div>
- 
-<!-- Información de la receta -->
-<div class="card shadow p-4">
-  <h3 class="mb-3">Receta médica</h3>
-  <p><strong>Folio:</strong> {{ receta.folio }}</p>
-  <p><strong>Paciente:</strong> {{ receta.paciente.nombre }}</p>
-  <p><strong>Médico:</strong> {{ current_user.empleado.nombre if current_user.empleado else current_user.username }}</p>
-  <p><strong>Fecha:</strong> {{ receta.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</p>
-
-  <!-- Diagnóstico -->
-  <p><strong>Diagnóstico:</strong> 
-    {{ receta.diagnostico.codigo }} - {{ receta.diagnostico.descripcion }}
-  </p>
-
-  <h4 class="mt-4">Medicamentos</h4>
-  <table class="table table-bordered text-center">
-    <thead class="table-light">
-      <tr>
-        <th>Medicamento</th>
-        <th>Cantidad prescrita</th>
-        <th>Dosis</th>
-        <th>Indicaciones</th>
-        <th>Entregado</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for detalle in receta.detalle %}
-      <tr>
-        <td>{{ detalle.medicamento.nombre_comercial }}</td>
-        <td>{{ detalle.cantidad }}</td>
-        <td>{{ detalle.dosis }}</td>
-        <td>{{ detalle.indicaciones }}</td>
-        <td>{{ entregados.get(detalle.id_medicamento, 0) }}</td>
-        <td>
-          {% set entregado = entregados.get(detalle.id_medicamento, 0) %}
-          {% if entregado == 0 %}
-            <span class="badge bg-danger">No surtido</span>
-          {% elif entregado < detalle.cantidad %}
-            <span class="badge bg-warning text-dark">Parcial</span>
-          {% else %}
-            <span class="badge bg-success">Completo</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <div class="mt-4">
-    <h5>Tipo de surtimiento total: 
-      {% if receta.tipo_surtimiento_calculado == "Completa" %}
-        <span class="badge bg-success">Completa</span>
-      {% elif receta.tipo_surtimiento_calculado == "Parcial" %}
-        <span class="badge bg-warning text-dark">Parcial</span>
-      {% else %}
-        <span class="badge bg-danger">No surtida</span>
-      {% endif %}
-    </h5>
-  </div>
+    <!-- Tabla de Medicamentos -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Medicamento</th>
+                            <th class="text-center">Prescrito</th>
+                            <th>Dosis e Indicaciones</th>
+                            <th class="text-center">Entregado</th>
+                            <th class="text-center pe-4">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detalle in receta.detalle %}
+                        {% set total_entregado = entregados.get(detalle.id_medicamento, 0) %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-bold">{{ detalle.medicamento.clave }}</span><br>
+                                <small class="text-muted">{{ detalle.medicamento.principio_activo }}</small>
+                            </td>
+                            <td class="text-center fw-bold">{{ detalle.cantidad }}</td>
+                            <td>
+                                <div class="small"><strong>Dosis:</strong> {{ detalle.dosis }}</div>
+                                <div class="small text-muted">{{ detalle.indicaciones }}</div>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-bold {% if total_entregado >= detalle.cantidad %}text-success{% elif total_entregado > 0 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ total_entregado }}
+                                </span>
+                            </td>
+                            <td class="text-center pe-4">
+                                {% if total_entregado == 0 %}
+                                    <span class="badge rounded-pill bg-danger">Pendiente</span>
+                                {% elif total_entregado < detalle.cantidad %}
+                                    <span class="badge rounded-pill bg-warning text-dark">Incompleto</span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-success text-white">Surtido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
