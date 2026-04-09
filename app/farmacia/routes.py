@@ -71,7 +71,8 @@ def reporte_medicamentos():
 
     if query:
         salidas = salidas.filter(
-            (Medicamento.nombre.ilike(f'%{query}%')) |
+            (Medicamento.clave.ilike(f'%{query}%')) |
+            (Medicamento.principio_activo.ilike(f'%{query}%')) |
             (Usuario.usuario.ilike(f'%{query}%'))
         )
 
@@ -92,7 +93,7 @@ def listar_medicamentos():
         # Filtro con búsqueda parcial
         medicamentos_query = medicamentos_query.filter(
             (Medicamento.clave.ilike(f'%{query}%')) |
-            (Medicamento.Medicamento.principio_activo.ilike(f'%{query}%'))
+            (Medicamento.principio_activo.ilike(f'%{query}%'))
         )
     
     # Paginación (ejemplo: 10 por página)

@@ -7,16 +7,15 @@
       <h2 class="h5 mb-0"><i class="bi bi-capsule"></i> Registro de Nuevo Medicamento</h2>
     </div>
     <div class="card-body">
-      <!-- Se añade 'needs-validation' de Bootstrap -->
       <form method="POST" class="needs-validation" novalidate>
         <div class="row">
           <!-- Datos Básicos -->
           <div class="col-md-4 mb-3">
             <label class="form-label fw-bold">Clave</label>
-            <input type="text" name="clave" class="form-control uppercase-input" 
-                   placeholder="000.000.0000.00" required 
-                   pattern="^[A-Z0-0\.]+$" title="Solo letras, números y puntos">
-            <div class="invalid-feedback">La clave es obligatoria y no debe contener caracteres especiales.</div>
+            <input type="text" name="clave" id="clave_input" class="form-control" 
+                   placeholder="010.000.0000.00" required 
+                   pattern="^[A-Z0-9.]+$" title="Solo letras, números y puntos">
+            <div class="invalid-feedback">La clave es obligatoria (ej. 010.000.4162.00).</div>
           </div>
           <div class="col-md-8 mb-3">
             <label class="form-label fw-bold">Principio Activo</label>
@@ -60,7 +59,7 @@
             </div>
           </div>
 
-          <!-- Niveles de Stock con validación de números -->
+          <!-- Niveles de Stock -->
           <div class="col-md-3 mb-3">
             <label class="form-label text-danger fw-bold">Stock Mínimo (Crítico)</label>
             <input type="number" name="stock_minimo" class="form-control" value="10" min="0" required>
@@ -78,10 +77,10 @@
           <div class="col-md-3 mb-3">
             <label class="form-label">Nivel de Movimiento</label>
             <select name="nivel_movimiento" class="form-select">
-              <option value="NULO" selected>NULO</option>
-              <option value="BAJO">BAJO</option>
-              <option value="MEDIO">MEDIO</option>
-              <option value="ALTO">ALTO</option>
+              <option value="Nulo" selected>NULO</option>
+              <option value="Bajo">BAJO</option>
+              <option value="Medio">MEDIO</option>
+              <option value="Alto">ALTO</option>
             </select>
           </div>
         </div>
@@ -98,14 +97,28 @@
 </div>
 
 <script>
-  // 1. Script para convertir a mayúsculas mientras el usuario escribe
+  // 1. AUTO-FORMATEO DE CLAVE (000.000.0000.00)
+  const claveInput = document.getElementById('clave_input');
+  claveInput.addEventListener('input', function (e) {
+    let value = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    let formatted = "";
+    if (value.length > 0) {
+      formatted = value.slice(0, 3);
+      if (value.length > 3) formatted += "." + value.slice(3, 6);
+      if (value.length > 6) formatted += "." + value.slice(6, 10);
+      if (value.length > 10) formatted += "." + value.slice(10, 12);
+    }
+    e.target.value = formatted.slice(0, 15);
+  });
+
+  // 2. Mayúsculas para campos de texto (excepto el select)
   document.querySelectorAll('.uppercase-input').forEach(function(input) {
     input.addEventListener('input', function() {
       this.value = this.value.toUpperCase();
     });
   });
 
-  // 2. Validación nativa de Bootstrap
+  // 3. Validación de Bootstrap
   (function () {
     'use strict'
     var forms = document.querySelectorAll('.needs-validation')
