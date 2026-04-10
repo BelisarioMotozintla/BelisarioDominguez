@@ -1,112 +1,179 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3 class="text-info">Reporte de Inventarios</h3>
+<style>
+    /* Forzamos que el buscador y el botón de Excel se alineen bien sin romper tu CSS global */
+    .dataTables_filter { text-align: right; margin-bottom: 10px; }
+    .dt-buttons { margin-bottom: 10px; }
+    #tablaInventario_wrapper .row { align-items: center; }
+</style>
 
-<!-- Botones para alternar -->
-<div class="mb-3">
-  <button class="btn btn-primary btn-sm" onclick="mostrar('consolidado')">
-    <i class="bi bi-collection"></i> Consolidado
-  </button>
-  <button class="btn btn-secondary btn-sm" onclick="mostrar('separado')">
-    <i class="bi bi-columns-gap"></i> Separado
-  </button>
- <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Cancelar</a>
+<!-- CSS específicos solo para esta página -->
+<link rel="stylesheet" href="https://datatables.net">
+<link rel="stylesheet" href="https://datatables.net">
+<div class="container-fluid mt-4">
+    <!-- CABECERA -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-info"><i class="bi bi-file-earmark-bar-graph"></i> Reporte de Inventario Inteligente</h3>
+        <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
+    </div>
+
+    <!-- PANTALLA DE CARGA INICIAL -->
+    <div id="pantalla-carga" class="text-center py-5 shadow-sm bg-light rounded border">
+        <i class="bi bi-box-seam text-primary" style="font-size: 3rem;"></i>
+        <h4 class="mt-3">El catálogo contiene {{ reporte|length }} medicamentos</h4>
+        <p class="text-muted">Presiona el botón para procesar semáforos, lotes y activar el buscador.</p>
+        <button class="btn btn-primary btn-lg px-5 shadow" onclick="inicializarReporte()">
+            <i class="bi bi-play-fill"></i> Mostrar Catálogo Completo
+        </button>
+    </div>
+
+    <!-- SECCIÓN DEL REPORTE (OCULTA INICIALMENTE) -->
+    <div id="seccion-reporte" style="display:none;">
+        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <i class="bi bi-info-circle-fill text-info"></i> 
+                <b>Buscador avanzado:</b> Filtra por <b>Clave, Principio Activo, Lote</b> o la palabra <b>"CADUCAR"</b>.
+            </div>
+            <div id="contenedor-excel"></div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <table id="tablaInventario" class="table table-hover align-middle mb-0" style="width:100%">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Clave</th>
+                            <th>Medicamento (Principio Activo)</th>
+                            <th class="d-none">Búsqueda</th> <!-- Columna oculta para lotes/estados -->
+                            <th class="text-center">Almacén</th>
+                            <th class="text-center">Farmacia</th>
+                            <th class="text-center">Total</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Ver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in reporte %}
+                        <tr class="{% if item.vence_pronto %}table-warning{% endif %}">
+                            <td class="fw-bold">{{ item.clave }}</td>
+                            <td>{{ item.nombre }}</td>
+                            <td class="d-none">{{ item.lotes_busqueda }} {{ "CADUCAR" if item.vence_pronto else "" }} {{ "RESURTIR" if item.total.color == 'danger' else "" }}</td>
+                            
+                            <td class="text-center">
+                                <span class="badge bg-{{ item.almacen.color }} fs-6">{{ item.almacen.cant }}</span>
+                            </td>
+                            
+                            <td class="text-center">
+                                <span class="badge bg-{{ item.farmacia.color }} fs-6">{{ item.farmacia.cant }}</span>
+                            </td>
+                            
+                            <td class="text-center bg-light fw-bold">
+                                <span class="text-{{ item.total.color }}">{{ item.total.cant }}</span>
+                            </td>
+
+                            <td class="text-center">
+                                {% if item.vence_pronto %}
+                                    <span class="badge rounded-pill bg-warning text-dark border border-dark">⚠️ CADUCAR</span>
+                                {% endif %}
+                                {% if item.total.color == 'danger' %}
+                                    <span class="badge rounded-pill bg-danger">RESURTIR</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-info mt-0" 
+                                        onclick='verDetalle({{ item|tojson }})'>
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Consolidado -->
-<div id="consolidado" style="display:block;">
-  <h5>Inventario Consolidado</h5>
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Medicamento</th>
-        <th>Total Disponible</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in consolidado %}
-      <tr>
-        <td>{{ item.nombre }}</td>
-        <td>{{ item.total }}</td>
-        <td>
-          {% if item.estado == "success" %}
-            <span class="badge bg-success">🟢 Suficiente</span>
-          {% elif item.estado == "warning" %}
-            <span class="badge bg-warning text-dark">🟡 Bajo</span>
-          {% else %}
-            <span class="badge bg-danger">🔴 Crítico</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<!-- MODAL PARA DESGLOSE DE LOTES -->
+<div class="modal fade" id="modalLotes" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-box"></i> Detalle: <span id="modalNombreMed"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-success text-white py-2">Almacén</div>
+                            <ul id="listaAlmacen" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-header bg-info text-white py-2">Farmacia</div>
+                            <ul id="listaFarmacia" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<!-- Separado -->
-<div id="separado" style="display:none;">
-  <h5>Inventario en Almacén</h5>
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Medicamento</th>
-        <th>Cantidad</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in inv_almacen %}
-      <tr>
-        <td>{{ item.nombre }}</td>
-        <td>{{ item.cantidad }}</td>
-        <td>
-          {% if item.estado == "success" %}
-            <span class="badge bg-success">🟢 Suficiente</span>
-          {% elif item.estado == "warning" %}
-            <span class="badge bg-warning text-dark">🟡 Bajo</span>
-          {% else %}
-            <span class="badge bg-danger">🔴 Crítico</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h5>Inventario en Farmacia</h5>
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Medicamento</th>
-        <th>Cantidad</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in inv_farmacia %}
-      <tr>
-        <td>{{ item.nombre }}</td>
-        <td>{{ item.cantidad }}</td>
-        <td>
-          {% if item.estado == "success" %}
-            <span class="badge bg-success">🟢 Suficiente</span>
-          {% elif item.estado == "warning" %}
-            <span class="badge bg-warning text-dark">🟡 Bajo</span>
-          {% else %}
-            <span class="badge bg-danger">🔴 Crítico</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
 <script>
-function mostrar(tipo) {
-  document.getElementById('consolidado').style.display = (tipo === 'consolidado') ? 'block' : 'none';
-  document.getElementById('separado').style.display = (tipo === 'separado') ? 'block' : 'none';
+function inicializarReporte() {
+    $('#pantalla-carga').hide();
+    $('#seccion-reporte').show();
+
+    if ( ! $.fn.DataTable.isDataTable( '#tablaInventario' ) ) {
+        let table = $('#tablaInventario').DataTable({
+            "order": [[0, "asc"]],
+            "pageLength": 25,
+            "dom": '<"d-flex justify-content-between mb-3"fB>rtip', 
+            "buttons": [
+                {
+                    extend: 'excelHtml5',
+                    text: '<i class="bi bi-file-earmark-excel"></i> Descargar Excel',
+                    className: 'btn btn-success btn-sm shadow-sm',
+                    title: 'Reporte_Inventario_' + new Date().toISOString().slice(0,10),
+                    exportOptions: { columns: [0, 1, 3, 4, 5, 6] }
+                }
+            ],
+            "language": {
+                "url": "https://datatables.net",
+                "search": "<b>🔍 Buscar:</b>"
+            }
+        });
+        table.buttons().container().appendTo('#contenedor-excel');
+    }
+}
+
+function verDetalle(item) {
+    $('#modalNombreMed').text(item.nombre);
+    const $almacen = $('#listaAlmacen').empty();
+    const $farmacia = $('#listaFarmacia').empty();
+
+    if (item.lotes_almacen && item.lotes_almacen.length > 0) {
+        item.lotes_almacen.forEach(l => {
+            $almacen.append(`<li class="list-group-item d-flex justify-content-between align-items-center">
+                <div><b>Lote: ${l.lote}</b><br><small>Vence: ${l.vence}</small></div>
+                <span class="badge bg-success rounded-pill">${l.cant}</span></li>`);
+        });
+    } else { $almacen.append('<li class="list-group-item text-center py-3">Sin stock</li>'); }
+
+    if (item.lotes_farmacia && item.lotes_farmacia.length > 0) {
+        item.lotes_farmacia.forEach(l => {
+            $farmacia.append(`<li class="list-group-item d-flex justify-content-between align-items-center">
+                <div><b>Lote: ${l.lote}</b><br><small>Vence: ${l.vence}</small></div>
+                <span class="badge bg-info rounded-pill">${l.cant}</span></li>`);
+        });
+    } else { $farmacia.append('<li class="list-group-item text-center py-3">Sin stock</li>'); }
+
+    new bootstrap.Modal(document.getElementById('modalLotes')).show();
 }
 </script>
+
 {% endblock %}

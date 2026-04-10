@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, render_template, redirect, url_for, flash,session
-from datetime import datetime
+from datetime import datetime,timedelta
 from app import db
 from app.models.farmacia import SalidaFarmaciaPaciente, Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, TransferenciaEntrante
 from app.models.personal import Usuario
@@ -251,64 +251,84 @@ def listar_entradas():
     return render_template('farmacia/entradas.html', 
                            entradas=entradas, 
                            query=query)
+
 @bp.route('/entradas/nueva', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nueva_entrada():
-    # Ordenamos por principio_activo porque nombre_comercial no está en tu modelo
-    medicamentos = Medicamento.query.order_by(Medicamento.principio_activo).all()
+    if request.method == 'GET':
+        return render_template('farmacia/nueva_entrada.html')
 
-    if request.method == 'POST':
-        try:
-            id_medicamento = int(request.form['id_medicamento'])
-            cantidad = int(request.form['cantidad'])
-            lote = request.form.get('lote', '').strip().upper()
-            f_caducidad_raw = request.form.get('fecha_caducidad')
-            fecha_caducidad = datetime.strptime(f_caducidad_raw, '%Y-%m-%d').date() if f_caducidad_raw else None
-            
-            if not lote or not fecha_caducidad:
-                flash("❌ El lote y la fecha de caducidad son obligatorios para el control de inventario.", "danger")
-                return redirect(url_for('farmacia.nueva_entrada'))
+    try:
+        # 1. Parámetros de Cabecera
+        destino = request.form.get('destino') # 'almacen' o 'farmacia'
+        proveedor = request.form.get('proveedor', '').strip().upper()
+        obs_general = request.form.get('observaciones_general', '').strip().upper()
 
-            # 1. Registrar la Entrada (Historial)
-            nueva = EntradaAlmacen(
-                id_medicamento=id_medicamento,
-                cantidad=cantidad,
-                lote=lote,
-                fecha_caducidad=fecha_caducidad,
+        # 2. Listas del Formulario (Multi-fila)
+        ids_medicamentos = request.form.getlist('id_medicamento[]')
+        lotes = request.form.getlist('lote[]')
+        cantidades = request.form.getlist('cantidad[]')
+        fechas_cad = request.form.getlist('fecha_caducidad[]')
+        notas_items = request.form.getlist('notas_item[]')
+
+        if not ids_medicamentos:
+            flash("❌ No hay datos para registrar.", "warning")
+            return redirect(url_for('farmacia.nueva_entrada'))
+
+        # 3. Procesamiento en Bloque
+        for i in range(len(ids_medicamentos)):
+            # Conversión y limpieza de datos por fila
+            id_med = int(ids_medicamentos[i])
+            cant = int(cantidades[i])
+            lote_actual = lotes[i].strip().upper()
+            f_cad = datetime.strptime(fechas_cad[i], '%Y-%m-%d').date()
+            nota_actual = f"{obs_general} | {notas_items[i]}".strip(" | ").upper()
+
+            # A. Historial Global (Siempre en EntradaAlmacen como log de auditoría)
+            nueva_entrada_log = EntradaAlmacen(
+                id_medicamento=id_med,
+                cantidad=cant,
+                lote=lote_actual,
+                fecha_caducidad=f_cad,
                 fecha_entrada=datetime.utcnow(),
-                proveedor=request.form.get('proveedor', '').upper(),
-                observaciones=request.form.get('observaciones', '').upper(),
+                proveedor=proveedor,
+                observaciones=f"ENTRADA DIRECTA A {destino.upper()} - {nota_actual}",
                 id_usuario=current_user.id_usuario
             )
-            db.session.add(nueva)
+            db.session.add(nueva_entrada_log)
 
-            # 2. ACTUALIZAR INVENTARIO POR LOTE (Punto Clave)
-            # Buscamos si ya existe ESE medicamento con ESE lote en el almacén
-            inventario = InventarioAlmacen.query.filter_by(
-                id_medicamento=id_medicamento, 
-                lote=lote
+            # B. Actualización de Stock según Destino Seleccionado
+            if destino == 'farmacia':
+                modelo_inventario = InventarioFarmacia
+            else:
+                modelo_inventario = InventarioAlmacen
+
+            # Buscar si el lote ya existe en el destino seleccionado
+            stock_item = modelo_inventario.query.filter_by(
+                id_medicamento=id_med, 
+                lote=lote_actual
             ).first()
 
-            if inventario:
-                inventario.cantidad += cantidad
+            if stock_item:
+                stock_item.cantidad += cant
             else:
-                inventario = InventarioAlmacen(
-                    id_medicamento=id_medicamento, 
-                    cantidad=cantidad,
-                    lote=lote,
-                    fecha_vencimiento=fecha_caducidad
+                nuevo_stock = modelo_inventario(
+                    id_medicamento=id_med,
+                    cantidad=cant,
+                    lote=lote_actual,
+                    fecha_vencimiento=f_cad
                 )
-                db.session.add(inventario)
+                db.session.add(nuevo_stock)
 
-            db.session.commit()
-            flash(f"✅ Entrada y Stock actualizados: {lote}", "success")
-            return redirect(url_for('farmacia.listar_entradas'))
+        # 4. Confirmación única de la transacción
+        db.session.commit()
+        flash(f"✅ Éxito: {len(ids_medicamentos)} registros guardados en {destino.upper()}.", "success")
+        return redirect(url_for('farmacia.listar_entradas'))
 
-        except Exception as e:
-            db.session.rollback()
-            flash(f"❌ Error al registrar entrada: {str(e)}", "danger")
-
-    return render_template('farmacia/nueva_entrada.html', medicamentos=medicamentos)
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Error en el proceso masivo: {str(e)}", "danger")
+        return redirect(url_for('farmacia.nueva_entrada'))
 
 @bp.route('/entradas/editar/<int:id_entrada>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -450,7 +470,7 @@ def listar_movimientos():
 
     if query:
         movimientos_query = movimientos_query.filter(
-            (Medicamento.nombre_comercial.ilike(f'%{query}%')) |
+            (Medicamento.clave.ilike(f'%{query}%')) |
             (Medicamento.principio_activo.ilike(f'%{query}%')) |
             (Usuario.usuario.ilike(f'%{query}%')) |
             (MovimientoAlmacenFarmacia.observaciones.ilike(f'%{query}%'))
@@ -467,62 +487,82 @@ def listar_movimientos():
 @bp.route('/movimientos/nuevo_movimiento', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_movimiento():
-    # 1. Obtener datos (esto siempre se ejecuta para el GET)
-    medicamentos = Medicamento.query.order_by(Medicamento.principio_activo).all()
+    # Para la carga inicial (GET)
+    if request.method == 'GET':
+        return render_template('farmacia/nuevo_movimiento.html')
 
     if request.method == 'POST':
         try:
-            id_medicamento = int(request.form['id_medicamento'])
-            cantidad = int(request.form['cantidad'])
-            lote = request.form.get('lote', '').strip().upper()
-            
-            # Validar existencia
-            inv_almacen = InventarioAlmacen.query.filter_by(
-                id_medicamento=id_medicamento, 
-                lote=lote
-            ).first()
+            # 1. Obtener las listas del formulario dinámico
+            ids_medicamentos = request.form.getlist('id_medicamento[]')
+            lotes = request.form.getlist('lote[]')
+            cantidades = request.form.getlist('cantidad[]')
+            obs_general = request.form.get('obs_general', '').strip().upper()
 
-            if not inv_almacen or inv_almacen.cantidad < cantidad:
-                flash(f"❌ Stock insuficiente en Almacén. Disponible: {inv_almacen.cantidad if inv_almacen else 0}", "danger")
+            if not ids_medicamentos:
+                flash("❌ No se seleccionaron productos para el traslado.", "warning")
                 return redirect(url_for('farmacia.nuevo_movimiento'))
 
-            # Registrar Movimiento
-            movimiento = MovimientoAlmacenFarmacia(
-                id_medicamento=id_medicamento,
-                cantidad=cantidad,
-                lote=lote,
-                fecha_vencimiento=inv_almacen.fecha_vencimiento,
-                fecha_movimiento=datetime.utcnow(),
-                id_usuario=current_user.id_usuario,
-                observaciones=request.form.get('observaciones', '').upper()
-            )
-            db.session.add(movimiento)
+            # 2. Procesar cada fila
+            for i in range(len(ids_medicamentos)):
+                id_med = int(ids_medicamentos[i])
+                lote_actual = lotes[i].strip().upper()
+                cant_a_trasladar = int(cantidades[i])
+                
+                # Validar existencia en Almacén
+                inv_almacen = InventarioAlmacen.query.filter_by(
+                    id_medicamento=id_med, 
+                    lote=lote_actual
+                ).first()
 
-            # Actualizar Inventarios
-            inv_almacen.cantidad -= cantidad
+                if not inv_almacen or inv_almacen.cantidad < cant_a_trasladar:
+                    # Si falla uno solo, lanzamos excepción para hacer rollback de TODO
+                    nombre_med = inv_almacen.medicamento.principio_activo if inv_almacen else f"ID {id_med}"
+                    raise Exception(f"Stock insuficiente para {nombre_med} (Lote: {lote_actual}).")
 
-            inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=id_medicamento, lote=lote).first()
-            if inv_farmacia:
-                inv_farmacia.cantidad += cantidad
-            else:
-                inv_farmacia = InventarioFarmacia(
-                    id_medicamento=id_medicamento,
-                    cantidad=cantidad,
-                    lote=lote,
-                    fecha_vencimiento=inv_almacen.fecha_vencimiento
+                # A. Registrar el historial del movimiento
+                movimiento = MovimientoAlmacenFarmacia(
+                    id_medicamento=id_med,
+                    cantidad=cant_a_trasladar,
+                    lote=lote_actual,
+                    fecha_vencimiento=inv_almacen.fecha_vencimiento,
+                    fecha_movimiento=datetime.utcnow(),
+                    id_usuario=current_user.id_usuario,
+                    observaciones=f"TRASLADO MASIVO: {obs_general}".strip()
                 )
-                db.session.add(inv_farmacia)
+                db.session.add(movimiento)
 
+                # B. Restar de Almacén
+                inv_almacen.cantidad -= cant_a_trasladar
+
+                # C. Sumar a Farmacia
+                inv_farmacia = InventarioFarmacia.query.filter_by(
+                    id_medicamento=id_med, 
+                    lote=lote_actual
+                ).first()
+
+                if inv_farmacia:
+                    inv_farmacia.cantidad += cant_a_trasladar
+                else:
+                    inv_farmacia = InventarioFarmacia(
+                        id_medicamento=id_med,
+                        cantidad=cant_a_trasladar,
+                        lote=lote_actual,
+                        fecha_vencimiento=inv_almacen.fecha_vencimiento
+                    )
+                    db.session.add(inv_farmacia)
+
+            # 3. Guardar todos los cambios si todo salió bien
             db.session.commit()
-            flash(f"✅ Traslado exitoso de {cantidad} unidades.", "success")
+            flash(f"✅ Traslado exitoso de {len(ids_medicamentos)} productos.", "success")
             return redirect(url_for('farmacia.listar_movimientos'))
 
         except Exception as e:
             db.session.rollback()
-            flash(f"❌ Error: {str(e)}", "danger")
-            # Si hay error en el POST, el código sigue hacia abajo y vuelve a cargar la página
+            flash(f"❌ Error en el traslado: {str(e)}", "danger")
+            return redirect(url_for('farmacia.nuevo_movimiento'))
 
-    return render_template('farmacia/nuevo_movimiento.html', medicamentos=medicamentos)
+    return render_template('farmacia/nuevo_movimiento.html')
 
 
 @bp.route('/movimientos/editar/<int:id>', methods=['GET', 'POST'])
@@ -656,55 +696,77 @@ def nueva_transferencia():
 
     return render_template('farmacia/nueva_transferencia.html', medicamentos=medicamentos, usuarios=usuarios)
 #============================================================================================================Reporte de inventario================================
+from datetime import datetime, timedelta
 
 @bp.route('/inventario/reporte')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def reporte_inventario():
-    medicamentos = Medicamento.query.all()
-
-    inv_almacen = []
-    inv_farmacia = []
-    consolidado = []
+    # 1. Traemos medicamentos con sus relaciones (Optimizado)
+    medicamentos = Medicamento.query.options(
+        db.joinedload(Medicamento.inventario_almacen),
+        db.joinedload(Medicamento.inventario_farmacia)
+    ).all()
+    
+    reporte = []
+    hoy = datetime.utcnow().date()
+    limite_vencimiento = hoy + timedelta(days=90) # Alerta 3 meses antes
 
     for med in medicamentos:
-        # cantidades
-        cantidad_almacen = db.session.query(InventarioAlmacen.cantidad)\
-            .filter_by(id_medicamento=med.id_medicamento).scalar() or 0
-        cantidad_farmacia = db.session.query(InventarioFarmacia.cantidad)\
-            .filter_by(id_medicamento=med.id_medicamento).scalar() or 0
-        total = cantidad_almacen + cantidad_farmacia
+        # --- PROCESAR ALMACÉN ---
+        lotes_alm = []
+        cant_alm = 0
+        for i in med.inventario_almacen:
+            if i.cantidad > 0:
+                cant_alm += i.cantidad
+                lotes_alm.append({
+                    "lote": i.lote, 
+                    "cant": i.cantidad, 
+                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A'
+                })
 
-        # semáforo almacén
-        if cantidad_almacen <= med.stock_minimo:
-            estado_almacen = "danger"
-        elif cantidad_almacen <= med.stock_maximo * 0.5:
-            estado_almacen = "warning"
-        else:
-            estado_almacen = "success"
+        # --- PROCESAR FARMACIA ---
+        lotes_far = []
+        cant_far = 0
+        for i in med.inventario_farmacia:
+            if i.cantidad > 0:
+                cant_far += i.cantidad
+                lotes_far.append({
+                    "lote": i.lote, 
+                    "cant": i.cantidad, 
+                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A'
+                })
 
-        # semáforo farmacia
-        if cantidad_farmacia <= med.stock_minimo:
-            estado_farmacia = "danger"
-        elif cantidad_farmacia <= med.stock_maximo * 0.5:
-            estado_farmacia = "warning"
-        else:
-            estado_farmacia = "success"
+        # --- CÁLCULOS GENERALES ---
+        total = cant_alm + cant_far
+        
+        # Unimos todos los lotes en un solo texto para que el buscador de la tabla los encuentre
+        texto_busqueda_lotes = " ".join([l['lote'] for l in lotes_alm] + [l['lote'] for l in lotes_far])
+        
+        # Revisar si algún lote (de cualquier lado) vence pronto
+        vence_pronto = any(
+            inv.fecha_vencimiento and inv.fecha_vencimiento <= limite_vencimiento 
+            for inv in (med.inventario_almacen + med.inventario_farmacia) if inv.cantidad > 0
+        )
 
-        # semáforo consolidado
-        if total <= med.stock_minimo:
-            estado_total = "danger"
-        elif total <= med.stock_maximo * 0.5:
-            estado_total = "warning"
-        else:
-            estado_total = "success"
+        # Semáforo (Tu lógica original)
+        def calcular_color(cantidad, min_s, max_s):
+            if cantidad <= min_s: return "danger"
+            if cantidad <= (max_s * 0.5): return "warning"
+            return "success"
 
-        inv_almacen.append({"nombre": med.nombre_comercial, "cantidad": cantidad_almacen, "estado": estado_almacen})
-        inv_farmacia.append({"nombre": med.nombre_comercial, "cantidad": cantidad_farmacia, "estado": estado_farmacia})
-        consolidado.append({"nombre": med.nombre_comercial, "total": total, "estado": estado_total})
+        # 2. ARMAR EL DICCIONARIO PARA EL HTML
+        reporte.append({
+            "clave": med.clave,
+            "nombre": med.principio_activo,
+            "lotes_busqueda": texto_busqueda_lotes,
+            "vence_pronto": vence_pronto,
+            "lotes_almacen": lotes_alm,   # <--- Importante para el Modal
+            "lotes_farmacia": lotes_far,  # <--- Importante para el Modal
+            "almacen": {"cant": cant_alm, "color": calcular_color(cant_alm, med.stock_minimo, med.stock_maximo)},
+            "farmacia": {"cant": cant_far, "color": calcular_color(cant_far, med.stock_minimo, med.stock_maximo)},
+            "total": {"cant": total, "color": calcular_color(total, med.stock_minimo, med.stock_maximo)}
+        })
 
-    return render_template(
-        'farmacia/reporte_inventario.html',
-        inv_almacen=inv_almacen,
-        inv_farmacia=inv_farmacia,
-        consolidado=consolidado
-    )
+    return render_template('farmacia/reporte_inventario.html', reporte=reporte)
+
+

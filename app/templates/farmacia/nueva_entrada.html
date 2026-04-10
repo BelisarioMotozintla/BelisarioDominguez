@@ -1,128 +1,142 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
+<div class="container-fluid mt-4 mb-5">
   <div class="card shadow">
-    <!-- Encabezado con el mismo estilo que Nuevo Medicamento -->
-    <div class="card-header bg-success text-white">
-      <h2 class="h5 mb-0"><i class="bi bi-box-arrow-in-right"></i> Registro de Entrada al Almacén</h2>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h2 class="h5 mb-0"><i class="bi bi-box-seam"></i> Recepción Masiva de Medicamentos</h2>
+      <span class="badge bg-light text-dark">Modo Multi-Registro</span>
     </div>
     
     <div class="card-body">
-      <!-- Mensajes Flash -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      <form method="POST" class="needs-validation" novalidate>
-        <div class="row">
-          <!-- Buscador de Medicamento (Ocupa toda la fila superior) -->
-          <div class="col-12 mb-3">
-            <label for="id_medicamento" class="form-label fw-bold">Medicamento (Busca por Clave o Principio Activo)</label>
-            <select id="id_medicamento" name="id_medicamento" class="form-select" required>
-                <!-- Select2 cargará los datos vía AJAX -->
+      <form id="form-recepcion" method="POST" action="{{ url_for('farmacia.nueva_entrada') }}">
+        
+        <!-- SECCIÓN 1: DATOS GENERALES (CABECERA) -->
+        <div class="row mb-4 p-3 bg-light rounded border">
+          <div class="col-md-3 mb-3">
+            <label class="form-label fw-bold">Destino de la Carga</label>
+            <select name="destino" class="form-select border-primary" required>
+              <option value="almacen">ALMACÉN GENERAL</option>
+              <option value="farmacia">FARMACIA (ENTRADA DIRECTA)</option>
             </select>
-            <div class="invalid-feedback">Debes seleccionar un medicamento.</div>
+            <small class="text-muted">¿A dónde entrará físicamente el stock?</small>
           </div>
-
-          <!-- Datos de Control (Lote y Cantidad) -->
-          <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">Número de Lote</label>
-            <input type="text" name="lote" id="lote" class="form-control uppercase-input" 
-                   placeholder="EJ. LOT12345" required>
-            <div class="invalid-feedback">El número de lote es obligatorio para la trazabilidad.</div>
-          </div>
-
-          <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">Cantidad de Entrada</label>
-            <input type="number" name="cantidad" class="form-control" 
-                   min="1" placeholder="0" required>
-            <div class="invalid-feedback">Ingresa una cantidad válida (mínimo 1).</div>
-          </div>
-
-          <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">Fecha de Caducidad</label>
-            <input type="date" name="fecha_caducidad" class="form-control" required>
-            <div class="invalid-feedback">La fecha de vencimiento es obligatoria.</div>
-          </div>
-
-          <!-- Datos del Proveedor y Notas -->
-          <div class="col-md-6 mb-3">
+          <div class="col-md-5 mb-3">
             <label class="form-label fw-bold">Proveedor</label>
-            <input type="text" name="proveedor" class="form-control uppercase-input" 
-                   placeholder="EJ. DISTRIBUIDORA MÉDICA SA">
+            <input type="text" name="proveedor" class="form-control uppercase-input" placeholder="NOMBRE DEL PROVEEDOR">
           </div>
-
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Observaciones</label>
-            <textarea name="observaciones" class="form-control uppercase-input" rows="1" 
-                      placeholder="Notas adicionales sobre la entrega..."></textarea>
+          <div class="col-md-4 mb-3">
+            <label class="form-label fw-bold">Observaciones Generales</label>
+            <textarea name="observaciones_general" class="form-control uppercase-input" rows="1"></textarea>
           </div>
         </div>
 
-        <!-- Botones de Acción -->
-        <div class="mt-4 border-top pt-3 text-end">
-          <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
-          <button type="submit" class="btn btn-success px-4">
-            <i class="bi bi-save"></i> Guardar Entrada
+        <!-- SECCIÓN 2: TABLA DINÁMICA -->
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover" id="tabla-medicamentos">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 35%;">Medicamento (Clave/Nombre)</th>
+                <th style="width: 15%;">Lote</th>
+                <th style="width: 10%;">Cant.</th>
+                <th style="width: 15%;">Caducidad</th>
+                <th style="width: 20%;">Notas Item</th>
+                <th style="width: 5%;"></th>
+              </tr>
+            </thead>
+            <tbody id="cuerpo-tabla">
+              <!-- Las filas se insertarán aquí -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+          <button type="button" class="btn btn-outline-primary" onclick="agregarFila()">
+            <i class="bi bi-plus-circle"></i> Agregar otro medicamento
           </button>
+          
+          <div>
+            <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-secondary me-2">Cancelar</a>
+            <button type="submit" class="btn btn-success px-5 shadow">
+              <i class="bi bi-check-all"></i> Procesar Toda la Entrada
+            </button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<!-- Scripts de Funcionalidad -->
+<!-- Template para nuevas filas (oculto) -->
+<template id="fila-template">
+  <tr>
+    <td>
+      <select name="id_medicamento[]" class="form-select select2-medicamento" required></select>
+    </td>
+    <td>
+      <input type="text" name="lote[]" class="form-control uppercase-input" required placeholder="LOTE">
+    </td>
+    <td>
+      <input type="number" name="cantidad[]" class="form-control" min="1" required placeholder="0">
+    </td>
+    <td>
+      <input type="date" name="fecha_caducidad[]" class="form-control" required>
+    </td>
+    <td>
+      <input type="text" name="notas_item[]" class="form-control uppercase-input" placeholder="Opcional">
+    </td>
+    <td class="text-center">
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+        <i class="bi bi-trash"></i>
+      </button>
+    </td>
+  </tr>
+</template>
+
 <script>
-$(document).ready(function() {
-    // 1. Inicialización de Select2 (Buscador AJAX)
-    $('#id_medicamento').select2({
-        placeholder: "-- Escribe la clave o el nombre del medicamento --",
-        allowClear: true,
+let contadorFilas = 0;
+
+function agregarFila() {
+    const template = document.getElementById('fila-template').content.cloneNode(true);
+    const tbody = document.getElementById('cuerpo-tabla');
+    const nuevaFila = template.querySelector('tr');
+    
+    tbody.appendChild(nuevaFila);
+    
+    // Inicializar Select2 en la nueva fila
+    const select = $(nuevaFila).find('.select2-medicamento');
+    select.select2({
+        placeholder: "Buscar...",
         minimumInputLength: 2,
         ajax: {
-            url: "{{ url_for('farmacia.buscar_medicamentos') }}", 
+            url: "{{ url_for('farmacia.buscar_medicamentos') }}",
             dataType: 'json',
-            delay: 300,
-            data: function (params) {
-                return { q: params.term };
-            },
-            processResults: function (data) {
-                return { results: data };
-            },
+            delay: 250,
+            data: params => ({ q: params.term }),
+            processResults: data => ({ results: data }),
             cache: true
         },
         width: '100%'
     });
 
-    // 2. Forzar MAYÚSCULAS en tiempo real (Igual que en Medicamentos)
-    document.querySelectorAll('.uppercase-input').forEach(function(input) {
-        input.addEventListener('input', function() {
-            this.value = this.value.toUpperCase();
-        });
+    // Aplicar mayúsculas a los inputs de esta fila
+    $(nuevaFila).find('.uppercase-input').on('input', function() {
+        this.value = this.value.toUpperCase();
     });
+}
 
-    // 3. Validación de Bootstrap 5
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms).forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (!form.checkValidity()) {
-                    event.preventDefault()
-                    event.stopPropagation()
-                }
-                form.classList.add('was-validated')
-            }, false)
-        })
-    })()
+function eliminarFila(btn) {
+    const filas = document.querySelectorAll('#cuerpo-tabla tr');
+    if (filas.length > 1) {
+        btn.closest('tr').remove();
+    } else {
+        alert("Debes registrar al menos un medicamento.");
+    }
+}
+
+$(document).ready(function() {
+    // Agregar la primera fila por defecto
+    agregarFila();
 });
 </script>
 {% endblock %}
