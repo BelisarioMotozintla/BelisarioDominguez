@@ -1,10 +1,16 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for, flash,session
+from flask import Blueprint, jsonify, request, render_template, redirect, url_for, flash,session,send_file
 from datetime import datetime,timedelta
+import calendar
 from app import db
 from app.models.farmacia import SalidaFarmaciaPaciente, Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, TransferenciaEntrante
 from app.models.personal import Usuario
 from flask_login import current_user
 from app.utils.helpers import roles_required
+
+from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Font
+
 
 bp = Blueprint('farmacia', __name__, template_folder='templates/farmacia')
 
@@ -252,6 +258,75 @@ def listar_entradas():
                            entradas=entradas, 
                            query=query)
 
+
+
+@bp.route('/descargar_oc99')
+def descargar_oc99():
+
+    # 👉 puedes cambiar a request.args si luego haces filtro por mes
+    anio = 2026
+    mes = 4
+
+    dias_mes = calendar.monthrange(anio, mes)[1]
+
+    # 🔹 Obtener medicamentos únicos
+    medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
+
+    # 🔹 Obtener entradas del mes
+    entradas = db.session.query(EntradaAlmacen).join(Medicamento).filter(
+        db.extract('year', EntradaAlmacen.fecha_entrada) == anio,
+        db.extract('month', EntradaAlmacen.fecha_entrada) == mes
+    ).all()
+
+    # 🔹 Crear matriz
+    matriz = {}
+
+    for med in medicamentos:
+        matriz[med.id_medicamento] = {
+            'clave': med.clave,
+            'nombre': med.principio_activo,
+            'dias': {d: 0 for d in range(1, dias_mes + 1)}
+        }
+
+    for e in entradas:
+        dia = e.fecha_entrada.day
+        matriz[e.id_medicamento]['dias'][dia] += e.cantidad
+
+    # 🔹 Crear Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "OC99"
+
+    # ENCABEZADOS
+    headers = ["Clave", "Principio Activo"] + [str(d) for d in range(1, dias_mes + 1)]
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    # DATOS
+    for med in matriz.values():
+        fila = [
+            med['clave'],
+            med['nombre']
+        ] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+
+        ws.append(fila)
+
+    # 🔹 Ajustar ancho
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 40
+
+    # 🔹 Descargar
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name=f"OC99_{mes}_{anio}.xlsx",
+        as_attachment=True
+    )
 @bp.route('/entradas/nueva', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nueva_entrada():
