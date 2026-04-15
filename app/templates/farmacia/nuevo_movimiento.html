@@ -15,11 +15,27 @@
                     <div class="col-12">
                         <label class="form-label fw-bold">Motivo General del Traslado</label>
                         <input type="text" name="obs_general" class="form-control uppercase-input" 
-                               placeholder="EJ. REABASTECIMIENTO SEMANAL O SOLICITUD DE ÁREA">
+                               value="REABASTECIMIENTO DE FARMACIA">
                     </div>
                 </div>
 
-                <!-- TABLA DE TRASLADO -->
+                <div class="row mb-3 bg-light p-3 rounded border">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Tipo de Movimiento</label>
+                    <select name="tipo_movimiento" id="tipo_movimiento" class="form-select border-primary" onchange="toggleDestino()">
+                        <option value="TRASLADO_FARMACIA">Traslado a Farmacia (Interno)</option>
+                        <option value="TRANSFERENCIA_EXTERNA">Transferencia a otra Unidad</option>
+                        <option value="BAJA_CADUCIDAD">Baja por Caducidad</option>
+                        <option value="BAJA_MERMA">Baja por Merma/Daño</option>
+                    </select>
+                </div>
+                <div class="col-md-6" id="div_destino" style="display:none;">
+                    <label class="form-label fw-bold">Unidad Médica Destino</label>
+                    <input type="text" name="destino_externo" class="form-control uppercase-input" placeholder="Nombre de la Unidad">
+                </div>
+            </div>
+
+            <!-- TABLA DE TRASLADO -->
                 <div class="table-responsive">
                     <table class="table table-bordered align-middle" id="tabla-traslado">
                         <thead class="table-secondary">
@@ -75,6 +91,37 @@
         </td>
     </tr>
 </template>
+
+<script>
+            // 1. Mostrar/Ocultar el campo de destino
+                function toggleDestino() {
+                    const tipo = document.getElementById('tipo_movimiento').value;
+                    const divDestino = document.getElementById('div_destino');
+                    const inputDestino = document.querySelector('input[name="destino_externo"]');
+                    
+                    if (tipo === 'TRANSFERENCIA_EXTERNA') {
+                        divDestino.style.display = 'block';
+                        inputDestino.setAttribute('required', 'true'); // Agrega requerimiento HTML5
+                    } else {
+                        divDestino.style.display = 'none';
+                        inputDestino.removeAttribute('required');
+                        inputDestino.value = ''; // Limpia el campo si cambian de opinión
+                    }
+                }
+
+                // 2. Validación extra antes de enviar (por si acaso)
+                document.getElementById('form-movimiento').onsubmit = function(e) {
+                    const tipo = document.getElementById('tipo_movimiento').value;
+                    const destino = document.querySelector('input[name="destino_externo"]').value.strip();
+                    
+                    if (tipo === 'TRANSFERENCIA_EXTERNA' && destino === "") {
+                        e.preventDefault(); // Detiene el envío
+                        alert("Por favor, especifica la Unidad Médica Destino.");
+                        return false;
+                    }
+                };
+
+            </script>
 
 <script>
 function agregarFila() {

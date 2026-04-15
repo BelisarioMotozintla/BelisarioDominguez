@@ -3,8 +3,9 @@
 {% block content %}
 <div class="container mt-4 mb-5">
     <div class="card shadow">
-        <div class="card-header bg-warning text-dark">
-            <h4 class="h5 mb-0"><i class="bi bi-pencil-square"></i> Editar Movimiento: Folio #{{ movimiento.id_movimiento }}</h4>
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h4 class="h5 mb-0"><i class="bi bi-pencil-square"></i> Editar Registro de Movimiento: Folio #{{ movimiento.id_movimiento }}</h4>
+            <span class="badge bg-dark">Origen: Almacén</span>
         </div>
         <div class="card-body">
             
@@ -20,40 +21,55 @@
               {% endif %}
             {% endwith %}
 
+            <!-- Nota Informativa Dinámica -->
             <div class="alert alert-info">
-                <small><i class="bi bi-info-circle"></i> Solo puedes modificar la cantidad y las observaciones. Los cambios afectarán automáticamente el stock de Almacén y Farmacia.</small>
+                <i class="bi bi-info-circle-fill"></i> <strong>Aviso de Stock:</strong> 
+                Al modificar la cantidad, el sistema ajustará automáticamente el inventario en <strong>Almacén</strong>. 
+                {% if "TRASLADO_FARMACIA" in movimiento.observaciones %}
+                    También se actualizará el stock en <strong>Farmacia</strong>.
+                {% else %}
+                    Este movimiento es una <strong>Baja/Transferencia</strong>, por lo que NO afectará el stock de Farmacia.
+                {% endif %}
             </div>
 
             <form method="POST" class="needs-validation" novalidate>
                 <div class="row">
-                    <!-- Datos No Editables (Readonly) -->
+                    <!-- Datos No Editables -->
                     <div class="col-md-8 mb-3">
-                        <label class="form-label fw-bold">Medicamento / Principio Activo</label>
+                        <label class="form-label fw-bold text-muted">Medicamento / Principio Activo</label>
                         <input type="text" class="form-control bg-light" 
                                value="{{ movimiento.medicamento.principio_activo }} - {{ movimiento.medicamento.nombre_comercial }}" readonly>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">Lote</label>
+                        <label class="form-label fw-bold text-muted">Lote</label>
                         <input type="text" class="form-control bg-light" value="{{ movimiento.lote }}" readonly>
                     </div>
 
                     <!-- Cantidad Editable -->
                     <div class="col-md-6 mb-3">
-                        <label for="cantidad" class="form-label fw-bold">Cantidad Trasladada</label>
+                        <label for="cantidad" class="form-label fw-bold text-primary">Cantidad Registrada</label>
                         <div class="input-group">
-                            <input type="number" name="cantidad" id="cantidad" class="form-control" 
+                            <input type="number" name="cantidad" id="cantidad" class="form-control border-primary" 
                                    value="{{ movimiento.cantidad }}" min="1" required>
-                            <span class="input-group-text">piezas</span>
+                            <span class="input-group-text bg-primary text-white">piezas</span>
                         </div>
-                        <div class="invalid-feedback">Ingrese una cantidad válida.</div>
-                        <small class="text-muted">Originalmente se enviaron: <strong>{{ movimiento.cantidad }}</strong> piezas.</small>
+                        <div class="invalid-feedback">Ingrese una cantidad válida mayor a 0.</div>
+                        <small class="text-secondary">Cantidad original: <strong>{{ movimiento.cantidad }}</strong> pzs.</small>
+                    </div>
+
+                    <!-- Tipo de Movimiento Detectado (Solo lectura para contexto) -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold text-muted">Tipo de Movimiento Original</label>
+                        <input type="text" class="form-control bg-light text-uppercase" 
+                               value="{{ movimiento.observaciones.split(':')[0] if ':' in movimiento.observaciones else 'No especificado' }}" readonly>
                     </div>
 
                     <!-- Observaciones -->
                     <div class="col-md-12 mb-3">
-                        <label for="observaciones" class="form-label fw-bold">Observaciones / Motivo del Cambio</label>
+                        <label for="observaciones" class="form-label fw-bold">Observaciones / Motivo de la Edición</label>
                         <textarea name="observaciones" id="observaciones" class="form-control" 
-                                  rows="3" placeholder="DESCRIBA POR QUÉ SE EDITA EL MOVIMIENTO...">{{ movimiento.observaciones }}</textarea>
+                                  rows="3" required placeholder="EXPLIQUE POR QUÉ ESTÁ CAMBIANDO LA CANTIDAD ORIGINAL...">{{ movimiento.observaciones }}</textarea>
+                        <div class="invalid-feedback">Es obligatorio indicar el motivo del cambio.</div>
                     </div>
                 </div>
 
@@ -61,8 +77,8 @@
                     <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-outline-secondary me-2">
                         <i class="bi bi-x-circle"></i> Cancelar
                     </a>
-                    <button type="submit" class="btn btn-warning px-4 fw-bold">
-                        <i class="bi bi-arrow-repeat"></i> Actualizar Movimiento
+                    <button type="submit" class="btn btn-warning px-4 fw-bold shadow-sm">
+                        <i class="bi bi-arrow-repeat"></i> Guardar Cambios en Inventario
                     </button>
                 </div>
             </form>
@@ -72,12 +88,12 @@
 
 <script>
 $(document).ready(function() {
-    // Convertir observaciones a mayúsculas automáticamente
+    // Forzar mayúsculas en tiempo real
     $('#observaciones').on('input', function() {
         this.value = this.value.toUpperCase();
     });
 
-    // Validación de Bootstrap
+    // Validación de Bootstrap 5
     'use strict'
     var forms = document.querySelectorAll('.needs-validation')
     Array.prototype.slice.call(forms).forEach(function (form) {

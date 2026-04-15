@@ -1,50 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="text-info">Transferencias de Medicamentos</h3>
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="text-info"><i class="bi bi-arrow-left-right"></i> Gestión de Transferencias y Bajas</h3>
+        <a href="{{ url_for('farmacia.index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-house"></i> Regresar
+        </a>
+    </div>
 
-<h5 class="mt-4">Salientes</h5>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Medicamento</th>
-      <th>Cantidad</th>
-      <th>Fecha</th>
-      <th>Usuario Origen</th>
-    </tr>
-  </thead>
-  <tbody>
- <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
-    {% for t in salientes %}
-    <tr>
-      <td>{{ t.medicamento.nombre }}</td>
-      <td>{{ t.cantidad }}</td>
-      <td>{{ t.fecha_transferencia.strftime('%d/%m/%Y %H:%M') }}</td>
-      <td>{{ t.usuario.usuario }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    <!-- Pestañas para organizar -->
+    <ul class="nav nav-tabs" id="transferenciasTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="nuevos-tab" data-bs-toggle="tab" data-bs-target="#nuevos" type="button">
+                <i class="bi bi-box-seam"></i> Salidas Especiales (Almacén)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="viejas-tab" data-bs-toggle="tab" data-bs-target="#viejas" type="button">
+                <i class="bi bi-clock-history"></i> Historial Antiguo
+            </button>
+        </li>
+    </ul>
 
-<h5 class="mt-4">Entrantes</h5>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Medicamento</th>
-      <th>Cantidad</th>
-      <th>Fecha</th>
-      <th>Usuario Destino</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in entrantes %}
-    <tr>
-      <td>{{ t.medicamento.nombre }}</td>
-      <td>{{ t.cantidad }}</td>
-      <td>{{ t.fecha_transferencia.strftime('%d/%m/%Y %H:%M') }}</td>
-      <td>{{ t.usuario.usuario }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    <div class="tab-content border-start border-end border-bottom p-3 bg-white shadow-sm" id="transferenciasTabContent">
+        
+        <!-- SECCIÓN 1: NUEVOS MOVIMIENTOS (CON LOTES) -->
+        <div class="tab-pane fade show active" id="nuevos" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-info">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Medicamento</th>
+                            <th>Lote</th>
+                            <th>Cantidad</th>
+                            <th>Tipo y Observaciones</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in especiales %}
+                        <tr>
+                            <td>{{ m.fecha_movimiento.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td><strong>{{ m.medicamento.principio_activo }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ m.lote }}</span></td>
+                            <td class="fw-bold">{{ m.cantidad }}</td>
+                            <td>
+                                {% if "TRANSFERENCIA" in m.observaciones %}
+                                    <span class="badge bg-primary">Transferencia</span>
+                                {% elif "CADUCADO" in m.observaciones %}
+                                    <span class="badge bg-danger">Caducidad</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Baja/Merma</span>
+                                {% endif %}
+                                <br><small class="text-muted">{{ m.observaciones }}</small>
+                            </td>
+                            <td>{{ m.usuario.usuario }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted">No hay movimientos especiales registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
+        <!-- SECCIÓN 2: HISTORIAL ANTIGUO -->
+        <div class="tab-pane fade" id="viejas" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-danger mt-2 border-bottom">Salientes (Anteriores)</h6>
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Medicamento</th>
+                                <th>Cant.</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in salientes %}
+                            <tr>
+                                <td>{{ t.medicamento.nombre }}</td>
+                                <td>{{ t.cantidad }}</td>
+                                <td>{{ t.fecha_transferencia.strftime('%d/%m/%y') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="text-success mt-2 border-bottom">Entrantes (Anteriores)</h6>
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Medicamento</th>
+                                <th>Cant.</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in entrantes %}
+                            <tr>
+                                <td>{{ t.medicamento.nombre }}</td>
+                                <td>{{ t.cantidad }}</td>
+                                <td>{{ t.fecha_transferencia.strftime('%d/%m/%y') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

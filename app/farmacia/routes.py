@@ -562,21 +562,28 @@ def listar_movimientos():
 @bp.route('/movimientos/nuevo_movimiento', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_movimiento():
-    # Para la carga inicial (GET)
     if request.method == 'GET':
         return render_template('farmacia/nuevo_movimiento.html')
 
     if request.method == 'POST':
         try:
-            # 1. Obtener las listas del formulario dinámico
+            # 1. Obtener datos de cabecera
+            tipo_movimiento = request.form.get('tipo_movimiento')
+            destino_externo = request.form.get('destino_externo', '').strip().upper()
+            obs_general = request.form.get('obs_general', '').strip().upper()
+            
             ids_medicamentos = request.form.getlist('id_medicamento[]')
             lotes = request.form.getlist('lote[]')
             cantidades = request.form.getlist('cantidad[]')
-            obs_general = request.form.get('obs_general', '').strip().upper()
 
             if not ids_medicamentos:
-                flash("❌ No se seleccionaron productos para el traslado.", "warning")
+                flash("❌ No se seleccionaron productos.", "warning")
                 return redirect(url_for('farmacia.nuevo_movimiento'))
+
+            # Construir observación detallada
+            obs_final = f"{tipo_movimiento}: {obs_general}"
+            if destino_externo:
+                obs_final += f" - DESTINO: {destino_externo}"
 
             # 2. Procesar cada fila
             for i in range(len(ids_medicamentos)):
@@ -584,18 +591,16 @@ def nuevo_movimiento():
                 lote_actual = lotes[i].strip().upper()
                 cant_a_trasladar = int(cantidades[i])
                 
-                # Validar existencia en Almacén
                 inv_almacen = InventarioAlmacen.query.filter_by(
                     id_medicamento=id_med, 
                     lote=lote_actual
                 ).first()
 
                 if not inv_almacen or inv_almacen.cantidad < cant_a_trasladar:
-                    # Si falla uno solo, lanzamos excepción para hacer rollback de TODO
                     nombre_med = inv_almacen.medicamento.principio_activo if inv_almacen else f"ID {id_med}"
                     raise Exception(f"Stock insuficiente para {nombre_med} (Lote: {lote_actual}).")
 
-                # A. Registrar el historial del movimiento
+                # A. Historial
                 movimiento = MovimientoAlmacenFarmacia(
                     id_medicamento=id_med,
                     cantidad=cant_a_trasladar,
@@ -603,48 +608,46 @@ def nuevo_movimiento():
                     fecha_vencimiento=inv_almacen.fecha_vencimiento,
                     fecha_movimiento=datetime.utcnow(),
                     id_usuario=current_user.id_usuario,
-                    observaciones=f"TRASLADO MASIVO: {obs_general}".strip()
+                    observaciones=obs_final.strip()
                 )
                 db.session.add(movimiento)
 
                 # B. Restar de Almacén
                 inv_almacen.cantidad -= cant_a_trasladar
 
-                # C. Sumar a Farmacia
-                inv_farmacia = InventarioFarmacia.query.filter_by(
-                    id_medicamento=id_med, 
-                    lote=lote_actual
-                ).first()
+                # C. Sumar a Farmacia (Solo si es traslado interno)
+                if tipo_movimiento == 'TRASLADO_FARMACIA':
+                    inv_farmacia = InventarioFarmacia.query.filter_by(
+                        id_medicamento=id_med, 
+                        lote=lote_actual
+                    ).first()
 
-                if inv_farmacia:
-                    inv_farmacia.cantidad += cant_a_trasladar
-                else:
-                    inv_farmacia = InventarioFarmacia(
-                        id_medicamento=id_med,
-                        cantidad=cant_a_trasladar,
-                        lote=lote_actual,
-                        fecha_vencimiento=inv_almacen.fecha_vencimiento
-                    )
-                    db.session.add(inv_farmacia)
+                    if inv_farmacia:
+                        inv_farmacia.cantidad += cant_a_trasladar
+                    else:
+                        inv_farmacia = InventarioFarmacia(
+                            id_medicamento=id_med,
+                            cantidad=cant_a_trasladar,
+                            lote=lote_actual,
+                            fecha_vencimiento=inv_almacen.fecha_vencimiento
+                        )
+                        db.session.add(inv_farmacia)
 
-            # 3. Guardar todos los cambios si todo salió bien
             db.session.commit()
-            flash(f"✅ Traslado exitoso de {len(ids_medicamentos)} productos.", "success")
+            flash(f"✅ Operación {tipo_movimiento} procesada correctamente.", "success")
             return redirect(url_for('farmacia.listar_movimientos'))
 
         except Exception as e:
             db.session.rollback()
-            flash(f"❌ Error en el traslado: {str(e)}", "danger")
+            flash(f"❌ Error: {str(e)}", "danger")
             return redirect(url_for('farmacia.nuevo_movimiento'))
 
     return render_template('farmacia/nuevo_movimiento.html')
 
-
 @bp.route('/movimientos/editar/<int:id>', methods=['GET', 'POST'])
-@roles_required(['Administrador']) # Sugerido solo para admin por control de stock
+@roles_required(['Administrador'])
 def editar_movimiento(id):
     movimiento = MovimientoAlmacenFarmacia.query.get_or_404(id)
-    # Guardamos la cantidad original para calcular la diferencia
     cantidad_anterior = movimiento.cantidad
     medicamentos = Medicamento.query.order_by(Medicamento.principio_activo).all()
 
@@ -652,24 +655,52 @@ def editar_movimiento(id):
         try:
             nueva_cantidad = int(request.form['cantidad'])
             diferencia = nueva_cantidad - cantidad_anterior
+            
+            # Detectar el tipo de movimiento desde las observaciones o un campo tipo si lo agregaste
+            # Aquí usamos una lógica simple: si existe en farmacia y la obs dice TRASLADO, es un traslado.
+            es_traslado = "TRASLADO_FARMACIA" in movimiento.observaciones
 
-            # 1. Validar stock en almacén si la cantidad aumenta
+            # 1. Buscar registros de inventario
             inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
             inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
 
-            if diferencia > 0 and (not inv_almacen or inv_almacen.cantidad < diferencia):
-                flash(f"❌ No hay suficiente stock extra en almacén (Faltan {diferencia - inv_almacen.cantidad} pzs)", "danger")
-                return redirect(url_for('farmacia.editar_movimiento', id=id))
-
-            # 2. Validar stock en farmacia si la cantidad disminuye (para poder devolver a almacén)
-            if diferencia < 0 and (not inv_farmacia or inv_farmacia.cantidad < abs(diferencia)):
-                flash("❌ No se puede reducir el movimiento: la farmacia ya no tiene suficiente stock para devolver al almacén.", "danger")
-                return redirect(url_for('farmacia.editar_movimiento', id=id))
-
-            # 3. Aplicar cambios
-            inv_almacen.cantidad -= diferencia
-            inv_farmacia.cantidad += diferencia
+            # --- VALIDACIONES ---
             
+            # A. Si la cantidad AUMENTA: Validar que el Almacén tenga el extra
+            if diferencia > 0:
+                if not inv_almacen or inv_almacen.cantidad < diferencia:
+                    stock_disp = inv_almacen.cantidad if inv_almacen else 0
+                    raise Exception(f"Stock insuficiente en almacén. Disponible extra: {stock_disp}")
+
+            # B. Si la cantidad DISMINUYE y es TRASLADO: Validar que Farmacia tenga para devolver
+            if diferencia < 0 and es_traslado:
+                if not inv_farmacia or inv_farmacia.cantidad < abs(diferencia):
+                    raise Exception("No se puede reducir: Farmacia ya consumió/vendió parte de este lote.")
+
+            # --- APLICAR CAMBIOS ---
+
+            # 1. Afectar Almacén (Siempre se afecta)
+            if inv_almacen:
+                inv_almacen.cantidad -= diferencia
+            else:
+                # Caso extremo: el registro de almacén desapareció (se borró el lote)
+                raise Exception("El registro de lote en almacén ya no existe. No se puede editar.")
+
+            # 2. Afectar Farmacia (SOLO si el movimiento original fue un traslado)
+            if es_traslado:
+                if inv_farmacia:
+                    inv_farmacia.cantidad += diferencia
+                else:
+                    # Si no existe en farmacia pero es traslado, lo creamos (caso raro)
+                    inv_farmacia = InventarioFarmacia(
+                        id_medicamento=movimiento.id_medicamento,
+                        cantidad=nueva_cantidad,
+                        lote=movimiento.lote,
+                        fecha_vencimiento=movimiento.fecha_vencimiento
+                    )
+                    db.session.add(inv_farmacia)
+
+            # 3. Actualizar el registro del movimiento
             movimiento.cantidad = nueva_cantidad
             movimiento.observaciones = request.form.get('observaciones', '').upper()
             
@@ -680,6 +711,7 @@ def editar_movimiento(id):
         except Exception as e:
             db.session.rollback()
             flash(f"❌ Error: {str(e)}", "danger")
+            return redirect(url_for('farmacia.editar_movimiento', id=id))
 
     return render_template('farmacia/editar_movimiento.html', movimiento=movimiento, medicamentos=medicamentos)
 
@@ -688,88 +720,82 @@ def editar_movimiento(id):
 def eliminar_movimiento(id):
     movimiento = MovimientoAlmacenFarmacia.query.get_or_404(id)
     try:
-        # Revertir stocks: Quitar de farmacia, devolver a almacén
-        inv_farmacia = InventarioFarmacia.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
-        inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=movimiento.id_medicamento, lote=movimiento.lote).first()
+        # 1. Identificar si el movimiento afectó a la farmacia
+        # Basado en la etiqueta que pusimos en el proceso masivo
+        es_traslado = "TRASLADO_FARMACIA" in (movimiento.observaciones or "")
 
-        if not inv_farmacia or inv_farmacia.cantidad < movimiento.cantidad:
-            flash("❌ No se puede eliminar: el stock ya fue consumido en farmacia.", "danger")
-            return redirect(url_for('farmacia.listar_movimientos'))
+        inv_almacen = InventarioAlmacen.query.filter_by(
+            id_medicamento=movimiento.id_medicamento, 
+            lote=movimiento.lote
+        ).first()
 
-        inv_farmacia.cantidad -= movimiento.cantidad
+        # 2. Lógica de reversión para Traslados a Farmacia
+        if es_traslado:
+            inv_farmacia = InventarioFarmacia.query.filter_by(
+                id_medicamento=movimiento.id_medicamento, 
+                lote=movimiento.lote
+            ).first()
+
+            # Validar si la farmacia tiene suficiente para devolver
+            if not inv_farmacia or inv_farmacia.cantidad < movimiento.cantidad:
+                raise Exception("No se puede eliminar: el stock ya fue consumido o no existe en farmacia.")
+            
+            # Restamos de farmacia
+            inv_farmacia.cantidad -= movimiento.cantidad
+        
+        # 3. Devolver siempre al Almacén (independientemente del tipo de movimiento)
         if inv_almacen:
             inv_almacen.cantidad += movimiento.cantidad
-        
+        else:
+            # Si por alguna razón el registro del lote desapareció de almacén, lo recreamos
+            nuevo_inv_almacen = InventarioAlmacen(
+                id_medicamento=movimiento.id_medicamento,
+                cantidad=movimiento.cantidad,
+                lote=movimiento.lote,
+                fecha_vencimiento=movimiento.fecha_vencimiento
+            )
+            db.session.add(nuevo_inv_almacen)
+
+        # 4. Borrar el registro del historial
         db.session.delete(movimiento)
         db.session.commit()
-        flash("✅ Movimiento eliminado y stock devuelto a almacén.", "success")
+        
+        mensaje = "Movimiento anulado. El stock ha retornado al Almacén"
+        if es_traslado: mensaje += " y se descontó de Farmacia."
+        else: mensaje += " (Baja/Transferencia cancelada)."
+        
+        flash(f"✅ {mensaje}", "success")
+
     except Exception as e:
         db.session.rollback()
         flash(f"❌ Error al eliminar: {str(e)}", "danger")
     
     return redirect(url_for('farmacia.listar_movimientos'))
 
-
 #=========================================================================================TRANSFERENCIA DE MEDICAMENTO A OTRA UNIDAD MEDICA =================
 @bp.route('/transferencias')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_transferencias():
-    salientes = TransferenciaSaliente.query.order_by(TransferenciaSaliente.fecha_transferencia.desc()).all()
-    entrantes = TransferenciaEntrante.query.order_by(TransferenciaEntrante.fecha_transferencia.desc()).all()
-    return render_template('farmacia/transferencias.html', salientes=salientes, entrantes=entrantes)
+    # 1. Mantenemos las tablas viejas por si tienes historial que no quieres perder
+    salientes_viejas = TransferenciaSaliente.query.order_by(TransferenciaSaliente.fecha_transferencia.desc()).all()
+    entrantes_viejas = TransferenciaEntrante.query.order_by(TransferenciaEntrante.fecha_transferencia.desc()).all()
 
-@bp.route('/transferencias/nueva', methods=['GET', 'POST'])
-@roles_required(['UsuarioAdministrativo', 'Administrador'])
-def nueva_transferencia():
-    medicamentos = Medicamento.query.all()
-    usuarios = Usuario.query.all()  # para seleccionar responsable de destino
+    # 2. Obtenemos las "Nuevas Transferencias" y "Bajas" desde la tabla de movimientos
+    # Filtramos por las palabras clave que pusimos en el proceso masivo
+    movimientos_especiales = MovimientoAlmacenFarmacia.query.filter(
+        (MovimientoAlmacenFarmacia.observaciones.like('%TRANSFERENCIA_EXTERNA%')) |
+        (MovimientoAlmacenFarmacia.observaciones.like('%BAJA_CADUCIDAD%')) |
+        (MovimientoAlmacenFarmacia.observaciones.like('%BAJA_MERMA%'))
+    ).order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
 
-    if request.method == 'POST':
-        id_medicamento = int(request.form['id_medicamento'])
-        cantidad = int(request.form['cantidad'])
-        id_usuario_destino = int(request.form['id_usuario_destino'])
-        observaciones = request.form.get('observaciones', '')
+    return render_template(
+        'farmacia/transferencias.html', 
+        salientes=salientes_viejas, 
+        entrantes=entrantes_viejas,
+        especiales=movimientos_especiales # Estos son los nuevos
+    )
 
-        # ✅ Validar inventario en farmacia origen (actual)
-        inv_origen = InventarioFarmacia.query.filter_by(id_medicamento=id_medicamento).first()
-        if not inv_origen or inv_origen.cantidad < cantidad:
-            flash("⚠️ No hay suficiente stock en farmacia origen", "danger")
-            return redirect(url_for('farmacia.nueva_transferencia'))
 
-        # 1. Registrar transferencia saliente
-        salida = TransferenciaSaliente(
-            id_medicamento=id_medicamento,
-            cantidad=cantidad,
-            fecha_transferencia=datetime.utcnow(),
-            id_usuario=session['id_usuario']  # usuario actual
-        )
-        db.session.add(salida)
-
-        # 2. Actualizar inventario origen
-        inv_origen.cantidad -= cantidad
-
-        # 3. Registrar transferencia entrante
-        entrada = TransferenciaEntrante(
-            id_medicamento=id_medicamento,
-            cantidad=cantidad,
-            fecha_transferencia=datetime.utcnow(),
-            id_usuario=id_usuario_destino
-        )
-        db.session.add(entrada)
-
-        # 4. Actualizar inventario destino
-        inv_destino = InventarioFarmacia.query.filter_by(id_medicamento=id_medicamento).first()
-        if not inv_destino:
-            inv_destino = InventarioFarmacia(id_medicamento=id_medicamento, cantidad=0)
-            db.session.add(inv_destino)
-        inv_destino.cantidad += cantidad
-
-        db.session.commit()
-
-        flash("✅ Transferencia registrada correctamente", "success")
-        return redirect(url_for('farmacia.listar_transferencias'))
-
-    return render_template('farmacia/nueva_transferencia.html', medicamentos=medicamentos, usuarios=usuarios)
 #============================================================================================================Reporte de inventario================================
 from datetime import datetime, timedelta
 
