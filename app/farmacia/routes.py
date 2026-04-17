@@ -327,6 +327,62 @@ def descargar_oc99():
         download_name=f"OC99_{mes}_{anio}.xlsx",
         as_attachment=True
     )
+
+@bp.route('/descargar_entradas')
+def descargar_entradas():
+    anio = 2026
+    mes = 4
+
+    # Consulta que trae los datos específicos que pediste
+    entradas = db.session.query(
+        Medicamento.clave,
+        Medicamento.principio_activo,
+        EntradaAlmacen.lote,
+        EntradaAlmacen.cantidad,
+        EntradaAlmacen.fecha_caducidad
+    ).join(Medicamento).filter(
+        db.extract('year', EntradaAlmacen.fecha_entrada) == anio,
+        db.extract('month', EntradaAlmacen.fecha_entrada) == mes
+    ).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Entradas"
+
+    # Encabezados solicitados
+    headers = ["Clave", "Principio Activo", "Lote", "Cantidad", "Fecha de Caducidad"]
+    ws.append(headers)
+
+    # Estilo para encabezados
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    # Llenado de datos
+    for e in entradas:
+        ws.append([
+            e.clave,
+            e.principio_activo,
+            e.lote,
+            e.cantidad,
+            e.fecha_caducidad.strftime('%d/%m/%Y') if e.fecha_caducidad else ""
+        ])
+
+    # Ajuste básico de columnas
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 15
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name=f"Entradas_{mes}_{anio}.xlsx",
+        as_attachment=True
+    )
+
+
 @bp.route('/entradas/nueva', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nueva_entrada():
@@ -771,6 +827,62 @@ def eliminar_movimiento(id):
         flash(f"❌ Error al eliminar: {str(e)}", "danger")
     
     return redirect(url_for('farmacia.listar_movimientos'))
+
+@bp.route('/descargar_traspasos_oc99')
+def descargar_traspasos_oc99():
+    anio = 2026
+    mes = 4
+    dias_mes = calendar.monthrange(anio, mes)[1]
+
+    medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
+
+    # 🔹 Usamos el modelo correcto: MovimientoAlmacenFarmacia
+    # Asumo que el campo de fecha se llama 'fecha_movimiento'
+    traspasos = db.session.query(MovimientoAlmacenFarmacia).join(Medicamento).filter(
+        db.extract('year', MovimientoAlmacenFarmacia.fecha_movimiento) == anio,
+        db.extract('month', MovimientoAlmacenFarmacia.fecha_movimiento) == mes
+    ).all()
+
+    matriz = {}
+    for med in medicamentos:
+        matriz[med.id_medicamento] = {
+            'clave': med.clave,
+            'nombre': med.principio_activo,
+            'dias': {d: 0 for d in range(1, dias_mes + 1)}
+        }
+
+    for t in traspasos:
+        dia = t.fecha_movimiento.day  # <-- Verifica si el campo es fecha_movimiento
+        if t.id_medicamento in matriz:
+            matriz[t.id_medicamento]['dias'][dia] += t.cantidad
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Traspasos OC99"
+
+    headers = ["Clave", "Principio Activo"] + [str(d) for d in range(1, dias_mes + 1)]
+    ws.append(headers)
+
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for med in matriz.values():
+        fila = [med['clave'], med['nombre']] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+        ws.append(fila)
+
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 40
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        download_name=f"Traspasos_Farmacia_{mes}_{anio}.xlsx",
+        as_attachment=True
+    )
+
 
 #=========================================================================================TRANSFERENCIA DE MEDICAMENTO A OTRA UNIDAD MEDICA =================
 @bp.route('/transferencias')
