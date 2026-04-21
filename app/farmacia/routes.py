@@ -252,7 +252,8 @@ def listar_entradas():
         )
 
     # Ordenar por las más recientes primero
-    entradas = entradas_query.order_by(EntradaAlmacen.fecha_entrada.desc()).all()
+    entradas = entradas_query.order_by(EntradaAlmacen.fecha_entrada.desc()).limit(10).all()
+
     
     return render_template('farmacia/entradas.html', 
                            entradas=entradas, 
@@ -608,8 +609,9 @@ def listar_movimientos():
         )
 
     # Ordenar por los más recientes
-    movimientos = movimientos_query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
-    
+    movimientos = movimientos_query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).limit(10).all()
+
+        
     return render_template('farmacia/movimientos.html', 
                            movimientos=movimientos, 
                            query=query)
