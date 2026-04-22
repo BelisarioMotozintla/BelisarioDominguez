@@ -9,7 +9,7 @@ from app.utils.helpers import roles_required
 
 from io import BytesIO
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.styles import Font, PatternFill, Alignment
 
 
 bp = Blueprint('farmacia', __name__, template_folder='templates/farmacia')
@@ -119,34 +119,65 @@ def listar_medicamentos():
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_medicamento():
     if request.method == 'POST':
-        clave = request.form['clave'].strip()
-        # Verificar clave única
-        if Medicamento.query.filter_by(clave=clave).first():
-            flash(f"⚠️ Ya existe un medicamento con la clave {clave}", "danger")
+        # 1. Captura y Limpieza (eliminar espacios accidentales)
+        clave = request.form.get('clave', '').strip().upper()
+        principio = request.form.get('principio_activo', '').strip().upper()
+        presentacion = request.form.get('presentacion', '').strip().upper()
+
+        # 2. VALIDACIÓN: Campos obligatorios vacíos o puros espacios
+        if not clave or not principio or not presentacion:
+            flash("❌ La clave, el principio activo y la presentación son campos obligatorios.", "warning")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
-        medicamento = Medicamento(
-            clave=clave,
-            principio_activo=request.form.get('principio_activo').upper(),
-            presentacion=request.form.get('presentacion').upper(),
-            via_administracion=request.form.get('via_administracion').upper(),
-            concentracion=request.form.get('concentracion'),
-            unidad=request.form.get('unidad').upper(),
-            # Captura de los 3 catálogos (Checkboxes)
-            es_kit_basico='es_kit_basico' in request.form,
-            es_180_claves='es_180_claves' in request.form,
-            es_general='es_general' in request.form,
-            # Captura de Stock Crítico y Óptimo
-            stock_minimo=int(request.form.get('stock_minimo') or 10),
-            stock_maximo=int(request.form.get('stock_maximo') or 100),
-            # CPM y Movimiento
-            cpm=float(request.form.get('cpm') or 0.0),
-            nivel_movimiento=request.form.get('nivel_movimiento', 'Nulo')
-        )
-        db.session.add(medicamento)
-        db.session.commit()
-        flash("✅ Medicamento registrado correctamente", "success")
-        return redirect(url_for('farmacia.listar_medicamentos'))
+        # 3. VALIDACIÓN: Clave única
+        if Medicamento.query.filter_by(clave=clave).first():
+            flash(f"⚠️ La clave '{clave}' ya existe. Intenta con otra.", "danger")
+            return redirect(url_for('farmacia.nuevo_medicamento'))
+
+        # 4. VALIDACIÓN: Datos numéricos
+        try:
+            s_min = int(request.form.get('stock_minimo') or 0)
+            s_max = int(request.form.get('stock_maximo') or 0)
+            cpm_val = float(request.form.get('cpm') or 0.0)
+        except ValueError:
+            flash("❌ Los stocks deben ser números enteros y el CPM decimal.", "danger")
+            return redirect(url_for('farmacia.nuevo_medicamento'))
+
+        # 5. VALIDACIÓN: Lógica de inventario
+        if s_min > s_max:
+            flash(f"⚠️ Stock Mínimo ({s_min}) no puede ser mayor al Máximo ({s_max}).", "warning")
+            return redirect(url_for('farmacia.nuevo_medicamento'))
+
+        try:
+            # 6. CREACIÓN DEL REGISTRO
+            nuevo_med = Medicamento(
+                clave=clave,
+                principio_activo=principio,
+                presentacion=presentacion,
+                via_administracion=request.form.get('via_administracion', '').strip().upper(),
+                concentracion=request.form.get('concentracion', '').strip().upper(),
+                unidad=request.form.get('unidad', '').strip().upper(),
+                
+                # Checkboxes
+                es_kit_basico='es_kit_basico' in request.form,
+                es_180_claves='es_180_claves' in request.form,
+                es_general='es_general' in request.form,
+                
+                stock_minimo=s_min,
+                stock_maximo=s_max,
+                cpm=cpm_val,
+                nivel_movimiento=request.form.get('nivel_movimiento', 'Nulo').capitalize()
+            )
+            
+            db.session.add(nuevo_med)
+            db.session.commit()
+            flash("✅ Medicamento registrado correctamente", "success")
+            return redirect(url_for('farmacia.listar_medicamentos'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error de base de datos: {str(e)}", "danger")
+            return redirect(url_for('farmacia.nuevo_medicamento'))
 
     return render_template('farmacia/nuevo_medicamento.html')
 
@@ -157,20 +188,30 @@ def editar_medicamento(id_medicamento):
     medicamento = Medicamento.query.get_or_404(id_medicamento)
 
     if request.method == 'POST':
-        # 1. Captura y validación de Stocks
+        # 1. Captura y Limpieza inicial
+        nueva_clave = request.form.get('clave', '').strip().upper()
+        principio = request.form.get('principio_activo', '').strip().upper()
+        presentacion = request.form.get('presentacion', '').strip().upper()
+
+        # --- VALIDACIÓN DE CAMPOS VACÍOS ---
+        if not nueva_clave or not principio or not presentacion:
+            flash("❌ La clave, el principio activo y la presentación no pueden estar vacíos.", "warning")
+            return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
+
+        # 2. Validación de Stocks (Números)
         try:
             s_min = int(request.form.get('stock_minimo') or 0)
             s_max = int(request.form.get('stock_maximo') or 0)
+            cpm_val = float(request.form.get('cpm') or 0.0)
         except ValueError:
-            flash("❌ Los valores de stock deben ser números enteros.", "danger")
+            flash("❌ Los valores de stock y CPM deben ser numéricos.", "danger")
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
         if s_min > s_max:
             flash(f"⚠️ El Stock Mínimo ({s_min}) no puede ser mayor al Máximo ({s_max}).", "warning")
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
-        # 2. Validación de Clave Única
-        nueva_clave = request.form.get('clave', '').strip().upper()
+        # 3. Validación de Clave Única
         med_existente = Medicamento.query.filter(
             Medicamento.clave == nueva_clave, 
             Medicamento.id_medicamento != id_medicamento
@@ -181,26 +222,23 @@ def editar_medicamento(id_medicamento):
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
         try:
-            # 3. Actualización con transformación a MAYÚSCULAS (.upper())
+            # 4. Actualización
             medicamento.clave = nueva_clave
-            medicamento.principio_activo = request.form.get('principio_activo', '').upper()
-            medicamento.presentacion = request.form.get('presentacion', '').upper()
-            medicamento.via_administracion = request.form.get('via_administracion', '').upper()
-            medicamento.concentracion = request.form.get('concentracion', '').upper()
-            medicamento.unidad = request.form.get('unidad', '').upper()
+            medicamento.principio_activo = principio
+            medicamento.presentacion = presentacion
+            medicamento.via_administracion = request.form.get('via_administracion', '').strip().upper()
+            medicamento.concentracion = request.form.get('concentracion', '').strip().upper()
+            medicamento.unidad = request.form.get('unidad', '').strip().upper()
             
-            # 4. Checkboxes (Catálogos)
             medicamento.es_kit_basico = 'es_kit_basico' in request.form
             medicamento.es_180_claves = 'es_180_claves' in request.form
             medicamento.es_general = 'es_general' in request.form
             
-            # 5. Stocks y CPM
             medicamento.stock_minimo = s_min
             medicamento.stock_maximo = s_max
-            medicamento.cpm = float(request.form.get('cpm') or 0.0)
+            medicamento.cpm = cpm_val
 
-            # 6. CORRECCIÓN DEL ENUM PARA POSTGRESQL
-            # Convierte 'NULO' (del form) a 'Nulo' (de la DB)
+            # CORRECCIÓN DEL ENUM PARA POSTGRESQL
             nivel_form = request.form.get('nivel_movimiento', 'Nulo')
             medicamento.nivel_movimiento = nivel_form.capitalize() 
 
@@ -262,82 +300,118 @@ def listar_entradas():
 
 
 @bp.route('/descargar_oc99')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def descargar_oc99():
+    try:
+        # 1. CAPTURAR DATOS DEL FILTRO (Vía request.args desde JS/SweetAlert2)
+        ahora = datetime.now()
+        anio = request.args.get('anio', ahora.year, type=int)
+        mes = request.args.get('mes', ahora.month, type=int)
 
-    # 👉 puedes cambiar a request.args si luego haces filtro por mes
-    anio = 2026
-    mes = 4
+        # 2. CALCULAR DÍAS DEL MES SELECCIONADO
+        dias_mes = calendar.monthrange(anio, mes)[1]
 
-    dias_mes = calendar.monthrange(anio, mes)[1]
+        # 3. OBTENER MEDICAMENTOS ÚNICOS
+        medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
 
-    # 🔹 Obtener medicamentos únicos
-    medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
+        # 4. OBTENER ENTRADAS FILTRADAS POR MES Y AÑO
+        entradas = db.session.query(EntradaAlmacen).join(Medicamento).filter(
+            db.extract('year', EntradaAlmacen.fecha_entrada) == anio,
+            db.extract('month', EntradaAlmacen.fecha_entrada) == mes
+        ).all()
 
-    # 🔹 Obtener entradas del mes
-    entradas = db.session.query(EntradaAlmacen).join(Medicamento).filter(
-        db.extract('year', EntradaAlmacen.fecha_entrada) == anio,
-        db.extract('month', EntradaAlmacen.fecha_entrada) == mes
-    ).all()
+        # 5. CREAR MATRIZ DE DATOS
+        matriz = {}
+        for med in medicamentos:
+            # CONCATENAMOS: "PRINCIPIO ACTIVO - PRESENTACIÓN"
+            # .strip() elimina espacios accidentales y .upper() estandariza
+            nombre_full = f"{med.principio_activo or ''} - {med.presentacion or ''}".strip().upper()
+            
+            matriz[med.id_medicamento] = {
+                'clave': med.clave,
+                'nombre_completo': nombre_full,
+                'dias': {d: 0 for d in range(1, dias_mes + 1)}
+            }
 
-    # 🔹 Crear matriz
-    matriz = {}
+        # Llenar la matriz con las cantidades de las entradas
+        for e in entradas:
+            dia = e.fecha_entrada.day
+            if e.id_medicamento in matriz:
+                matriz[e.id_medicamento]['dias'][dia] += e.cantidad
 
-    for med in medicamentos:
-        matriz[med.id_medicamento] = {
-            'clave': med.clave,
-            'nombre': med.principio_activo,
-            'dias': {d: 0 for d in range(1, dias_mes + 1)}
-        }
+        # 6. CONSTRUIR EL ARCHIVO EXCEL
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"OC99_{mes}_{anio}"
 
-    for e in entradas:
-        dia = e.fecha_entrada.day
-        matriz[e.id_medicamento]['dias'][dia] += e.cantidad
+        # ENCABEZADOS
+        headers = ["CLAVE", "MEDICAMENTO (PRINCIPIO - PRESENTACIÓN)"] + [str(d) for d in range(1, dias_mes + 1)]
+        ws.append(headers)
 
-    # 🔹 Crear Excel
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "OC99"
+        # Estilo para los encabezados (Verde, Negrita, Texto Blanco)
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+        center_alignment = Alignment(horizontal="center", vertical="center")
 
-    # ENCABEZADOS
-    headers = ["Clave", "Principio Activo"] + [str(d) for d in range(1, dias_mes + 1)]
-    ws.append(headers)
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_alignment
 
-    for cell in ws[1]:
-        cell.font = Font(bold=True)
+        # LLENADO DE FILAS
+        for med in matriz.values():
+            fila = [
+                med['clave'],
+                med['nombre_completo']
+            ] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+            ws.append(fila)
 
-    # DATOS
-    for med in matriz.values():
-        fila = [
-            med['clave'],
-            med['nombre']
-        ] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+        # 7. AJUSTES FINALES DE DISEÑO
+        ws.column_dimensions['A'].width = 15  # Clave
+        ws.column_dimensions['B'].width = 70  # Nombre concatenado (más ancho)
+        
+        # Ajustar ancho de las columnas de los días (columnas C en adelante)
+        for col_idx in range(3, 3 + dias_mes):
+            col_letter = ws.cell(row=1, column=col_idx).column_letter
+            ws.column_dimensions[col_letter].width = 4
+            # Alinear números de los días al centro
+            for cell in ws[col_letter]:
+                cell.alignment = center_alignment
 
-        ws.append(fila)
+        # 8. PREPARAR DESCARGA
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
 
-    # 🔹 Ajustar ancho
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 40
+        nombre_archivo = f"REPORTE_OC99_{mes:02d}_{anio}.xlsx"
 
-    # 🔹 Descargar
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+        return send_file(
+            output,
+            download_name=nombre_archivo,
+            as_attachment=True,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-    return send_file(
-        output,
-        download_name=f"OC99_{mes}_{anio}.xlsx",
-        as_attachment=True
-    )
+    except Exception as e:
+        flash(f"❌ Error al generar el reporte: {str(e)}", "danger")
+        return redirect(url_for('farmacia.reporte_inventario'))
+
+
 
 @bp.route('/descargar_entradas')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def descargar_entradas():
-    anio = 2026
-    mes = 4
+    # 1. Capturar parámetros dinámicos
+    from datetime import datetime
+    ahora = datetime.now()
+    anio = request.args.get('anio', ahora.year, type=int)
+    mes = request.args.get('mes', ahora.month, type=int)
 
-    # Consulta que trae los datos específicos que pediste
+    # 2. Consulta a la base de datos
     entradas = db.session.query(
         Medicamento.clave,
         Medicamento.principio_activo,
+        Medicamento.presentacion,  # Agregado para concatenar
         EntradaAlmacen.lote,
         EntradaAlmacen.cantidad,
         EntradaAlmacen.fecha_caducidad
@@ -346,43 +420,56 @@ def descargar_entradas():
         db.extract('month', EntradaAlmacen.fecha_entrada) == mes
     ).all()
 
+    # 3. Crear el Excel
     wb = Workbook()
     ws = wb.active
-    ws.title = "Entradas"
+    ws.title = f"Entradas_{mes}_{anio}"
 
-    # Encabezados solicitados
-    headers = ["Clave", "Principio Activo", "Lote", "Cantidad", "Fecha de Caducidad"]
+    # Encabezados con estilo
+    headers = ["CLAVE", "MEDICAMENTO (PRINCIPIO - PRESENTACIÓN)", "LOTE", "CANTIDAD", "FECHA DE CADUCIDAD"]
     ws.append(headers)
 
-    # Estilo para encabezados
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid") # Azul para Entradas
+    
     for cell in ws[1]:
-        cell.font = Font(bold=True)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
 
-    # Llenado de datos
+    # 4. Llenar los datos
     for e in entradas:
+        # Concatenamos igual que en el OC99
+        nombre_completo = f"{e.principio_activo or ''} - {e.presentacion or ''}".strip().upper()
+        
         ws.append([
             e.clave,
-            e.principio_activo,
+            nombre_completo,
             e.lote,
             e.cantidad,
-            e.fecha_caducidad.strftime('%d/%m/%Y') if e.fecha_caducidad else ""
+            e.fecha_caducidad.strftime('%d/%m/%Y') if e.fecha_caducidad else "N/A"
         ])
 
-    # Ajuste básico de columnas
+    # 5. Ajustar anchos
     ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['B'].width = 60 # Columna concatenada
     ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 20
 
+    # 6. Preparar descarga
     output = BytesIO()
     wb.save(output)
     output.seek(0)
 
+    nombre_archivo = f"ENTRADAS_DETALLADO_{mes:02d}_{anio}.xlsx"
+
     return send_file(
         output,
-        download_name=f"Entradas_{mes}_{anio}.xlsx",
-        as_attachment=True
+        download_name=nombre_archivo,
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
 
 @bp.route('/entradas/nueva', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -829,61 +916,99 @@ def eliminar_movimiento(id):
         flash(f"❌ Error al eliminar: {str(e)}", "danger")
     
     return redirect(url_for('farmacia.listar_movimientos'))
-
 @bp.route('/descargar_traspasos_oc99')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def descargar_traspasos_oc99():
-    anio = 2026
-    mes = 4
+    from datetime import datetime
+    import calendar
+    
+    ahora = datetime.now()
+    anio = request.args.get('anio', ahora.year, type=int)
+    mes = request.args.get('mes', ahora.month, type=int)
     dias_mes = calendar.monthrange(anio, mes)[1]
 
+    # 1. Obtener datos
     medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
-
-    # 🔹 Usamos el modelo correcto: MovimientoAlmacenFarmacia
-    # Asumo que el campo de fecha se llama 'fecha_movimiento'
-    traspasos = db.session.query(MovimientoAlmacenFarmacia).join(Medicamento).filter(
+    traspasos = db.session.query(MovimientoAlmacenFarmacia).filter(
         db.extract('year', MovimientoAlmacenFarmacia.fecha_movimiento) == anio,
         db.extract('month', MovimientoAlmacenFarmacia.fecha_movimiento) == mes
     ).all()
 
+    # 2. Matriz de datos y Totales por día
     matriz = {}
+    totales_piezas_dia = {d: 0 for d in range(1, dias_mes + 1)}
+    claves_por_dia = {d: set() for d in range(1, dias_mes + 1)}
+
     for med in medicamentos:
+        nombre_completo = f"{med.principio_activo or ''} - {med.presentacion or ''}".strip().upper()
         matriz[med.id_medicamento] = {
             'clave': med.clave,
-            'nombre': med.principio_activo,
+            'nombre': nombre_completo,
             'dias': {d: 0 for d in range(1, dias_mes + 1)}
         }
 
     for t in traspasos:
-        dia = t.fecha_movimiento.day  # <-- Verifica si el campo es fecha_movimiento
+        dia = t.fecha_movimiento.day
         if t.id_medicamento in matriz:
             matriz[t.id_medicamento]['dias'][dia] += t.cantidad
+            totales_piezas_dia[dia] += t.cantidad
+            if t.cantidad > 0:
+                claves_por_dia[dia].add(t.id_medicamento)
 
+    # 3. Crear Excel
     wb = Workbook()
     ws = wb.active
-    ws.title = "Traspasos OC99"
+    ws.title = "OC99 Traspasos"
 
-    headers = ["Clave", "Principio Activo"] + [str(d) for d in range(1, dias_mes + 1)]
+    # --- CUADRO DE RESUMEN SUPERIOR (Como en la imagen) ---
+    font_bold = Font(bold=True)
+    fill_resumen = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    
+    # Fila de TOTAL CLAVES
+    fila_claves = ["TOTAL CLAVES:", ""] + [len(claves_por_dia[d]) for d in range(1, dias_mes + 1)]
+    ws.append(fila_claves)
+    
+    # Fila de TOTAL PIEZAS
+    fila_piezas = ["TOTAL PIEZAS:", ""] + [totales_piezas_dia[d] for d in range(1, dias_mes + 1)]
+    ws.append(fila_piezas)
+
+    # Estilo para el resumen
+    for row in ws.iter_rows(min_row=1, max_row=2):
+        for cell in row:
+            cell.font = font_bold
+            cell.fill = fill_resumen
+            cell.alignment = Alignment(horizontal="center")
+
+    ws.append([]) # Espacio en blanco
+
+    # 4. ENCABEZADOS DE LA TABLA
+    headers = ["CLAVE", "MEDICAMENTO"] + [str(d) for d in range(1, dias_mes + 1)]
     ws.append(headers)
+    
+    header_fill = PatternFill(start_color="FD7E14", end_color="FD7E14", fill_type="solid") # Naranja
+    for cell in ws[4]: # La fila 4 es ahora el encabezado
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
 
-    for cell in ws[1]:
-        cell.font = Font(bold=True)
-
+    # 5. DATOS DE MEDICAMENTOS
     for med in matriz.values():
         fila = [med['clave'], med['nombre']] + [med['dias'][d] for d in range(1, dias_mes + 1)]
         ws.append(fila)
 
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 40
+    # 6. AJUSTES FINALES
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 60
+    
+    # Ajustar ancho de columnas de días
+    for col_idx in range(3, 3 + dias_mes):
+        ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = 5
 
     output = BytesIO()
     wb.save(output)
     output.seek(0)
 
-    return send_file(
-        output,
-        download_name=f"Traspasos_Farmacia_{mes}_{anio}.xlsx",
-        as_attachment=True
-    )
+    return send_file(output, download_name=f"OC99_TRASPASOS_{mes:02d}_{anio}.xlsx", as_attachment=True)
 
 
 #=========================================================================================TRANSFERENCIA DE MEDICAMENTO A OTRA UNIDAD MEDICA =================
@@ -973,6 +1098,7 @@ def reporte_inventario():
         reporte.append({
             "clave": med.clave,
             "nombre": med.principio_activo,
+            "presentacion": med.presentacion,
             "lotes_busqueda": texto_busqueda_lotes,
             "vence_pronto": vence_pronto,
             "lotes_almacen": lotes_alm,   # <--- Importante para el Modal

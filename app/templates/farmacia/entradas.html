@@ -8,12 +8,12 @@
       <a href="{{ url_for('farmacia.nueva_entrada') }}" class="btn btn-success">
         <i class="bi bi-plus-circle"></i> Nueva Entrada
       </a>
-      <a href="{{ url_for('farmacia.descargar_oc99') }}" class="btn btn-success">
-        <i class="bi bi-file-earmark-excel"></i> Descargar OC99
-    </a>
-    <a href="{{ url_for('farmacia.descargar_entradas') }}" class="btn btn-primary">
-    <i class="bi bi-file-earmark-excel"></i> Descargar Entradas
-</a>
+      <button type="button" class="btn btn-success" onclick="abrirFiltroOC99()">
+    <i class="bi bi-file-earmark-excel"></i> Descargar OC99
+</button>
+    <button type="button" class="btn btn-primary" onclick="descargarEntradasDetalle()">
+    <i class="bi bi-file-earmark-arrow-down"></i> Descargar Entradas
+</button>
 
       <a href="{{ url_for('farmacia.index') }}" class="btn btn-outline-secondary">
         <i class="bi bi-house"></i> Inicio
@@ -63,7 +63,7 @@
           <td class="text-center"><small>{{ entrada.fecha_entrada.strftime('%d/%m/%Y %H:%M') }}</small></td>
           <td>
             <strong class="text-primary">{{ entrada.medicamento.clave }}</strong><br>
-            <small>{{ entrada.medicamento.principio_activo }}</small>
+            <small>{{ entrada.medicamento.principio_activo }} {{ entrada.medicamento.presentacion }}</small>
           </td>
           <td class="text-center"><span class="badge bg-light text-dark border">{{ entrada.lote or '-' }}</span></td>
           <td class="text-center">{{ entrada.fecha_caducidad.strftime('%d/%m/%Y') if entrada.fecha_caducidad else '-' }}</td>
@@ -102,5 +102,109 @@
       this.value = this.value.toUpperCase();
     });
   });
+  
+</script>
+
+<script>
+  function abrirFiltroOC99() {
+    // Obtenemos el año actual dinámicamente
+    const anioActual = new Date().getFullYear();
+    
+    Swal.fire({
+        title: 'Reporte OC99',
+        text: 'Selecciona el periodo a descargar',
+        html: `
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-6">
+                        <label class="form-label small fw-bold">Año</label>
+                        <select id="swal-anio" class="form-select">
+                            <option value="${anioActual}" selected>${anioActual}</option>
+                            <option value="${anioActual - 1}">${anioActual - 1}</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-bold">Mes</label>
+                        <select id="swal-mes" class="form-select">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: '<i class="bi bi-download"></i> Descargar',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#198754',
+        preConfirm: () => {
+            return {
+                anio: document.getElementById('swal-anio').value,
+                mes: document.getElementById('swal-mes').value
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Redirige a la ruta de Flask pasando año y mes como parámetros
+            window.location.href = `/farmacia/descargar_oc99?anio=${result.value.anio}&mes=${result.value.mes}`;
+        }
+    });
+}
+function descargarEntradasDetalle() {
+    const fecha = new Date();
+    const anioActual = fecha.getFullYear();
+    const mesActual = fecha.getMonth() + 1; // JS cuenta de 0 a 11
+
+    Swal.fire({
+        title: 'Reporte de Entradas',
+        html: `
+            <div class="p-2 text-start">
+                <label class="form-label fw-bold small">Seleccionar Año:</label>
+                <select id="swal-anio-ent" class="form-select mb-3">
+                    <option value="${anioActual}" selected>${anioActual}</option>
+                    <option value="${anioActual - 1}">${anioActual - 1}</option>
+                </select>
+
+                <label class="form-label fw-bold small">Seleccionar Mes:</label>
+                <select id="swal-mes-ent" class="form-select">
+                    ${Array.from({length: 12}, (_, i) => `
+                        <option value="${i + 1}" ${i + 1 === mesActual ? 'selected' : ''}>
+                            ${new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(2000, i))}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: '<i class="bi bi-download"></i> Descargar Excel',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0d6efd',
+        preConfirm: () => {
+            return {
+                anio: document.getElementById('swal-anio-ent').value,
+                mes: document.getElementById('swal-mes-ent').value
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Ajustamos la ruta según tu blueprint (farmacia)
+            const url = `{{ url_for('farmacia.descargar_entradas') }}?anio=${result.value.anio}&mes=${result.value.mes}`;
+            window.location.href = url;
+        }
+    });
+}
+
 </script>
 {% endblock %}

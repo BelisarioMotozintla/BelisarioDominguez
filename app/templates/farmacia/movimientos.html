@@ -6,12 +6,10 @@
     <a href="{{ url_for('farmacia.nuevo_movimiento') }}" class="btn btn-success">
       <i class="bi bi-plus-square"></i> Nuevo Movimiento
     </a>
-    <a href="{{ url_for('farmacia.listar_transferencias') }}" class="btn btn-outline-dark">
-      <i class="bi bi-arrow-repeat"></i> Transferencias
-    </a>
-    <a href="{{ url_for('farmacia.descargar_traspasos_oc99') }}" class="btn btn-warning">
-    <i class="bi bi-file-earmark-excel"></i> Traspasos Farmacia OC99
-</a>
+   
+   <button type="button" class="btn btn-warning text-dark" onclick="abrirFiltroTraspasos()">
+    <i class="bi bi-arrow-left-right"></i> Traspasos OC99
+</button>
     <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
 </div>
 
@@ -55,7 +53,7 @@
     {% for mov in movimientos %}
     <tr>
       <td>{{ mov.medicamento.clave }}</td>
-      <td>{{ mov.medicamento.principio_activo }}</td>
+      <td>{{ mov.medicamento.principio_activo }} {{ mov.medicamento.presentacion }}</td>
       <td>{{ mov.cantidad }}</td>
       <td>{{ mov.fecha_movimiento.strftime('%d/%m/%Y %H:%M') }}</td>
       <td>{{ mov.usuario.usuario }}</td>
@@ -78,4 +76,45 @@
   </tbody>
 </table>
 
+<script>
+function abrirFiltroTraspasos() {
+    const d = new Date();
+    const anioActual = d.getFullYear();
+    const mesActual = d.getMonth() + 1;
+
+    Swal.fire({
+        title: 'Reporte de Traspasos OC99',
+        html: `
+            <div class="p-2">
+                <label class="form-label fw-bold">Año:</label>
+                <select id="swal-anio-t" class="form-select mb-3">
+                    <option value="${anioActual}" selected>${anioActual}</option>
+                    <option value="${anioActual - 1}">${anioActual - 1}</option>
+                </select>
+                <label class="form-label fw-bold">Mes:</label>
+                <select id="swal-mes-t" class="form-select">
+                    ${[...Array(12).keys()].map(i => `
+                        <option value="${i+1}" ${i+1 === mesActual ? 'selected' : ''}>
+                            ${new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(2000, i))}
+                        </option>`).join('')}
+                </select>
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Generar Traspasos',
+        confirmButtonColor: '#fd7e14',
+        preConfirm: () => ({
+            anio: document.getElementById('swal-anio-t').value,
+            mes: document.getElementById('swal-mes-t').value
+        })
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // URL dinámica con url_for
+            const url = "{{ url_for('farmacia.descargar_traspasos_oc99') }}";
+            window.location.href = `${url}?anio=${result.value.anio}&mes=${result.value.mes}`;
+        }
+    });
+}
+
+
+</script>
 {% endblock %}

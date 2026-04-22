@@ -183,18 +183,19 @@ function verDetalle(item) {
     const $farmacia = $('#listaFarmacia').empty();
 
     const crearItemLote = (l, colorBadge) => {
-        const infoVencimiento = l.fecha_vencimiento 
-            ? `<br><small class="text-danger">Vence: ${l.fecha_vencimiento}</small>` 
-            : '';
-        
-        return `
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="fw-bold">Lote:</span> ${l.lote}
-                    ${infoVencimiento}
-                </div>
-                <span class="badge ${colorBadge} rounded-pill fs-6">${l.cant}</span>
-            </li>`;
+    // Cambiamos l.fecha_vencimiento por l.vence que es como viene de Python
+    const infoVencimiento = (l.vence && l.vence !== 'N/A') 
+        ? `<br><small class="text-danger">Vence: ${l.vence}</small>` 
+        : '<br><small class="text-muted">Sin fecha</small>';
+    
+    return `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-bold">Lote:</span> ${l.lote}
+                ${infoVencimiento}
+            </div>
+            <span class="badge ${colorBadge} rounded-pill fs-6">${l.cant}</span>
+        </li>`;
     };
 
     if (item.lotes_almacen?.length) {
