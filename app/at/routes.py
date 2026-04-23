@@ -233,93 +233,125 @@ def auditoria():
             return f"Error: {str(e)}"
     return render_template("index.html")
 
+from datetime import datetime
+
 @bp.route("/generador", methods=["GET", "POST"])
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def generador():
     if request.method == "POST":
         file_reporte = request.files.get("archivo_reporte")
         file_catalogo = request.files.get("archivo_catalogo")
+        file_entrada = request.files.get("archivo_entrada") 
 
         if not file_reporte or not file_catalogo:
-            return "Error: Faltan archivos."
+            return "Error: Faltan archivos base."
 
-        # 1. CARGAR DATOS
+        # Obtenemos Año y Mes actual (ej. 2026-04)
+        ahora = datetime.now()
+        anio_actual = ahora.year
+        mes_actual = ahora.month
+
+        # 1. CARGAR DATOS BASE
         df_rep = pd.read_excel(file_reporte)
         df_cat = pd.read_excel(file_catalogo)
 
-        # 2. NORMALIZACIÓN DE COLUMNAS
         def normalizar(c):
             return str(c).strip().upper().replace("Ó", "O").replace("Í", "I")
 
         df_rep.columns = [normalizar(c) for c in df_rep.columns]
         df_cat.columns = [normalizar(c) for c in df_cat.columns]
 
-        # 3. BUSCADOR INTELIGENTE
         col_clave = next((c for c in df_cat.columns if 'CLAVE' in c), 'CLAVE')
         col_desc = next((c for c in df_cat.columns if 'DESCRIPCION' in c or 'DESC' in c), None)
         col_existencia = next((c for c in df_cat.columns if 'EXISTENCIA' in c or 'STOCK' in c), None)
 
-        dias_presentes = [str(i) for i in range(1, 32) if str(i) in df_rep.columns]
-
-        # 4. CRUCE DE DATOS
-        df_rep[col_clave] = df_rep[col_clave].astype(str).str.strip()
-        df_cat[col_clave] = df_cat[col_clave].astype(str).str.strip()
-        df_unificado = pd.merge(df_cat, df_rep[[col_clave] + dias_presentes], on=col_clave, how='left').fillna(0)
-
-        # --- CONTROL DE STOCK DINÁMICO ---
+        # 2. MAPEAR DESCRIPCIONES Y STOCK INICIAL
         control_stock = {}
-        for _, row in df_unificado.iterrows():
+        control_descripciones = {}
+        for _, row in df_cat.iterrows():
             c = str(row[col_clave]).strip()
+            d = str(row[col_desc]).strip() if col_desc else "SIN DESCRIPCIÓN"
+            control_descripciones[c] = f"{c} {d}"
             try:
                 control_stock[c] = int(float(row[col_existencia])) if col_existencia else 0
             except:
                 control_stock[c] = 0
 
+        # 3. PREPARAR ENTRADAS (MATRIZ OC99)
+        entradas_por_dia = {}
+        if file_entrada:
+            df_ent = pd.read_excel(file_entrada)
+            df_ent.columns = [str(c).strip() for c in df_ent.columns]
+            col_ent_clave = next((c for c in df_ent.columns if 'CLAVE' in c.upper()), 'CLAVE')
+            columnas_dias_ent = [c for c in df_ent.columns if c.isdigit()]
+            
+            for d in columnas_dias_ent:
+                entradas_por_dia[d] = {}
+                for _, row in df_ent.iterrows():
+                    c_ent = str(row[col_ent_clave]).strip()
+                    if c_ent in control_stock:
+                        try:
+                            entradas_por_dia[d][c_ent] = int(float(row[d]))
+                        except: continue
+
+        # 4. PROCESO CRONOLÓGICO POR DÍA
+        dias_presentes = sorted([str(i) for i in range(1, 32) if str(i) in df_rep.columns], key=int)
+        df_rep[col_clave] = df_rep[col_clave].astype(str).str.strip()
+        
         json_maestro = []
 
-        # 5. CICLO POR DÍA
         for dia in dias_presentes:
-            fecha_registro = f"2026-03-{int(dia):02d}"
+            # Fecha dinámica según el mes y año en curso
+            fecha_registro = f"{anio_actual}-{mes_actual:02d}-{int(dia):02d}"
             
-            for _, row in df_unificado.iterrows():
+            # --- A. ENTRADAS DE LA MATRIZ (OC99) ---
+            if dia in entradas_por_dia:
+                for clv, cant in entradas_por_dia[dia].items():
+                    if cant > 0:
+                        control_stock[clv] += cant
+                        json_maestro.append({
+                            "Clave": clv,
+                            "Medicamento": control_descripciones.get(clv, clv),
+                            "CantidadRecibida": cant,
+                            "CantidadEntregada": 0,
+                            "Stock": control_stock[clv],
+                            "CLUES": "CSIMB005343",
+                            "Responsable": "PEDRO JESUS GALINDO ESTRADA",
+                            "FechaRegistro": fecha_registro,
+                            "Versión": "Versión 4"
+                        })
+
+            # --- B. SALIDAS DEL DÍA (REGLA ESPEJO) ---
+            for _, row in df_rep.iterrows():
                 clave = str(row[col_clave]).strip()
+                if clave not in control_stock: continue 
+                
                 try:
                     entrega_dia = int(float(row[dia]))
                 except:
                     entrega_dia = 0
                 
                 if entrega_dia > 0:
-                    desc_real = str(row[col_desc]).strip() if col_desc and str(row[col_desc]) != "0" else "SIN DESCRIPCIÓN"
+                    stock_antes = control_stock[clave]
                     
-                    stock_antes_de_entrega = control_stock[clave]
-                    
-                    # REGLA DE RECEPCIÓN (Espejo si no alcanza el stock)
-                    if stock_antes_de_entrega < entrega_dia:
-                        recibida = entrega_dia - stock_antes_de_entrega if stock_antes_de_entrega > 0 else entrega_dia
-                    else:
-                        recibida = 0
-
-                    # --- CÁLCULO DEL STOCK RESULTANTE (EL QUE VA AL JSON) ---
-                    # Stock Inicial + Lo que recibo - Lo que entrego
-                    stock_final = (stock_antes_de_entrega + recibida) - entrega_dia
+                    # Cálculo espejo: solo lo faltante
+                    recibida_necesaria = entrega_dia - stock_antes if stock_antes < entrega_dia else 0
+                    stock_final = (stock_antes + recibida_necesaria) - entrega_dia
                     
                     json_maestro.append({
                         "Clave": clave,
-                        "Medicamento": f"{clave} {desc_real}",
-                        "CantidadRecibida": recibida,
+                        "Medicamento": control_descripciones.get(clave, clave),
+                        "CantidadRecibida": recibida_necesaria,
                         "CantidadEntregada": entrega_dia,
-                        "Stock": stock_final,  # <--- YA VA RESTADO
+                        "Stock": stock_final,
                         "CLUES": "CSIMB005343",
                         "Responsable": "PEDRO JESUS GALINDO ESTRADA",
                         "FechaRegistro": fecha_registro,
                         "Versión": "Versión 4"
                     })
-
-                    # Actualizamos el control para el día siguiente
                     control_stock[clave] = stock_final
 
         json_string = json.dumps(json_maestro, ensure_ascii=False)
         return render_template("resultado_json.html", json_data=json_string)
 
     return render_template("inicio.html")
-

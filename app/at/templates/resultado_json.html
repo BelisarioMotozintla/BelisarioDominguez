@@ -2,63 +2,51 @@
 
 {% block content %}
 <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8 text-center">
-                <div class="card shadow p-5 bg-white">
-                    <div class="alert alert-success shadow-sm">
-                        <h3 class="alert-heading">¡Procesamiento Exitoso!</h3>
-                        <p class="mb-0">Se han encuadrado las 150 claves del catálogo con los movimientos reportados.</p>
-                    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card shadow p-5 bg-white">
+                <div class="alert alert-success shadow-sm">
+                    <h3 class="alert-heading">¡Procesamiento Exitoso!</h3>
+                    <p class="mb-0">Se han encuadrado las 150 claves del catálogo con entradas y salidas.</p>
+                </div>
 
-                    <div class="mt-4">
-                        <!-- Botón de descarga con ID para el Script -->
-                        <button id="btnDownload" class="btn btn-primary btn-lg shadow-sm px-5">
-                            📥 Descargar Archivo JSON Maestro
-                        </button>
-                        <a href="{{ url_for('at.generador') }}"  class="btn btn-outline-secondary btn-lg ms-3">Subir otros archivos</a>
-                    </div>
+                <div class="mt-4">
+                    <button id="btnDownload" class="btn btn-primary btn-lg shadow-sm px-5">
+                        📥 Descargar Archivo JSON Maestro
+                    </button>
+                    <a href="{{ url_for('at.generador') }}" class="btn btn-outline-secondary btn-lg ms-3">Nueva Carga</a>
+                </div>
 
-                    <div class="mt-5 text-start">
-                        <h5 class="text-muted">Vista Previa del JSON:</h5>
-                        <pre class="bg-dark text-info p-3 rounded" style="max-height: 250px; overflow-y: auto;" id="preview"></pre>
-                    </div>
+                <div class="mt-5 text-start">
+                    <h5 class="text-muted">Vista Previa (Primeros registros):</h5>
+                    <pre class="bg-dark text-info p-3 rounded" style="max-height: 300px; overflow-y: auto;" id="preview"></pre>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // 1. Recibimos el JSON de Flask (usamos safe para que no rompa comillas)
-        const jsonString = {{ json_data | safe }};
-        
-        // 2. Mostrar vista previa automática
-        try {
-            const dataObj = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
-            document.getElementById('preview').textContent = JSON.stringify(dataObj.slice(0, 3), null, 2) + "\n...";
-        } catch (e) {
-            document.getElementById('preview').textContent = "Error al mostrar vista previa: " + e;
-        }
+<script>
+    const jsonString = {{ json_data | safe }};
+    
+    try {
+        const dataObj = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+        document.getElementById('preview').textContent = JSON.stringify(dataObj.slice(0, 10), null, 2);
+    } catch (e) {
+        document.getElementById('preview').textContent = "Error: " + e;
+    }
 
-        // 3. FUNCIÓN DE DESCARGA FORZADA
-        document.getElementById('btnDownload').addEventListener('click', function() {
-            // Aseguramos que sea texto para el Blob
-            const contenido = typeof jsonString === 'string' ? jsonString : JSON.stringify(jsonString, null, 2);
-            
-            const blob = new Blob([contenido], { type: "application/json" });
-            const url = window.URL.createObjectURL(blob);
-            
-            // Creamos un enlace invisible para forzar la descarga
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = "listado_maestro_150_claves.json";
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            // Limpieza
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        });
-    </script>
+    document.getElementById('btnDownload').addEventListener('click', function() {
+        const contenido = typeof jsonString === 'string' ? jsonString : JSON.stringify(jsonString, null, 2);
+        const blob = new Blob([contenido], { type: "application/json" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "JSON_MAESTRO_COMPLETO.json";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    });
+</script>
 {% endblock %}

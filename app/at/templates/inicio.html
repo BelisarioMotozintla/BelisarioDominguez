@@ -2,29 +2,34 @@
 
 {% block content %}
 <div class="container mt-5">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Generación de JSON Maestro (150 Claves)</h4>
-            </div>
-            <div class="card-body">
-                <form action="/at/generador" method="POST" enctype="multipart/form-data">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">1. Reporte de Movimientos (Días 1 a 30):</label>
-                        <input type="file" name="archivo_reporte" class="form-control" required>
-                        <div class="form-text">El Excel con columnas: Clave, Desc, 1, 2... TOTAL.</div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">2. Catálogo Maestro (150 Claves):</label>
-                        <input type="file" name="archivo_catalogo" class="form-control" required>
-                        <div class="form-text">El Excel con columnas: Clave, Descripcion, Stock.</div>
-                    </div>
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Generación de JSON Maestro (150 Claves)</h4>
+        </div>
+        <div class="card-body">
+            <form action="/at/generador" method="POST" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label class="form-label fw-bold">1. Reporte de Movimientos (Salidas Diarias):</label>
+                    <input type="file" name="archivo_reporte" class="form-control" required>
+                    <div class="form-text">Excel con columnas: Clave, 1, 2, 3... hasta 31.</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold">2. Catálogo Maestro (Existencia Inicial):</label>
+                    <input type="file" name="archivo_catalogo" class="form-control" required>
+                    <div class="form-text">Excel con las 150 claves, descripción y stock inicial.</div>
+                </div>
 
-                    <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm">Generar JSON Maestro</button>
-                </form>
-                {# Botón para regresar al index #}
-        <a href="{{ url_for('farmacia.index') }}" class="btn btn-sm btn-outline-danger">Regresar</a>
-            </div>
+                <div class="mb-4 border-start border-4 border-info ps-3 bg-light p-2">
+                    <label class="form-label fw-bold text-info">3. Entrada de Medicamento (Matriz OC99):</label>
+                    <input type="file" name="archivo_entrada" class="form-control">
+                    <div class="form-text">Excel con columna "CLAVE" y el día de entrada (ej. columna "15").</div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm mb-3">Generar JSON Maestro</button>
+            </form>
+            <a href="{{ url_for('farmacia.index') }}" class="btn btn-sm btn-outline-danger">Regresar</a>
         </div>
     </div>
-    {% endblock %}
+</div>
+{% endblock %}
