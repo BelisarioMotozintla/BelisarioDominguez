@@ -81,7 +81,7 @@
 {% for item in reporte %}
 <tr class="{% if item.vence_pronto %}table-warning{% endif %}">
 <td>{{ item.clave }}</td>
-<td>{{ item.nombre  }} {{ item.presentacion }}</td>
+<td>{{ item.nombre  }} {{ item.presentacion }} {{ item.concentracion }}</td>
 <td class="d-none">
 {{ item.lotes_busqueda }}
 {{ "CADUCAR" if item.vence_pronto else "" }}
@@ -215,5 +215,6 @@ function verDetalle(item) {
 }
 
 </script>
+
 
 {% endblock %}

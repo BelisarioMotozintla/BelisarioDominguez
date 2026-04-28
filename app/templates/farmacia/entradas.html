@@ -63,7 +63,7 @@
           <td class="text-center"><small>{{ entrada.fecha_entrada.strftime('%d/%m/%Y %H:%M') }}</small></td>
           <td>
             <strong class="text-primary">{{ entrada.medicamento.clave }}</strong><br>
-            <small>{{ entrada.medicamento.principio_activo }} {{ entrada.medicamento.presentacion }}</small>
+            <small>{{ entrada.medicamento.principio_activo }} {{ entrada.medicamento.presentacion }} {{ entrada.medicamento.concentracion }}</small>
           </td>
           <td class="text-center"><span class="badge bg-light text-dark border">{{ entrada.lote or '-' }}</span></td>
           <td class="text-center">{{ entrada.fecha_caducidad.strftime('%d/%m/%Y') if entrada.fecha_caducidad else '-' }}</td>
@@ -162,28 +162,32 @@
     });
 }
 function descargarEntradasDetalle() {
-    const fecha = new Date();
-    const anioActual = fecha.getFullYear();
-    const mesActual = fecha.getMonth() + 1; // JS cuenta de 0 a 11
+    const ahora = new Date();
+    const anio = ahora.getFullYear();
+    const mes = ahora.getMonth(); // Mes actual (0-11)
+
+    // Formatear el primer día: YYYY-MM-01
+    const primerDia = `${anio}-${(mes + 1).toString().padStart(2, '0')}-01`;
+    
+    // Calcular el último día del mes actual
+    const ultimoDiaFecha = new Date(anio, mes + 1, 0);
+    const ultimoDia = `${anio}-${(mes + 1).toString().padStart(2, '0')}-${ultimoDiaFecha.getDate().toString().padStart(2, '0')}`;
 
     Swal.fire({
         title: 'Reporte de Entradas',
         html: `
             <div class="p-2 text-start">
-                <label class="form-label fw-bold small">Seleccionar Año:</label>
-                <select id="swal-anio-ent" class="form-select mb-3">
-                    <option value="${anioActual}" selected>${anioActual}</option>
-                    <option value="${anioActual - 1}">${anioActual - 1}</option>
-                </select>
-
-                <label class="form-label fw-bold small">Seleccionar Mes:</label>
-                <select id="swal-mes-ent" class="form-select">
-                    ${Array.from({length: 12}, (_, i) => `
-                        <option value="${i + 1}" ${i + 1 === mesActual ? 'selected' : ''}>
-                            ${new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(2000, i))}
-                        </option>
-                    `).join('')}
-                </select>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Fecha Inicio:</label>
+                    <input type="date" id="swal-fecha-inicio" class="form-control" value="${primerDia}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Fecha Fin:</label>
+                    <input type="date" id="swal-fecha-fin" class="form-control" value="${ultimoDia}">
+                </div>
+                <div class="form-text text-muted">
+                    Puedes cambiar las fechas para seleccionar el rango que desees.
+                </div>
             </div>
         `,
         icon: 'info',
@@ -192,15 +196,22 @@ function descargarEntradasDetalle() {
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#0d6efd',
         preConfirm: () => {
-            return {
-                anio: document.getElementById('swal-anio-ent').value,
-                mes: document.getElementById('swal-mes-ent').value
+            const inicio = document.getElementById('swal-fecha-inicio').value;
+            const fin = document.getElementById('swal-fecha-fin').value;
+            
+            if (!inicio || !fin) {
+                Swal.showValidationMessage('Por favor selecciona ambas fechas');
+                return false;
             }
+            if (new Date(inicio) > new Date(fin)) {
+                Swal.showValidationMessage('La fecha de inicio no puede ser mayor a la de fin');
+                return false;
+            }
+            return { inicio, fin };
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            // Ajustamos la ruta según tu blueprint (farmacia)
-            const url = `{{ url_for('farmacia.descargar_entradas') }}?anio=${result.value.anio}&mes=${result.value.mes}`;
+            const url = `{{ url_for('farmacia.descargar_entradas') }}?inicio=${result.value.inicio}&fin=${result.value.fin}`;
             window.location.href = url;
         }
     });

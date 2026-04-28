@@ -401,36 +401,47 @@ def descargar_oc99():
 @bp.route('/descargar_entradas')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def descargar_entradas():
-    # 1. Capturar parámetros dinámicos
-    from datetime import datetime
-    ahora = datetime.now()
-    anio = request.args.get('anio', ahora.year, type=int)
-    mes = request.args.get('mes', ahora.month, type=int)
+    # 1. Capturar parámetros de fecha (vienen como 'YYYY-MM-DD')
+    fecha_inicio_str = request.args.get('inicio')
+    fecha_fin_str = request.args.get('fin')
 
-    # 2. Consulta a la base de datos
+    # Convertir strings a objetos date de Python
+    from datetime import datetime
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+        fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        # Fallback por si algo falla: mes actual
+        hoy = datetime.now()
+        fecha_inicio = hoy.replace(day=1).date()
+        import calendar
+        ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+        fecha_fin = hoy.replace(day=ultimo_dia).date()
+
+    # 2. Consulta a la base de datos usando el rango (between)
     entradas = db.session.query(
         Medicamento.clave,
         Medicamento.principio_activo,
-        Medicamento.presentacion,  # Agregado para concatenar
+        Medicamento.presentacion,
         EntradaAlmacen.lote,
         EntradaAlmacen.cantidad,
-        EntradaAlmacen.fecha_caducidad
+        EntradaAlmacen.fecha_caducidad,
+        EntradaAlmacen.fecha_entrada # Necesario para el nombre del reporte si quieres
     ).join(Medicamento).filter(
-        db.extract('year', EntradaAlmacen.fecha_entrada) == anio,
-        db.extract('month', EntradaAlmacen.fecha_entrada) == mes
+        EntradaAlmacen.fecha_entrada.between(fecha_inicio, fecha_fin)
     ).all()
 
     # 3. Crear el Excel
     wb = Workbook()
     ws = wb.active
-    ws.title = f"Entradas_{mes}_{anio}"
+    ws.title = "Reporte de Entradas"
 
-    # Encabezados con estilo
+    # Encabezados
     headers = ["CLAVE", "MEDICAMENTO (PRINCIPIO - PRESENTACIÓN)", "LOTE", "CANTIDAD", "FECHA DE CADUCIDAD"]
     ws.append(headers)
 
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid") # Azul para Entradas
+    header_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid")
     
     for cell in ws[1]:
         cell.font = header_font
@@ -439,7 +450,6 @@ def descargar_entradas():
 
     # 4. Llenar los datos
     for e in entradas:
-        # Concatenamos igual que en el OC99
         nombre_completo = f"{e.principio_activo or ''} - {e.presentacion or ''}".strip().upper()
         
         ws.append([
@@ -451,18 +461,17 @@ def descargar_entradas():
         ])
 
     # 5. Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 60 # Columna concatenada
-    ws.column_dimensions['C'].width = 15
-    ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 20
+    column_widths = {'A': 15, 'B': 60, 'C': 15, 'D': 12, 'E': 20}
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
 
     # 6. Preparar descarga
     output = BytesIO()
     wb.save(output)
     output.seek(0)
 
-    nombre_archivo = f"ENTRADAS_DETALLADO_{mes:02d}_{anio}.xlsx"
+    # Nombre dinámico con el rango de fechas
+    nombre_archivo = f"ENTRADAS_{fecha_inicio.strftime('%d%m%Y')}_A_{fecha_fin.strftime('%d%m%Y')}.xlsx"
 
     return send_file(
         output,
@@ -653,7 +662,7 @@ def buscar_medicamentos():
         data.append({
             'id': med.id_medicamento,
             # Mostramos Clave y Principio Activo únicamente
-            'text': f"{med.clave} | {med.principio_activo}"
+            'text': f"{med.clave} | {med.principio_activo} | {med.presentacion} | {med.concentracion}"
         })
 
     return jsonify(data)
@@ -1099,6 +1108,7 @@ def reporte_inventario():
             "clave": med.clave,
             "nombre": med.principio_activo,
             "presentacion": med.presentacion,
+            "concentracion": med.concentracion,
             "lotes_busqueda": texto_busqueda_lotes,
             "vence_pronto": vence_pronto,
             "lotes_almacen": lotes_alm,   # <--- Importante para el Modal

@@ -1,5 +1,5 @@
 # app/recetas/routes.py
-from flask import Blueprint, request, render_template, redirect, url_for, flash
+from flask import Blueprint, request, render_template, redirect, url_for, flash,send_file,current_app
 from app import db
 from datetime import datetime
 from app.models import BloqueReceta, AsignacionReceta, Usuario,Roles, RecetaMedica,SalidaFarmaciaPaciente,InventarioFarmacia,Medicamento,DetalleReceta,Diagnostico
@@ -7,6 +7,14 @@ from app.models.medicos import NotaConsultaExterna
 from app.models.archivo_clinico import  Paciente
 from app.utils.helpers import roles_required
 from flask_login import current_user
+import os
+import tempfile
+import subprocess
+from io import BytesIO
+from datetime import date
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from PyPDF2 import PdfReader, PdfWriter
 
 
 bp = Blueprint('recetas', __name__, template_folder='templates/recetas')
@@ -379,6 +387,153 @@ def detalle_receta(id_receta):
         receta=receta,
         entregados=entregados
     )
+@bp.route('/imprimir/<int:id_receta>/pdf')
+@roles_required([
+    'USUARIOMEDICO',
+    'UsuarioPasante',
+    'UsuarioAdministrativo',
+    'Administrador'
+])
+def receta_pdf(id_receta):
+    try:
+        receta = RecetaMedica.query.get_or_404(id_receta)
+        paciente = receta.paciente
+        medico = receta.usuario
+        diagnostico = receta.diagnostico
+
+        plantilla = os.path.join(current_app.root_path, 'static', 'receta', 'receta.pdf')
+
+        if not os.path.exists(plantilla):
+            flash("No se encontró receta.pdf", "danger")
+            return redirect(url_for('recetas.detalle_receta', id_receta=id_receta))
+
+        packet = BytesIO()
+        c = canvas.Canvas(packet, pagesize=letter)
+        c.setFont("Times-BoldItalic", 10)
+
+        # ==================================================
+        # EXTRACCIÓN DE DATOS Y CÁLCULOS
+        # ==================================================
+        nombre = paciente.nombre if paciente else ""
+        expediente = str(paciente.id_paciente) if paciente else ""
+        dx = diagnostico.descripcion if diagnostico else ""
+        doctor = medico.usuario if medico else ""
+        fecha = receta.fecha_emision.strftime("%d/%m/%Y")
+        
+        # Fecha de Nacimiento y Sexo
+        f_nac = paciente.fecha_nacimiento.strftime("%d/%m/%Y") if paciente and paciente.fecha_nacimiento else ""
+        sexo_val = paciente.sexo.upper() if paciente and paciente.sexo else ""
+        cedula = medico.cedula if medico and hasattr(medico, 'cedula') else ""
+
+        # Cálculo de Edad
+        edad_str = ""
+        if paciente and paciente.fecha_nacimiento:
+            from datetime import date
+            today = date.today()
+            born = paciente.fecha_nacimiento
+            edad = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+            edad_str = str(edad)
+
+        detalles = receta.detalle[:3]
+
+        # ==================================================
+        # POSICIONES ORIGINAL ARRIBA
+        # ==================================================
+        c.drawString(505, 730, str(receta.folio))
+        c.drawString(10, 680, nombre)
+        c.drawString(20, 660, expediente)
+        c.drawString(505, 700, fecha)
+        c.drawString(370, 660, dx[:35])
+        c.drawString(10, 480, doctor)
+        c.drawString(370, 480, f" {cedula}")
+        
+        # Edad y Fecha Nacimiento
+        c.drawString(170, 660, f" {edad_str}")
+        c.drawString(80, 660, f" {f_nac}")
+
+        # Marcar Sexo con X Arriba
+        if sexo_val in ['M', 'HOMBRE', 'MASCULINO']:
+            c.drawString(190, 660, "X") # Ajusta esta X para el cuadrito Hombre
+        elif sexo_val in ['F', 'MUJER', 'FEMENINO']:
+            c.drawString(230, 660, "X") # Ajusta esta X para el cuadrito Mujer
+
+        # Medicamentos e Indicaciones Arriba
+        if len(detalles) >= 1:
+            c.drawString(40, 635, (detalles[0].medicamento.principio_activo if detalles[0].medicamento else "")[:55])
+            c.drawString(507, 635, str(detalles[0].cantidad))
+            c.drawString(10, 620, f"{detalles[0].dosis} {detalles[0].indicaciones}"[:95])
+
+        if len(detalles) >= 2:
+            c.drawString(40, 585, (detalles[1].medicamento.principio_activo if detalles[1].medicamento else "")[:55])
+            c.drawString(507, 585, str(detalles[1].cantidad))
+            c.drawString(10, 570, f"{detalles[1].dosis} {detalles[1].indicaciones}"[:95])
+
+        if len(detalles) >= 3:
+            c.drawString(40, 530, (detalles[2].medicamento.principio_activo if detalles[2].medicamento else "")[:55])
+            c.drawString(507, 530, str(detalles[2].cantidad))
+            c.drawString(10, 510, f"{detalles[2].dosis} {detalles[2].indicaciones}"[:95])
+
+        # ==================================================
+        # COPIA ABAJO
+        # ==================================================
+        c.drawString(505, 340, str(receta.folio))
+        c.drawString(10, 285, nombre)
+        c.drawString(20, 260, expediente)
+        c.drawString(505, 315, fecha)
+        c.drawString(370, 260, dx[:35])
+        c.drawString(10, 85, doctor)
+        c.drawString(370, 85, f"Céd: {cedula}")
+
+        # Edad y Fecha Nacimiento
+        c.drawString(170, 260, f" {edad_str}")
+        c.drawString(80, 260, f" {f_nac}")
+
+        # Marcar Sexo con X Abajo
+        if sexo_val in ['M', 'HOMBRE', 'MASCULINO']:
+            c.drawString(190, 260, "X") # Ajusta según tu PDF de abajo
+        elif sexo_val in ['F', 'MUJER', 'FEMENINO']:
+            c.drawString(230, 260, "X") # Ajusta según tu PDF de abajo
+
+        # Medicamentos e Indicaciones Abajo
+        filas_med_abajo = [235, 185, 135]
+        if len(detalles) >= 1:
+            c.drawString(40, filas_med_abajo[0], (detalles[0].medicamento.principio_activo if detalles[0].medicamento else "")[:55])
+            c.drawString(507, filas_med_abajo[0], str(detalles[0].cantidad))
+            c.drawString(10, 215, f"{detalles[0].dosis} {detalles[0].indicaciones}"[:95])
+
+        if len(detalles) >= 2:
+            c.drawString(40, filas_med_abajo[1], (detalles[1].medicamento.principio_activo if detalles[1].medicamento else "")[:55])
+            c.drawString(507, filas_med_abajo[1], str(detalles[1].cantidad))
+            c.drawString(10, 165, f"{detalles[1].dosis} {detalles[1].indicaciones}"[:95])
+
+        if len(detalles) >= 3:
+            c.drawString(40, filas_med_abajo[2], (detalles[2].medicamento.principio_activo if detalles[2].medicamento else "")[:55])
+            c.drawString(507, filas_med_abajo[2], str(detalles[2].cantidad))
+            c.drawString(10, 110, f"{detalles[2].dosis} {detalles[2].indicaciones}"[:95])
+
+        c.save()
+
+        # ==================================================
+        # MEZCLA Y SALIDA
+        # ==================================================
+        packet.seek(0)
+        nuevo_pdf = PdfReader(packet)
+        with open(plantilla, "rb") as f:
+            base_pdf = PdfReader(f)
+            writer = PdfWriter()
+            pagina = base_pdf.pages[0]
+            pagina.merge_page(nuevo_pdf.pages[0])
+            writer.add_page(pagina)
+            salida = BytesIO()
+            writer.write(salida)
+            salida.seek(0)
+
+        return send_file(salida, as_attachment=True, download_name=f"Receta_{receta.folio}.pdf", mimetype="application/pdf")
+
+    except Exception as e:
+        flash(f"Error al generar receta PDF: {str(e)}", "danger")
+        return redirect(url_for('recetas.detalle_receta', id_receta=id_receta))
+
 
 #==========================================================================================================surtimiento de receta===============================
 @bp.route("/recetas/pendientes")

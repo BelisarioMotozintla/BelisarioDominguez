@@ -53,7 +53,7 @@
     {% for mov in movimientos %}
     <tr>
       <td>{{ mov.medicamento.clave }}</td>
-      <td>{{ mov.medicamento.principio_activo }} {{ mov.medicamento.presentacion }}</td>
+      <td>{{ mov.medicamento.principio_activo }} {{ mov.medicamento.presentacion }} {{ mov.medicamento.concentracion }}</td>
       <td>{{ mov.cantidad }}</td>
       <td>{{ mov.fecha_movimiento.strftime('%d/%m/%Y %H:%M') }}</td>
       <td>{{ mov.usuario.usuario }}</td>
