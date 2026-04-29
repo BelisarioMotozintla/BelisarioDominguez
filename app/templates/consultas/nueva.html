@@ -44,7 +44,13 @@
     </div>
   {% elif query %}
     <div class="alert alert-warning text-center mt-3">
-      No se encontraron pacientes con ese criterio.
+      <p>No se encontraron pacientes con ese criterio: <strong>"{{ query }}"</strong></p>
+      <hr>
+      <p>¿Deseas registrar a este paciente como nuevo en el sistema?</p>
+      <!-- Botón configurado con tu ruta exacta -->
+      <a href="{{ url_for('paciente.alta_paciente') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus-fill"></i> Dar de Alta al Paciente
+      </a>
     </div>
   {% else %}
     <div class="alert alert-info text-center mt-3">

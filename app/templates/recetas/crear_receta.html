@@ -1,105 +1,284 @@
+```html
 {% extends "base.html" %}
 {% block content %}
+
+<style>
+.select2-container{
+    width:100% !important;
+}
+</style>
+
 <div class="container mt-4 mb-5">
     <div class="card shadow border-0">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="bi bi-file-earmark-plus"></i> Nueva Receta Médica</h4>
-            <span class="badge bg-light text-dark fs-6">Folio: {{ folio }}</span>
+            <h4 class="mb-0">
+                <i class="bi bi-file-earmark-plus"></i> Nueva Receta Médica
+            </h4>
+            <span class="badge bg-light text-dark fs-6">
+                Folio: {{ folio }}
+            </span>
         </div>
+
         <div class="card-body">
-            <form method="POST" class="needs-validation" novalidate>
-                <!-- Info Paciente y Médico -->
+            <form method="POST" id="form-receta" class="needs-validation" novalidate>
+
+                <!-- DATOS PACIENTE -->
                 <div class="row mb-4 bg-light p-3 rounded mx-0">
                     <div class="col-md-6 border-end">
-                        <label class="text-muted small d-block text-uppercase">Paciente</label>
+                        <label class="text-muted small d-block text-uppercase">
+                            Paciente
+                        </label>
                         <span class="fw-bold h5">{{ paciente.nombre }}</span>
                     </div>
+
                     <div class="col-md-6 ps-md-4">
-                        <label class="text-muted small d-block text-uppercase">Médico Prescriptor</label>
+                        <label class="text-muted small d-block text-uppercase">
+                            Médico Prescriptor
+                        </label>
                         <span class="fw-bold">{{ current_user.usuario }}</span>
                     </div>
                 </div>
 
-                <!-- Diagnóstico -->
+                <!-- DIAGNÓSTICO -->
                 <div class="mb-4">
-                    <label for="diagnostico_id" class="form-label fw-bold">Diagnóstico (CIE-10)</label>
-                    <select class="form-select select2" id="diagnostico_id" name="diagnostico_id" required>
+                    <label for="diagnostico_id" class="form-label fw-bold">
+                        Diagnóstico (CIE-10)
+                    </label>
+
+                    <select
+                        class="form-select select2-diag"
+                        id="diagnostico_id"
+                        name="diagnostico_id"
+                        required
+                    >
                         <option value="">-- Buscar diagnóstico --</option>
+
                         {% for diag in diagnosticos %}
-                        <option value="{{ diag.id_diagnostico }}">{{ diag.codigo }} - {{ diag.descripcion }}</option>
+                        <option value="{{ diag.id_diagnostico }}">
+                            {{ diag.codigo }} - {{ diag.descripcion }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- Medicamentos -->
-                <h5 class="border-bottom pb-2 mb-3 text-secondary">Prescripción de Medicamentos</h5>
-                <div class="row g-3">
-                    {% for i in range(1, 4) %}
-                    <div class="col-12">
-                        <div class="card border shadow-sm h-100">
-                            <div class="card-body bg-light-subtle">
-                                <div class="row g-2">
-                                    <div class="col-md-8">
-                                        <label class="form-label small fw-bold">Medicamento {{ i }}</label>
-                                        <select name="med_{{ i }}" class="form-select form-select-sm select-med" onchange="updateStock(this, {{ i }})">
-                                            <option value="">-- Seleccionar medicamento --</option>
-                                            {% for med in medicamentos %}
-                                            <option value="{{ med.id }}" data-existencia="{{ med.existencia }}">
-                                                {{ med.descripcion }}
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small fw-bold">Cantidad</label>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" name="cant_{{ i }}" id="cant_{{ i }}" class="form-control" min="1" placeholder="0">
-                                            <span class="input-group-text bg-white small text-muted" id="stock_label_{{ i }}">Stock: 0</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input type="text" name="dosis_{{ i }}" class="form-control form-control-sm mt-1 uppercase-input" placeholder="Dosis (Ej: 1 CADA 8 HRS)">
-                                    </div>
-                                    <div class="col-md-8">
-                                        <input type="text" name="indicaciones_{{ i }}" class="form-control form-control-sm mt-1 uppercase-input" placeholder="Indicaciones (Ej: DURANTE 5 DIAS)">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+                <!-- MEDICAMENTOS -->
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h5 class="text-secondary mb-0">
+                        Medicamentos (Máximo 3)
+                    </h5>
 
-                <div class="mt-4 pt-3 border-top d-flex justify-content-between">
-                    <a href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle"></i> Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-primary px-5 shadow">
-                        <i class="bi bi-save"></i> Generar Receta
+                    <button
+                        type="button"
+                        id="btn-agregar-med"
+                        class="btn btn-sm btn-success"
+                    >
+                        <i class="bi bi-plus-circle"></i>
+                        Agregar Medicamento
                     </button>
                 </div>
+
+                <!-- CONTENEDOR -->
+                <div class="row g-3" id="contenedor-meds"></div>
+
+                <!-- BOTONES -->
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between">
+                    <a
+                        href="{{ url_for('medicos.ver_nota', id_nota=nota.id_nota) }}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Cancelar
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary px-5 shadow fw-bold"
+                    >
+                        Generar Receta
+                    </button>
+                </div>
+
             </form>
         </div>
     </div>
 </div>
 
+<!-- TEMPLATE MEDICAMENTO -->
+<template id="med-template">
+    <div class="col-12 item-med mb-2">
+        <div class="card border shadow-sm">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="badge bg-primary">
+                        Nuevo Medicamento
+                    </span>
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-link text-danger p-0 btn-quitar-med"
+                    >
+                        Quitar
+                    </button>
+                </div>
+
+                <div class="row g-2">
+
+                    <!-- MEDICAMENTO -->
+                    <div class="col-md-8">
+                        <select
+                            name="med_ids[]"
+                            class="form-select select2-dinamico"
+                            required
+                        >
+                            <option value="">
+                                Seleccionar medicamento...
+                            </option>
+
+                            {% for m in medicamentos %}
+                            <option
+                                value="{{ m.id }}"
+                                data-existencia="{{ m.existencia }}"
+                            >
+                                {{ m.descripcion }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- CANTIDAD -->
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <input
+                                type="number"
+                                name="cantidades[]"
+                                class="form-control"
+                                placeholder="Cant."
+                                min="1"
+                                required
+                            >
+
+                            <span class="input-group-text bg-white small text-muted stock-label">
+                                Stock: 0
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- DOSIS -->
+                    <div class="col-md-5">
+                        <input
+                            type="text"
+                            name="dosis[]"
+                            class="form-control form-control-sm uppercase-input"
+                            placeholder="Dosis"
+                        >
+                    </div>
+
+                    <!-- INDICACIONES -->
+                    <div class="col-md-7">
+                        <input
+                            type="text"
+                            name="indicaciones[]"
+                            class="form-control form-control-sm uppercase-input"
+                            placeholder="Indicaciones"
+                        >
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</template>
+
 <script>
-    // Actualizar visualización de stock dinámico
-    function updateStock(select, index) {
-        const option = select.options[select.selectedIndex];
-        const stock = option.getAttribute('data-existencia') || 0;
-        document.getElementById('stock_label_' + index).innerText = "Stock: " + stock;
-        const inputCant = document.getElementById('cant_' + index);
-        inputCant.max = stock;
+$(document).ready(function () {
+
+    // ===============================
+    // DIAGNÓSTICO
+    // ===============================
+    $('.select2-diag').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Buscar diagnóstico...'
+    });
+
+    // ===============================
+    // AGREGAR MEDICAMENTO
+    // ===============================
+    function agregarFila() {
+
+        if ($('.item-med').length >= 3) {
+            alert("Máximo 3 medicamentos por receta.");
+            return;
+        }
+
+        let temp = document
+            .getElementById('med-template')
+            .content
+            .cloneNode(true);
+
+        $('#contenedor-meds').append(temp);
+
+        let nuevoSelect = $('#contenedor-meds')
+            .find('.select2-dinamico')
+            .last();
+
+        nuevoSelect.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Buscar medicamento...'
+        });
+
+        nuevoSelect.on('select2:select', function (e) {
+
+            let data = e.params.data.element;
+            let stock = data.getAttribute('data-existencia') || 0;
+
+            $(this)
+                .closest('.item-med')
+                .find('.stock-label')
+                .text("Stock: " + stock);
+
+            $(this)
+                .closest('.item-med')
+                .find('input[type="number"]')
+                .attr('max', stock);
+        });
     }
 
-    $(document).ready(function() {
-        $('.select2').select2({ theme: 'bootstrap-5' });
-        
-        // Convertir a mayúsculas
-        $('.uppercase-input').on('input', function() {
-            this.value = this.value.toUpperCase();
-        });
+    // ===============================
+    // PRIMER MEDICAMENTO AUTOMÁTICO
+    // ===============================
+    agregarFila();
+
+    // ===============================
+    // BOTÓN AGREGAR
+    // ===============================
+    $('#btn-agregar-med').click(function () {
+        agregarFila();
     });
+
+    // ===============================
+    // QUITAR MEDICAMENTO
+    // ===============================
+    $(document).on('click', '.btn-quitar-med', function () {
+
+        if ($('.item-med').length > 1) {
+            $(this).closest('.item-med').remove();
+        } else {
+            alert("La receta debe tener al menos un medicamento.");
+        }
+
+    });
+
+    // ===============================
+    // MAYÚSCULAS
+    // ===============================
+    $(document).on('input', '.uppercase-input', function () {
+        this.value = this.value.toUpperCase();
+    });
+
+});
 </script>
+
 {% endblock %}

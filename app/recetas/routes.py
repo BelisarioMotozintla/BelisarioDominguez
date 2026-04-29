@@ -106,18 +106,23 @@ def listar_salidas():
                            query=query)
 
 
-
 @bp.route("/recetas/crear/<int:id_nota>", methods=["GET", "POST"])
-@roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
+@roles_required(['USUARIOMEDICO', 'UsuarioPasante', 'Administrador'])
 def crear_receta(id_nota):
     nota = NotaConsultaExterna.query.get_or_404(id_nota)
-    consulta = nota.consulta  
-    paciente = consulta.paciente  
+    consulta = nota.consulta
+    paciente = consulta.paciente
     id_medico = current_user.id_usuario
 
-    # Medicamentos con stock en farmacia (usando Clave y Principio Activo)
-    medicamentos_db = db.session.query(Medicamento, InventarioFarmacia).outerjoin(
-        InventarioFarmacia, InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
+    # ==========================================
+    # MEDICAMENTOS CON EXISTENCIA EN FARMACIA
+    # ==========================================
+    medicamentos_db = db.session.query(
+        Medicamento,
+        InventarioFarmacia
+    ).outerjoin(
+        InventarioFarmacia,
+        InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
     ).all()
 
     medicamentos = [
@@ -125,23 +130,41 @@ def crear_receta(id_nota):
             "id": m.id_medicamento,
             "descripcion": f"{m.clave} - {m.principio_activo} ({m.presentacion})",
             "existencia": inv.cantidad if inv else 0
-        } for m, inv in medicamentos_db
+        }
+        for m, inv in medicamentos_db
     ]
 
-    asignacion = AsignacionReceta.query.filter_by(id_medico=id_medico)\
-                                      .order_by(AsignacionReceta.id_asignacion.desc()).first()
+    # ==========================================
+    # BLOQUE DE FOLIOS DEL MÉDICO
+    # ==========================================
+    asignacion = AsignacionReceta.query.filter_by(
+        id_medico=id_medico
+    ).order_by(
+        AsignacionReceta.id_asignacion.desc()
+    ).first()
 
     if not asignacion:
-        flash("⚠️ No tienes un bloque de recetas asignado. Contacta al administrador.", "danger")
+        flash(
+            "⚠️ No tienes un bloque de recetas asignado. Contacta al administrador.",
+            "danger"
+        )
         return redirect(url_for('medicos.ver_nota', id_nota=id_nota))
 
+    # ==========================================
+    # POST
+    # ==========================================
     if request.method == "POST":
+
         folio = asignacion.siguiente_folio()
+
         if not folio:
             flash("⚠️ Tu bloque de folios se ha agotado.", "danger")
             return redirect(request.url)
 
         try:
+            # ==================================
+            # CREAR RECETA
+            # ==================================
             nueva_receta = RecetaMedica(
                 id_asignacion=asignacion.id_asignacion,
                 id_paciente=paciente.id_paciente,
@@ -150,34 +173,86 @@ def crear_receta(id_nota):
                 nota_id=nota.id_nota,
                 diagnostico_id=request.form.get("diagnostico_id")
             )
+
             db.session.add(nueva_receta)
             db.session.flush()
 
-            for i in range(1, 4):
-                id_med = request.form.get(f"med_{i}")
-                cant = request.form.get(f"cant_{i}")
+            # ==================================
+            # CAPTURAR LISTAS DEL FORMULARIO
+            # ==================================
+            med_ids = request.form.getlist("med_ids[]")
+            cantidades = request.form.getlist("cantidades[]")
+            dosis_list = request.form.getlist("dosis[]")
+            indicaciones_list = request.form.getlist("indicaciones[]")
+
+            # ==================================
+            # GUARDAR DETALLES
+            # ==================================
+            for i in range(len(med_ids)):
+
+                id_med = med_ids[i].strip()
+                cant = cantidades[i].strip()
+
+                dosis = (
+                    dosis_list[i].strip().upper()
+                    if i < len(dosis_list) and dosis_list[i]
+                    else ""
+                )
+
+                indicaciones = (
+                    indicaciones_list[i].strip().upper()
+                    if i < len(indicaciones_list) and indicaciones_list[i]
+                    else ""
+                )
+
                 if id_med and cant:
+
                     detalle = DetalleReceta(
                         id_receta=nueva_receta.id_receta,
                         id_medicamento=int(id_med),
                         cantidad=int(cant),
-                        dosis=request.form.get(f"dosis_{i}").upper(),
-                        indicaciones=request.form.get(f"indicaciones_{i}").upper()
+                        dosis=dosis,
+                        indicaciones=indicaciones
                     )
+
                     db.session.add(detalle)
 
+            # ==================================
+            # GUARDAR
+            # ==================================
             db.session.commit()
-            flash(f"✅ Receta folio {folio} creada exitosamente.", "success")
-            return redirect(url_for("recetas.detalle_receta", id_receta=nueva_receta.id_receta))
+
+            flash(
+                f"✅ Receta folio {folio} creada exitosamente.",
+                "success"
+            )
+
+            return redirect(
+                url_for(
+                    "recetas.detalle_receta",
+                    id_receta=nueva_receta.id_receta
+                )
+            )
+
         except Exception as e:
             db.session.rollback()
             flash(f"❌ Error al crear receta: {str(e)}", "danger")
 
-    return render_template("recetas/crear_receta.html", 
-                           nota=nota, consulta=consulta, paciente=paciente,
-                           medicamentos=medicamentos, 
-                           diagnosticos=Diagnostico.query.order_by(Diagnostico.codigo).all(),
-                           folio=asignacion.proximo_folio())
+    # ==========================================
+    # GET
+    # ==========================================
+    return render_template(
+        "recetas/crear_receta.html",
+        nota=nota,
+        consulta=consulta,
+        paciente=paciente,
+        medicamentos=medicamentos,
+        diagnosticos=Diagnostico.query.order_by(
+            Diagnostico.codigo
+        ).all(),
+        folio=asignacion.proximo_folio()
+    )
+
 @bp.route("/editar/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
 def editar_receta(id_receta):
@@ -424,7 +499,24 @@ def receta_pdf(id_receta):
         f_nac = paciente.fecha_nacimiento.strftime("%d/%m/%Y") if paciente and paciente.fecha_nacimiento else ""
         sexo_val = paciente.sexo.upper() if paciente and paciente.sexo else ""
         cedula = medico.cedula if medico and hasattr(medico, 'cedula') else ""
+        servicio_nombre = receta.nota.servicio.nombre_servicio.upper() if receta.nota and receta.nota.servicio else "GENERAL"
 
+        # 2. Definir coordenadas según el servicio
+        if "EXTERNA" in servicio_nombre:
+            c.drawString(220, 680, f"X")# ARRIBA 
+            c.drawString(220, 285, f"X")#ABAJO
+        elif "URGENCIA" in servicio_nombre:
+            c.drawString(305, 680, f"X")# ARRIBA
+            c.drawString(305, 285, f"X")#ABAJO
+        else:
+            c.drawString(365, 680, f"X")# ARRIBA
+            c.drawString(365, 285, f"X")#ABAJO
+
+        # 3. Dibujar en el PDF
+        
+        
+        
+                
         # Cálculo de Edad
         edad_str = ""
         if paciente and paciente.fecha_nacimiento:
@@ -445,7 +537,7 @@ def receta_pdf(id_receta):
         c.drawString(505, 700, fecha)
         c.drawString(370, 660, dx[:35])
         c.drawString(10, 480, doctor)
-        c.drawString(370, 480, f" {cedula}")
+        c.drawString(360, 480, f" {cedula}")
         
         # Edad y Fecha Nacimiento
         c.drawString(170, 660, f" {edad_str}")
@@ -453,23 +545,29 @@ def receta_pdf(id_receta):
 
         # Marcar Sexo con X Arriba
         if sexo_val in ['M', 'HOMBRE', 'MASCULINO']:
-            c.drawString(190, 660, "X") # Ajusta esta X para el cuadrito Hombre
+            c.drawString(220, 660, "X") # Ajusta esta X para el cuadrito Hombre
         elif sexo_val in ['F', 'MUJER', 'FEMENINO']:
-            c.drawString(230, 660, "X") # Ajusta esta X para el cuadrito Mujer
+            c.drawString(305, 660, "X") # Ajusta esta X para el cuadrito Mujer
 
         # Medicamentos e Indicaciones Arriba
         if len(detalles) >= 1:
-            c.drawString(40, 635, (detalles[0].medicamento.principio_activo if detalles[0].medicamento else "")[:55])
+            med = detalles[0].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, 635, (texto_med if detalles[0].medicamento else "")[:100])
             c.drawString(507, 635, str(detalles[0].cantidad))
             c.drawString(10, 620, f"{detalles[0].dosis} {detalles[0].indicaciones}"[:95])
 
         if len(detalles) >= 2:
-            c.drawString(40, 585, (detalles[1].medicamento.principio_activo if detalles[1].medicamento else "")[:55])
+            med = detalles[1].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, 585, (texto_med  if detalles[1].medicamento else "")[:100])
             c.drawString(507, 585, str(detalles[1].cantidad))
             c.drawString(10, 570, f"{detalles[1].dosis} {detalles[1].indicaciones}"[:95])
 
         if len(detalles) >= 3:
-            c.drawString(40, 530, (detalles[2].medicamento.principio_activo if detalles[2].medicamento else "")[:55])
+            med = detalles[2].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, 530, (texto_med if detalles[2].medicamento else "")[:100])
             c.drawString(507, 530, str(detalles[2].cantidad))
             c.drawString(10, 510, f"{detalles[2].dosis} {detalles[2].indicaciones}"[:95])
 
@@ -482,7 +580,7 @@ def receta_pdf(id_receta):
         c.drawString(505, 315, fecha)
         c.drawString(370, 260, dx[:35])
         c.drawString(10, 85, doctor)
-        c.drawString(370, 85, f"Céd: {cedula}")
+        c.drawString(360, 85, f" {cedula}")
 
         # Edad y Fecha Nacimiento
         c.drawString(170, 260, f" {edad_str}")
@@ -490,24 +588,30 @@ def receta_pdf(id_receta):
 
         # Marcar Sexo con X Abajo
         if sexo_val in ['M', 'HOMBRE', 'MASCULINO']:
-            c.drawString(190, 260, "X") # Ajusta según tu PDF de abajo
+            c.drawString(220, 260, "X") # Ajusta según tu PDF de abajo
         elif sexo_val in ['F', 'MUJER', 'FEMENINO']:
-            c.drawString(230, 260, "X") # Ajusta según tu PDF de abajo
+            c.drawString(305, 260, "X") # Ajusta según tu PDF de abajo
 
         # Medicamentos e Indicaciones Abajo
         filas_med_abajo = [235, 185, 135]
         if len(detalles) >= 1:
-            c.drawString(40, filas_med_abajo[0], (detalles[0].medicamento.principio_activo if detalles[0].medicamento else "")[:55])
+            med = detalles[0].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, filas_med_abajo[0], (texto_med if detalles[0].medicamento else "")[:100])
             c.drawString(507, filas_med_abajo[0], str(detalles[0].cantidad))
             c.drawString(10, 215, f"{detalles[0].dosis} {detalles[0].indicaciones}"[:95])
 
         if len(detalles) >= 2:
-            c.drawString(40, filas_med_abajo[1], (detalles[1].medicamento.principio_activo if detalles[1].medicamento else "")[:55])
+            med = detalles[1].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, filas_med_abajo[1], (texto_med if detalles[1].medicamento else "")[:100])
             c.drawString(507, filas_med_abajo[1], str(detalles[1].cantidad))
             c.drawString(10, 165, f"{detalles[1].dosis} {detalles[1].indicaciones}"[:95])
 
         if len(detalles) >= 3:
-            c.drawString(40, filas_med_abajo[2], (detalles[2].medicamento.principio_activo if detalles[2].medicamento else "")[:55])
+            med = detalles[2].medicamento
+            texto_med = f"{med.clave} - {med.principio_activo} ({med.concentracion}, {med.presentacion})"
+            c.drawString(10, filas_med_abajo[2], (texto_med if detalles[2].medicamento else "")[:100])
             c.drawString(507, filas_med_abajo[2], str(detalles[2].cantidad))
             c.drawString(10, 110, f"{detalles[2].dosis} {detalles[2].indicaciones}"[:95])
 
