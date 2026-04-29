@@ -70,6 +70,7 @@ def nueva_consulta():
 
     return render_template("consultas/nueva.html", pacientes=pacientes, query=query)
 
+
 @bp.route('/consultas/<int:id_consulta>')
 @roles_required(['USUARIOMEDICO', 'Administrador', 'UsuarioPasante'])
 def ver_consultas(id_consulta):

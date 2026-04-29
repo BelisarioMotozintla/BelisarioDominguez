@@ -512,10 +512,7 @@ def receta_pdf(id_receta):
             c.drawString(365, 680, f"X")# ARRIBA
             c.drawString(365, 285, f"X")#ABAJO
 
-        # 3. Dibujar en el PDF
-        
-        
-        
+     
                 
         # Cálculo de Edad
         edad_str = ""
