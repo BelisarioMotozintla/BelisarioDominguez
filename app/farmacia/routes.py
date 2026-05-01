@@ -1058,7 +1058,7 @@ def reporte_inventario():
     
     reporte = []
     hoy = datetime.utcnow().date()
-    limite_vencimiento = hoy + timedelta(days=90) # Alerta 3 meses antes
+    limite_vencimiento = hoy + timedelta(days=90) 
 
     for med in medicamentos:
         # --- PROCESAR ALMACÉN ---
@@ -1067,10 +1067,21 @@ def reporte_inventario():
         for i in med.inventario_almacen:
             if i.cantidad > 0:
                 cant_alm += i.cantidad
+                
+                # Buscamos la observación en la tabla EntradaAlmacen
+                # Filtramos por el id del medicamento y el lote del inventario actual
+                entrada_orig = EntradaAlmacen.query.filter_by(
+                    id_medicamento=med.id_medicamento, 
+                    lote=i.lote
+                ).first()
+                
+                obs_texto = entrada_orig.observaciones if (entrada_orig and entrada_orig.observaciones) else ""
+
                 lotes_alm.append({
                     "lote": i.lote, 
                     "cant": i.cantidad, 
-                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A'
+                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A',
+                    "observaciones": obs_texto # <--- Campo agregado
                 })
 
         # --- PROCESAR FARMACIA ---
@@ -1079,31 +1090,32 @@ def reporte_inventario():
         for i in med.inventario_farmacia:
             if i.cantidad > 0:
                 cant_far += i.cantidad
+                
+                # También buscamos la observación para farmacia por si acaso
+                ent_f = EntradaAlmacen.query.filter_by(id_medicamento=med.id_medicamento, lote=i.lote).first()
+                obs_f = ent_f.observaciones if (ent_f and ent_f.observaciones) else ""
+
                 lotes_far.append({
                     "lote": i.lote, 
                     "cant": i.cantidad, 
-                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A'
+                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A',
+                    "observaciones": obs_f
                 })
 
-        # --- CÁLCULOS GENERALES ---
+        # --- CÁLCULOS Y SEMÁFORO ---
         total = cant_alm + cant_far
-        
-        # Unimos todos los lotes en un solo texto para que el buscador de la tabla los encuentre
         texto_busqueda_lotes = " ".join([l['lote'] for l in lotes_alm] + [l['lote'] for l in lotes_far])
         
-        # Revisar si algún lote (de cualquier lado) vence pronto
         vence_pronto = any(
             inv.fecha_vencimiento and inv.fecha_vencimiento <= limite_vencimiento 
             for inv in (med.inventario_almacen + med.inventario_farmacia) if inv.cantidad > 0
         )
 
-        # Semáforo (Tu lógica original)
         def calcular_color(cantidad, min_s, max_s):
             if cantidad <= min_s: return "danger"
             if cantidad <= (max_s * 0.5): return "warning"
             return "success"
 
-        # 2. ARMAR EL DICCIONARIO PARA EL HTML
         reporte.append({
             "clave": med.clave,
             "nombre": med.principio_activo,
@@ -1111,13 +1123,11 @@ def reporte_inventario():
             "concentracion": med.concentracion,
             "lotes_busqueda": texto_busqueda_lotes,
             "vence_pronto": vence_pronto,
-            "lotes_almacen": lotes_alm,   # <--- Importante para el Modal
-            "lotes_farmacia": lotes_far,  # <--- Importante para el Modal
+            "lotes_almacen": lotes_alm,
+            "lotes_farmacia": lotes_far,
             "almacen": {"cant": cant_alm, "color": calcular_color(cant_alm, med.stock_minimo, med.stock_maximo)},
             "farmacia": {"cant": cant_far, "color": calcular_color(cant_far, med.stock_minimo, med.stock_maximo)},
             "total": {"cant": total, "color": calcular_color(total, med.stock_minimo, med.stock_maximo)}
         })
 
     return render_template('farmacia/reporte_inventario.html', reporte=reporte)
-
-

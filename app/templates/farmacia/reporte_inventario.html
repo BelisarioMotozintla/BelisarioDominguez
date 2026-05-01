@@ -188,6 +188,13 @@ function verDetalle(item) {
         ? `<br><small class="text-danger">Vence: ${l.vence}</small>` 
         : '<br><small class="text-muted">Sin fecha</small>';
     
+    // Si l.observaciones tiene contenido, creamos el bloque visual
+    const htmlObs = (l.observaciones) 
+        ? `<div class="mt-2 p-2 bg-white border-start border-3 border-info shadow-sm" style="font-size: 0.8rem; border-radius: 0 4px 4px 0;">
+            <i class="bi bi-chat-left-text text-info"></i> <b>Obs entrada:</b><br>
+            <span class="text-muted">${l.observaciones}</span>
+           </div>` 
+        : '';
     return `
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <div>

@@ -462,6 +462,12 @@ def detalle_receta(id_receta):
         receta=receta,
         entregados=entregados
     )
+
+def generar_base_folio(nombre, ap_paterno):
+    if nombre and ap_paterno:
+        return f"{nombre.strip().upper()[0]}{ap_paterno.strip().upper()[0]}"
+    return "XX"
+
 @bp.route('/imprimir/<int:id_receta>/pdf')
 @roles_required([
     'USUARIOMEDICO',
@@ -489,16 +495,17 @@ def receta_pdf(id_receta):
         # ==================================================
         # EXTRACCIÓN DE DATOS Y CÁLCULOS
         # ==================================================
+        emp = receta.usuario.empleado 
         nombre = paciente.nombre if paciente else ""
         expediente = str(paciente.id_paciente) if paciente else ""
         dx = diagnostico.descripcion if diagnostico else ""
-        doctor = medico.usuario if medico else ""
+        doctor = f"{emp.nombre} {emp.apellido_paterno} {emp.apellido_materno}".strip()
         fecha = receta.fecha_emision.strftime("%d/%m/%Y")
         
         # Fecha de Nacimiento y Sexo
         f_nac = paciente.fecha_nacimiento.strftime("%d/%m/%Y") if paciente and paciente.fecha_nacimiento else ""
         sexo_val = paciente.sexo.upper() if paciente and paciente.sexo else ""
-        cedula = medico.cedula if medico and hasattr(medico, 'cedula') else ""
+        cedula = emp.cedula if emp and hasattr(emp, 'cedula') else ""
         servicio_nombre = receta.nota.servicio.nombre_servicio.upper() if receta.nota and receta.nota.servicio else "GENERAL"
 
         # 2. Definir coordenadas según el servicio
@@ -528,7 +535,10 @@ def receta_pdf(id_receta):
         # ==================================================
         # POSICIONES ORIGINAL ARRIBA
         # ==================================================
-        c.drawString(505, 730, str(receta.folio))
+        
+        folio_limpio = generar_base_folio(emp.nombre,emp.apellido_paterno) 
+        c.drawString(505, 730, f"{folio_limpio}{str(receta.folio).zfill(5)}")
+        #   POR SI ALGUN DIA NO INTERO EL FOLIO     c.drawString(505, 730, f"{folio_limpio}{str(receta.folio).zfill(5)}")
         c.drawString(10, 680, nombre)
         c.drawString(20, 660, expediente)
         c.drawString(505, 700, fecha)
@@ -571,7 +581,8 @@ def receta_pdf(id_receta):
         # ==================================================
         # COPIA ABAJO
         # ==================================================
-        c.drawString(505, 340, str(receta.folio))
+        
+        c.drawString(505, 340,  f"{folio_limpio}{str(receta.folio).zfill(5)}")
         c.drawString(10, 285, nombre)
         c.drawString(20, 260, expediente)
         c.drawString(505, 315, fecha)
