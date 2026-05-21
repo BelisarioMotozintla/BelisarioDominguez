@@ -158,7 +158,7 @@ function agregarFila() {
             $selectLote.empty().append('<option value="">-- Lote --</option>');
             if (data.length > 0) {
                 data.forEach(item => {
-                    $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}">Lote: ${item.lote} (${item.cantidad})</option>`);
+                    $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}">Lote: ${item.lote} - Vence: ${item.vencimiento} (${item.cantidad})</option>`);
                 });
                 $selectLote.prop('disabled', false);
             } else {
