@@ -1069,7 +1069,6 @@ def reporte_inventario():
                 cant_alm += i.cantidad
                 
                 # Buscamos la observación en la tabla EntradaAlmacen
-                # Filtramos por el id del medicamento y el lote del inventario actual
                 entrada_orig = EntradaAlmacen.query.filter_by(
                     id_medicamento=med.id_medicamento, 
                     lote=i.lote
@@ -1081,7 +1080,7 @@ def reporte_inventario():
                     "lote": i.lote, 
                     "cant": i.cantidad, 
                     "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A',
-                    "observaciones": obs_texto # <--- Campo agregado
+                    "observaciones": obs_texto
                 })
 
         # --- PROCESAR FARMACIA ---
@@ -1091,7 +1090,6 @@ def reporte_inventario():
             if i.cantidad > 0:
                 cant_far += i.cantidad
                 
-                # También buscamos la observación para farmacia por si acaso
                 ent_f = EntradaAlmacen.query.filter_by(id_medicamento=med.id_medicamento, lote=i.lote).first()
                 obs_f = ent_f.observaciones if (ent_f and ent_f.observaciones) else ""
 
@@ -1106,10 +1104,24 @@ def reporte_inventario():
         total = cant_alm + cant_far
         texto_busqueda_lotes = " ".join([l['lote'] for l in lotes_alm] + [l['lote'] for l in lotes_far])
         
-        vence_pronto = any(
-            inv.fecha_vencimiento and inv.fecha_vencimiento <= limite_vencimiento 
-            for inv in (med.inventario_almacen + med.inventario_farmacia) if inv.cantidad > 0
-        )
+        # Clasificación independiente de los estados de caducidad
+        tiene_caducados = False
+        tiene_proximos = False
+
+        for inv in (med.inventario_almacen + med.inventario_farmacia):
+            if inv.cantidad > 0 and inv.fecha_vencimiento:
+                if inv.fecha_vencimiento <= hoy:
+                    tiene_caducados = True
+                elif inv.fecha_vencimiento <= limite_vencimiento:
+                    tiene_proximos = True
+
+        # Asignación de etiqueta de texto para búsqueda exacta
+        if tiene_caducados:
+            estado_caducidad = "ESTADO_CADUCADO"
+        elif tiene_proximos:
+            estado_caducidad = "ESTADO_PROXIMO"
+        else:
+            estado_caducidad = "ESTADO_VIGENTE"
 
         def calcular_color(cantidad, min_s, max_s):
             if cantidad <= min_s: return "danger"
@@ -1122,7 +1134,7 @@ def reporte_inventario():
             "presentacion": med.presentacion,
             "concentracion": med.concentracion,
             "lotes_busqueda": texto_busqueda_lotes,
-            "vence_pronto": vence_pronto,
+            "estado_caducidad": estado_caducidad,  # <--- Enviado a la vista HTML
             "lotes_almacen": lotes_alm,
             "lotes_farmacia": lotes_far,
             "almacen": {"cant": cant_alm, "color": calcular_color(cant_alm, med.stock_minimo, med.stock_maximo)},
