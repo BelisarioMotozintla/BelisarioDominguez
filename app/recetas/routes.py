@@ -75,36 +75,117 @@ def lista_recetas():
     return render_template("recetas/lista_recetas.html", recetas=recetas)
 #=================================================================================== SALIDA DE RECETAS ================================
 
+from sqlalchemy import cast, String # 🌟 IMPORTANTE: Importa estas funciones
+
 @bp.route('/salidas/listar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
-    # Capturar búsqueda (folio, paciente, etc.)
     query = request.args.get('q', '').strip()
     
-    # Base de la consulta usando los modelos reales
-    # Nota: Asegúrate de que las relaciones estén definidas en tus modelos
     salidas_query = SalidaFarmaciaPaciente.query\
-        .join(Medicamento)\
+        .outerjoin(Medicamento)\
         .outerjoin(RecetaMedica)\
         .outerjoin(Paciente)
 
     if query:
-        # Buscamos ignorando mayúsculas/minúsculas
         search = f"%{query}%"
         salidas_query = salidas_query.filter(
-            (RecetaMedica.folio.ilike(search)) |
+            # 🌟 CORRECCIÓN AQUÍ: Convertimos el folio entero a String antes del ilike
+            (cast(RecetaMedica.folio, String).ilike(search)) |
             (Paciente.nombre.ilike(search)) |
             (Medicamento.principio_activo.ilike(search)) |
             (SalidaFarmaciaPaciente.lote.ilike(search))
         )
 
-    # Ordenar por fecha de salida descendente
     salidas = salidas_query.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
     
     return render_template('recetas/listar_salidas.html', 
                            salidas=salidas, 
                            query=query)
 
+
+# crear recetas express
+@bp.route("/recetas/express", methods=["POST"])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def crear_receta_express():
+    folio = request.form.get("folio", type=int)
+    id_despachador = current_user.id_usuario
+    
+    # Validamos duplicidad de folios manuales
+    if RecetaMedica.query.filter_by(folio=folio).first():
+        flash(f"❌ El folio {folio} ya fue registrado anteriormente.", "danger")
+        return redirect(url_for("recetas.recetas_pendientes"))
+
+    try:
+        # 1. Insertamos la receta omitiendo campos médicos y dejando id_paciente en None
+        nueva_receta = RecetaMedica(
+            folio=folio,
+            id_paciente=64,
+            id_asignacion=2,          # 🌟 SIN PACIENTE INVOLUCRADO
+            nota_id=5,
+            diagnostico_id=1,
+            id_usuario=id_despachador, # Registramos quién capturó en farmacia
+            fecha_emision=datetime.utcnow()
+        )
+        db.session.add(nueva_receta)
+        db.session.flush() # Genera el id_receta
+
+        # 2. Capturar los tres bloques de medicamentos del formulario modal
+        for i in range(1, 4):
+            id_med = request.form.get(f"medicamento_{i}", type=int)
+            cant_recetada = request.form.get(f"recetado_{i}", type=int) or 0
+            cant_surtida = request.form.get(f"surtido_{i}", type=int) or 0
+
+            if id_med and cant_recetada > 0:
+                # Instanciamos usando tu modelo real DetalleReceta
+                detalle = DetalleReceta(
+                    id_receta=nueva_receta.id_receta,
+                    id_medicamento=id_med,
+                    cantidad=cant_recetada,
+                    cantidad_surtida=cant_surtida,
+                    dosis="CAPTURADO EN FARMACIA",
+                    indicaciones="SURTIDO DIRECTO"
+                )
+                db.session.add(detalle)
+
+                # 3. Lógica de almacén si el despachador entregó el medicamento en ese instante
+                if cant_surtida > 0:
+                    lotes_disponibles = InventarioFarmacia.query.filter(
+                        InventarioFarmacia.id_medicamento == id_med,
+                        InventarioFarmacia.cantidad > 0
+                    ).order_by(InventarioFarmacia.fecha_vencimiento.asc()).all()
+
+                    por_surtir = cant_surtida
+                    
+                    for inv_lote in lotes_disponibles:
+                        if por_surtir <= 0: break
+                        
+                        cantidad_desde_este_lote = min(inv_lote.cantidad, por_surtir)
+
+                        # Grabamos en tu historial de salidas generales
+                        salida = SalidaFarmaciaPaciente(
+                            id_receta=nueva_receta.id_receta,
+                            id_medicamento=id_med,
+                            cantidad=cantidad_desde_este_lote,
+                            lote=inv_lote.lote,
+                            fecha_vencimiento=inv_lote.fecha_vencimiento,
+                            fecha_salida=datetime.utcnow(),
+                            id_usuario=id_despachador
+                        )
+                        db.session.add(salida)
+
+                        # Modificamos la existencia del lote
+                        inv_lote.cantidad -= cantidad_desde_este_lote
+                        por_surtir -= cantidad_desde_este_lote
+
+        db.session.commit()
+        flash(f"⚡ Receta física Folio {folio} guardada y descontada del inventario correctamente.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Error al procesar la captura de farmacia: {str(e)}", "danger")
+
+    return redirect(url_for("recetas.recetas_pendientes"))
 
 @bp.route("/recetas/crear/<int:id_nota>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO', 'UsuarioPasante', 'Administrador'])
@@ -252,6 +333,115 @@ def crear_receta(id_nota):
         ).all(),
         folio=asignacion.proximo_folio()
     )
+
+from flask import flash, redirect, url_for
+from app import db # Ajusta el import de tu base de datos
+from app.models import RecetaMedica, InventarioFarmacia # Ajusta tus modelos
+
+@bp.route("/recetas/eliminar/<int:id_receta>", methods=["POST"])
+@roles_required(['Administrador'])
+def eliminar_receta(id_receta):
+    # 1. Buscar la receta pendiente
+    receta = RecetaMedica.query.get_or_404(id_receta)
+    
+    try:
+        # 2. ESCENARIO "YA SURTÍ ALGO" (Surtido Parcial): Devolver stock antes de borrar
+        if receta.salidas:
+            for salida in receta.salidas:
+                # Buscamos el lote exacto en el inventario de la farmacia
+                inventario_lote = InventarioFarmacia.query.filter_by(
+                    id_medicamento=salida.id_medicamento,
+                    lote=salida.lote
+                ).first()
+
+                if inventario_lote:
+                    # Devolvemos las piezas al lote original
+                    inventario_lote.cantidad += salida.cantidad
+                else:
+                    # Si el lote ya no existía en el inventario, lo recreamos
+                    nuevo_lote = InventarioFarmacia(
+                        id_medicamento=salida.id_medicamento,
+                        lote=salida.lote,
+                        cantidad=salida.cantidad,
+                        fecha_vencimiento=salida.fecha_vencimiento
+                    )
+                    db.session.add(nuevo_lote)
+                
+                # Borramos el registro del historial de salidas vinculado a esta receta
+                db.session.delete(salida)
+
+        # 3. ESCENARIO "NO HE SURTIDO" / LIMPIEZA: Borrar renglones de la receta
+        for detalle in receta.detalle:
+            db.session.delete(detalle)
+            
+        # 4. Borrar la receta principal
+        db.session.delete(receta)
+        
+        # Guardar todos los cambios en la Base de Datos
+        db.session.commit()
+        flash(f"🗑️ Receta con folio {receta.folio} eliminada correctamente. El stock parcial fue devuelto a los anaqueles.", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Error al intentar eliminar la receta: {str(e)}", "danger")
+        
+    # 5. Redireccionar siempre al listado de pendientes
+    return redirect(url_for("recetas.recetas_pendientes"))
+
+@bp.route('/salidas/eliminar/<int:id>', methods=['POST'])
+@roles_required(['Administrador'])
+def eliminar_salida(id):
+    # 1. Buscar el registro de la salida (el historial)
+    salida = SalidaFarmaciaPaciente.query.get_or_404(id)
+    
+    try:
+        # 2. LÓGICA DE STOCK REAL: Buscar el lote exacto en el inventario para devolver las piezas
+        inventario_lote = InventarioFarmacia.query.filter_by(
+            id_medicamento=salida.id_medicamento,
+            lote=salida.lote
+        ).first()
+
+        if inventario_lote:
+            # Si el lote aún existe en el inventario, le sumamos las piezas devueltas
+            inventario_lote.cantidad += salida.cantidad
+        else:
+            # Si por alguna razón el lote ya se había borrado (cantidad 0), lo volvemos a crear
+            nuevo_lote = InventarioFarmacia(
+                id_medicamento=salida.id_medicamento,
+                lote=salida.lote,
+                cantidad=salida.cantidad,
+                fecha_vencimiento=salida.fecha_vencimiento
+            )
+            db.session.add(nuevo_lote)
+
+        # 3. Restar la cantidad surtida del detalle de la receta (si es que está asociada a una)
+        if salida.id_receta:
+            # Buscamos el renglón específico de ese medicamento en esa receta
+            # Nota: Ajusta 'id_receta' o los nombres según tus modelos de receta.detalle
+            from app.models import RecetaDetalle # O el nombre exacto de tu modelo de detalles
+            detalle_receta = RecetaDetalle.query.filter_by(
+                id_receta=salida.id_receta,
+                id_medicamento=salida.id_medicamento
+            ).first()
+            
+            if detalle_receta and detalle_receta.cantidad_surtida:
+                # Restamos la cantidad para que la receta pueda volver a figurar como pendiente/parcial
+                detalle_receta.cantidad_surtida -= salida.cantidad
+                if detalle_receta.cantidad_surtida < 0:
+                    detalle_receta.cantidad_surtida = 0
+
+        # 4. Eliminar el registro del historial de salidas
+        db.session.delete(salida)
+        db.session.commit()
+        flash('✅ Salida revertida con éxito. El stock ha regresado al lote correspondiente en la farmacia.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Error al intentar revertir la salida: {str(e)}', 'danger')
+        
+    # 5. Redireccionar de vuelta al listado de salidas
+    return redirect(url_for('recetas.listar_salidas'))
+
 
 @bp.route("/editar/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO','UsuarioPasante','Administrador'])
@@ -648,28 +838,48 @@ def receta_pdf(id_receta):
 
 
 #==========================================================================================================surtimiento de receta===============================
+from app.models import RecetaMedica, Paciente, Medicamento, InventarioFarmacia
+
 @bp.route("/recetas/pendientes")
-@roles_required(['UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrative', 'Administrador'])
 def recetas_pendientes():
     query = request.args.get('q', '').strip().upper()
     
-    # Base query: recetas no completas con JOIN a Paciente
-    recetas_query = RecetaMedica.query.filter(
-        RecetaMedica.tipo_surtimiento_calculado != "Completa"
-    ).join(Paciente)
+    # Usamos outerjoin con Paciente por si existen recetas previas sin paciente ligado
+    recetas_query = RecetaMedica.query.outerjoin(Paciente)
 
     if query:
-        # Buscamos por nombre de paciente o intentamos convertir query a folio si es número
         if query.isdigit():
             recetas_query = recetas_query.filter(RecetaMedica.folio == int(query))
         else:
             recetas_query = recetas_query.filter(Paciente.nombre.ilike(f"%{query}%"))
 
-    recetas = recetas_query.order_by(RecetaMedica.fecha_emision.desc()).all()
+    todas_las_recetas = recetas_query.order_by(RecetaMedica.fecha_emision.desc()).all()
+    recetas_filtradas = [r for r in todas_las_recetas if r.tipo_surtimiento_calculado != "Completa"]
+
+    # Catálogo de medicamentos con existencias agrupadas (Igual al de tu médico)
+    medicamentos_db = db.session.query(
+        Medicamento,
+        InventarioFarmacia
+    ).outerjoin(
+        InventarioFarmacia,
+        InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
+    ).all()
+
+    medicamentos = [
+        {
+            "id": m.id_medicamento,
+            "descripcion": f"{m.clave} - {m.principio_activo} ({m.presentacion})",
+            "existencia": inv.cantidad if inv else 0
+        }
+        for m, inv in medicamentos_db
+    ]
 
     return render_template("recetas/pendientes.html", 
-                           recetas=recetas, 
-                           query=query)
+                           recetas=recetas_filtradas, 
+                           query=query,
+                           medicamentos=medicamentos)
+
 
 @bp.route("/surtir/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])

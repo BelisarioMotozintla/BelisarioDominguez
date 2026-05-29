@@ -6,7 +6,7 @@
         <h3 class="text-danger"><i class="bi bi-box-arrow-up"></i> Salidas a Pacientes</h3>
         <div>
             <a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-primary">
-                <i class="bi bi- receipt-cutoff"></i> Recetas Pendientes
+                <i class="bi bi-receipt-cutoff"></i> Recetas Pendientes
             </a>
             <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
         </div>
@@ -63,9 +63,11 @@
                                     <i class="bi bi-file-earmark-medical"></i>
                                 </a>
                                 {% endif %}
-                                <form action="{{ url_for('farmacia.eliminar_salida', id=salida.id_salida) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Revertir salida? El stock regresará a la farmacia.');">
-                                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                                </form>
+                                <form action="{{ url_for('recetas.eliminar_salida', id=salida.id_salida) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Revertir salida? El stock regresará a la farmacia.');">
+    <button class="btn btn-sm btn-outline-danger" type="submit" title="Revertir Salida">
+        <i class="bi bi-trash"></i>
+    </button>
+</form>
                             </div>
                         </td>
                     </tr>

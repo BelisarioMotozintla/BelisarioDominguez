@@ -1,73 +1,545 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<!-- TOM SELECT -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
 <div class="container-fluid mt-4">
+
+    <!-- ENCABEZADO -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="text-primary"><i class="bi bi-clipboard-pulse"></i> Recetas Pendientes</h3>
-        <a href="{{ url_for('farmacia.listar_salidas') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Ver Salidas
-        </a>
+        <h3 class="text-primary">
+            <i class="bi bi-clipboard-pulse"></i>
+            Recetas Pendientes
+        </h3>
+
+        <div>
+            <!-- BOTÓN MODAL -->
+            <button
+                type="button"
+                class="btn btn-success me-2"
+                data-bs-toggle="modal"
+                data-bs-target="#modalRecetaExpress"
+            >
+                <i class="bi bi-lightning-charge"></i>
+                Receta Express
+            </button>
+
+            <a href="{{ url_for('farmacia.listar_salidas') }}"
+               class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Ver Salidas
+            </a>
+        </div>
     </div>
 
-    <!-- Buscador Estilo Unificado -->
-    <form method="GET" action="{{ url_for('recetas.recetas_pendientes') }}" class="mb-4">
+    <!-- BUSCADOR -->
+    <form method="GET"
+          action="{{ url_for('recetas.recetas_pendientes') }}"
+          class="mb-4">
+
         <div class="input-group shadow-sm">
-            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" name="q" class="form-control" placeholder="Buscar por folio o nombre del paciente..." value="{{ query or '' }}">
-            <button class="btn btn-primary" type="submit">Buscar Receta</button>
+
+            <span class="input-group-text bg-white">
+                <i class="bi bi-search text-muted"></i>
+            </span>
+
+            <input
+                type="text"
+                name="q"
+                class="form-control"
+                placeholder="Buscar por folio o nombre del paciente..."
+                value="{{ query or '' }}"
+            >
+
+            <button class="btn btn-primary" type="submit">
+                Buscar Receta
+            </button>
+
             {% if query %}
-                <a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-outline-secondary">Limpiar</a>
+            <a href="{{ url_for('recetas.recetas_pendientes') }}"
+               class="btn btn-outline-secondary">
+                Limpiar
+            </a>
             {% endif %}
         </div>
     </form>
 
+    <!-- TABLA -->
     <div class="card shadow border-0">
+
         <div class="table-responsive">
+
             <table class="table table-hover align-middle mb-0">
+
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center">Folio</th>
                         <th>Paciente</th>
                         <th>Fecha Emisión</th>
-                        <th class="text-center">Estado de Surtido</th>
+                        <th class="text-center">Estado</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody>
+
                     {% for r in recetas %}
                     <tr>
-                        <td class="text-center fw-bold">{{ r.folio }}</td>
-                        <td>{{ r.paciente.nombre }}</td>
-                        <td>{{ r.fecha_emision.strftime('%d/%m/%Y %H:%M') }}</td>
+
+                        <td class="text-center fw-bold">
+                            {{ r.folio }}
+                        </td>
+
+                        <td>
+                            {{ r.paciente.nombre if r.paciente else 'EXTERNO / OTRO' }}
+                        </td>
+
+                        <td>
+                            {{ r.fecha_emision.strftime('%d/%m/%Y %H:%M') }}
+                        </td>
+
                         <td class="text-center">
+
                             {% if r.tipo_surtimiento_calculado == "Parcial" %}
-                                <span class="badge rounded-pill bg-warning text-dark">Surtido Parcial</span>
+
+                            <span class="badge rounded-pill bg-warning text-dark">
+                                Surtido Parcial
+                            </span>
+
                             {% else %}
-                                <span class="badge rounded-pill bg-danger">Sin Surtir</span>
+
+                            <span class="badge rounded-pill bg-danger">
+                                Sin Surtir
+                            </span>
+
                             {% endif %}
                         </td>
+
                         <td class="text-center">
+
                             <div class="btn-group">
-                                <a href="{{ url_for('recetas.surtir_receta', id_receta=r.id_receta) }}" class="btn btn-sm btn-success">
-                                    <i class="bi bi-cart-plus"></i> Surtir
+
+                                <a href="{{ url_for('recetas.surtir_receta', id_receta=r.id_receta) }}"
+                                   class="btn btn-sm btn-success">
+
+                                    <i class="bi bi-cart-plus"></i>
+                                    Surtir
                                 </a>
-                                <a href="{{ url_for('recetas.detalle_receta', id_receta=r.id_receta) }}" class="btn btn-sm btn-outline-secondary">
+
+                                <a href="{{ url_for('recetas.detalle_receta', id_receta=r.id_receta) }}"
+                                   class="btn btn-sm btn-outline-secondary">
+
                                     <i class="bi bi-eye"></i>
                                 </a>
+
+                                <form
+                                    action="{{ url_for('recetas.eliminar_receta', id_receta=r.id_receta) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('¿Eliminar receta?');"
+                                >
+
+                                    <button type="submit"
+                                            class="btn btn-sm btn-outline-danger">
+
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+
                             </div>
                         </td>
+
                     </tr>
+
                     {% else %}
+
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            <i class="bi bi-check-circle h4 text-success"></i><br>
-                            No hay recetas pendientes por surtir en este momento.
+                        <td colspan="5"
+                            class="text-center py-5 text-muted">
+
+                            <i class="bi bi-check-circle h4 text-success"></i>
+                            <br>
+
+                            No hay recetas pendientes.
                         </td>
                     </tr>
+
                     {% endfor %}
+
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<!-- MODAL RECETA EXPRESS -->
+<div class="modal fade"
+     id="modalRecetaExpress"
+     data-bs-backdrop="static"
+     tabindex="-1">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <!-- HEADER -->
+            <div class="modal-header bg-success text-white">
+
+                <h5 class="modal-title">
+                    <i class="bi bi-lightning-charge"></i>
+                    Captura Manual Rápida
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+            <!-- FORM -->
+            <form
+                id="formRecetaExpress"
+                action="{{ url_for('recetas.crear_receta_express') }}"
+                method="POST"
+                novalidate
+            >
+
+                <div class="modal-body">
+
+                    <!-- FOLIO -->
+                    <div class="row mb-4">
+
+                        <div class="col-md-5">
+
+                            <label class="form-label fw-bold">
+                                Folio del Papel
+                            </label>
+
+                            <input
+                                type="number"
+                                name="folio"
+                                class="form-control"
+                                required
+                                min="1"
+                            >
+
+                            <div class="invalid-feedback">
+                                Ingresa un folio válido.
+                            </div>
+                        </div>
+
+                        <div class="col-md-7 text-end pt-4">
+
+                            <span class="text-muted small">
+                                <i class="bi bi-info-circle"></i>
+                                Captura rápida sin paciente.
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- MEDICAMENTOS -->
+                    <h6 class="border-bottom pb-2 text-secondary fw-bold mb-3">
+                        Medicamentos Entregados
+                    </h6>
+
+                    {% for i in range(1,4) %}
+
+                    <div class="row g-2 mb-3 align-items-end p-2 bg-light rounded border">
+
+                        <!-- MEDICAMENTO -->
+                        <div class="col-md-6">
+
+                            <label class="form-label small text-muted fw-bold">
+                                Medicamento {{ i }}
+                            </label>
+
+                            <select
+                                name="medicamento_{{ i }}"
+                                id="medicamento_{{ i }}"
+                                class="form-select selector-busqueda"
+                                data-index="{{ i }}"
+                            >
+
+                                <option value="">
+                                    -- Buscar medicamento --
+                                </option>
+
+                                {% for m in medicamentos %}
+
+                                <option
+                                    value="{{ m.id }}"
+                                    data-stock="{{ m.existencia }}"
+                                    data-clave="{{ m.clave }}"
+                                >
+                                    {{ m.clave }}
+                                    -
+                                    {{ m.descripcion }}
+                                    |
+                                    Existencia:
+                                    {{ m.existencia }}
+                                </option>
+
+                                {% endfor %}
+                            </select>
+
+                            <small
+                                id="stock_info_{{ i }}"
+                                class="text-success fw-bold">
+                            </small>
+                        </div>
+
+                        <!-- RECETADO -->
+                        <div class="col-md-3">
+
+                            <label class="form-label small text-muted">
+                                Cant. Recetada
+                            </label>
+
+                            <input
+                                type="number"
+                                name="recetado_{{ i }}"
+                                id="recetado_{{ i }}"
+                                class="form-control"
+                                min="1"
+                            >
+
+                            <div class="invalid-feedback">
+                                Ingresa cantidad recetada.
+                            </div>
+                        </div>
+
+                        <!-- SURTIDO -->
+                        <div class="col-md-3">
+
+                            <label class="form-label small text-muted">
+                                Cant. Surtida
+                            </label>
+
+                            <input
+                                type="number"
+                                name="surtido_{{ i }}"
+                                id="surtido_{{ i }}"
+                                class="form-control"
+                                min="0"
+                            >
+
+                            <div class="invalid-feedback"
+                                 id="feedback_surtido_{{ i }}">
+
+                                Ingresa cantidad surtida.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+                <!-- FOOTER -->
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+
+                        Cancelar
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-success">
+
+                        <i class="bi bi-check-circle"></i>
+                        Registrar y Surtir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT -->
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    // =========================
+    // TOM SELECT
+    // =========================
+    document.querySelectorAll('.selector-busqueda').forEach(select => {
+
+        new TomSelect(select, {
+
+            create: false,
+
+            valueField: 'value',
+
+            labelField: 'text',
+
+            searchField: ['text'],
+
+            sortField: {
+                field: "text",
+                direction: "asc"
+            },
+
+            placeholder: "Buscar por clave o nombre...",
+
+            allowEmptyOption: true
+        });
+
+        // MOSTRAR EXISTENCIA
+        select.addEventListener("change", function () {
+
+            const index = this.dataset.index;
+
+            const stockInfo =
+                document.getElementById(`stock_info_${index}`);
+
+            const optionSeleccionada =
+                this.options[this.selectedIndex];
+
+            if (this.value !== "") {
+
+                const stock =
+                    optionSeleccionada.getAttribute("data-stock");
+
+                stockInfo.innerHTML =
+                    `Existencia disponible: ${stock}`;
+
+            } else {
+
+                stockInfo.innerHTML = "";
+            }
+        });
+    });
+
+    // =========================
+    // VALIDACIÓN FORM
+    // =========================
+    const form =
+        document.getElementById("formRecetaExpress");
+
+    form.addEventListener("submit", function (event) {
+
+        let formularioValido = true;
+
+        let alMenosUnMedicamento = false;
+
+        // VALIDAR FOLIO
+        const folioInput =
+            form.querySelector('input[name="folio"]');
+
+        if (
+            !folioInput.value ||
+            parseInt(folioInput.value) <= 0
+        ) {
+
+            folioInput.classList.add("is-invalid");
+
+            formularioValido = false;
+
+        } else {
+
+            folioInput.classList.remove("is-invalid");
+        }
+
+        // VALIDAR MEDICAMENTOS
+        for (let i = 1; i <= 3; i++) {
+
+            const selectMed =
+                document.getElementById(`medicamento_${i}`);
+
+            const recetadoInput =
+                document.getElementById(`recetado_${i}`);
+
+            const surtidoInput =
+                document.getElementById(`surtido_${i}`);
+
+            const feedbackSurtido =
+                document.getElementById(`feedback_surtido_${i}`);
+
+            recetadoInput.classList.remove("is-invalid");
+
+            surtidoInput.classList.remove("is-invalid");
+
+            if (selectMed.value !== "") {
+
+                alMenosUnMedicamento = true;
+
+                const optionSeleccionado =
+                    selectMed.options[selectMed.selectedIndex];
+
+                const stockDisponible =
+                    parseInt(
+                        optionSeleccionado.getAttribute("data-stock")
+                    ) || 0;
+
+                const valRecetado =
+                    parseInt(recetadoInput.value) || 0;
+
+                const valSurtido =
+                    parseInt(surtidoInput.value) || 0;
+
+                // VALIDAR RECETADO
+                if (valRecetado <= 0) {
+
+                    recetadoInput.classList.add("is-invalid");
+
+                    formularioValido = false;
+                }
+
+                // VALIDAR SURTIDO VACÍO
+                if (surtidoInput.value === "") {
+
+                    surtidoInput.classList.add("is-invalid");
+
+                    feedbackSurtido.textContent =
+                        "Ingresa cantidad surtida.";
+
+                    formularioValido = false;
+                }
+
+                // VALIDAR STOCK
+                if (valSurtido > stockDisponible) {
+
+                    surtidoInput.classList.add("is-invalid");
+
+                    feedbackSurtido.textContent =
+                        `Stock insuficiente. Máximo: ${stockDisponible}`;
+
+                    formularioValido = false;
+                }
+            }
+        }
+
+        // VALIDAR QUE HAYA MEDICAMENTO
+        if (
+            formularioValido &&
+            !alMenosUnMedicamento
+        ) {
+
+            alert(
+                "Debes seleccionar al menos un medicamento."
+            );
+
+            event.preventDefault();
+
+            return false;
+        }
+
+        // DETENER ENVÍO
+        if (!formularioValido) {
+
+            event.preventDefault();
+
+            event.stopPropagation();
+        }
+    });
+});
+</script>
+
 {% endblock %}

@@ -270,7 +270,8 @@ class RecetaMedica(db.Model):
     folio = Column(Integer, nullable=False)
     fecha_emision = Column(TIMESTAMP, default=datetime.utcnow)
     tipo_surtimiento = Column(String(20), default="No surtida", nullable=False)
-    nota_id = db.Column(db.Integer, db.ForeignKey("nota_consulta_externa.id_nota"), unique=True, nullable=False)
+    #nota_id = db.Column(db.Integer, db.ForeignKey("nota_consulta_externa.id_nota"), unique=True, nullable=False)# esto es para que sea receta por nota
+    nota_id = db.Column(db.Integer,db.ForeignKey("nota_consulta_externa.id_nota"),nullable=True,index=True)
     diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico.id_diagnostico'), nullable=False)
     
    
@@ -289,28 +290,33 @@ class RecetaMedica(db.Model):
     # Property para calcular tipo de surtimiento dinámicamente
     @property
     def tipo_surtimiento_calculado(self):
+        # Si la receta no tiene ninguna salida registrada en el historial
         if not self.salidas:
             return "No surtida"
 
-        completo, parcial = True, False
+        completo = True
+        parcial = False
 
+        # Analizamos renglón por renglón lo solicitado vs lo entregado en total
         for detalle in self.detalle:
-            salida = next(
-                (s for s in self.salidas if s.id_medicamento == detalle.id_medicamento),
-                None
+            # Sumamos todas las salidas existentes para este medicamento específico en la receta
+            total_surtido = sum(
+                s.cantidad for s in self.salidas if s.id_medicamento == detalle.id_medicamento
             )
-            if not salida or salida.cantidad == 0:
+            
+            if total_surtido == 0:
                 completo = False
-            elif salida.cantidad < detalle.cantidad:
+            elif total_surtido < detalle.cantidad:
                 completo = False
                 parcial = True
+            # Nota: Si total_surtido >= detalle.cantidad, se mantiene completo para este medicamento
 
         if completo:
             return "Completa"
         elif parcial:
             return "Parcial"
+        
         return "No surtida"
-
 class DetalleReceta(db.Model):
     __tablename__ = 'DetalleReceta'
     id_detalle = Column(Integer, primary_key=True)
