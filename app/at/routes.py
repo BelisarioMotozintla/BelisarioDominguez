@@ -318,7 +318,7 @@ def generador():
                             "CLUES": "CSIMB005343",
                             "Responsable": "PEDRO JESUS GALINDO ESTRADA",
                             "FechaRegistro": fecha_registro,
-                            "Versión": "Versión 4"
+                            "Versión": "Versión 5"
                         })
 
             # --- B. SALIDAS DEL DÍA (REGLA ESPEJO) ---
@@ -347,7 +347,7 @@ def generador():
                         "CLUES": "CSIMB005343",
                         "Responsable": "PEDRO JESUS GALINDO ESTRADA",
                         "FechaRegistro": fecha_registro,
-                        "Versión": "Versión 4"
+                        "Versión": "Versión 5"
                     })
                     control_stock[clave] = stock_final
 

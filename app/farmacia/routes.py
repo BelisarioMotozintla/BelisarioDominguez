@@ -690,10 +690,9 @@ def buscar_lotes_almacen(id_medicamento):
 @bp.route('/movimientos/almacen')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_movimientos():
-    # Obtener el parámetro de búsqueda
+    ahora = datetime.now() # <--- DEFINIDO para evitar errores
     query = request.args.get('q', '').strip().upper()
     
-    # Base de la consulta con JOINs necesarios
     movimientos_query = MovimientoAlmacenFarmacia.query.join(Medicamento).join(Usuario)
 
     if query:
@@ -704,14 +703,15 @@ def listar_movimientos():
             (MovimientoAlmacenFarmacia.observaciones.ilike(f'%{query}%'))
         )
 
-    # Ordenar por los más recientes
-    movimientos = movimientos_query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).limit(10).all()
-
+    # Nota: Removí el .limit(10) para que la tabla muestre los resultados completos o paginados si aplica
+    movimientos = movimientos_query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
         
     return render_template('farmacia/movimientos.html', 
                            movimientos=movimientos, 
-                           query=query)
-
+                           query=query, 
+                           mes_actual=ahora.month, 
+                           anio_actual=ahora.year)
+		
 
 @bp.route('/movimientos/nuevo_movimiento', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -925,6 +925,9 @@ def eliminar_movimiento(id):
         flash(f"❌ Error al eliminar: {str(e)}", "danger")
     
     return redirect(url_for('farmacia.listar_movimientos'))
+
+
+
 @bp.route('/descargar_traspasos_oc99')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def descargar_traspasos_oc99():
@@ -1018,7 +1021,164 @@ def descargar_traspasos_oc99():
     output.seek(0)
 
     return send_file(output, download_name=f"OC99_TRASPASOS_{mes:02d}_{anio}.xlsx", as_attachment=True)
+    
+    
+    
+from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for
+from datetime import datetime
+import calendar
+from io import BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
 
+# --- RUTA 1: VISTA EN PÁGINA WEB (TABLA HTML) ---
+@bp.route('/movimientos/ver_tabla')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def ver_movimientos_tabla():
+    tipo = request.args.get('tipo', 'TODOS')
+    
+    query = db.session.query(MovimientoAlmacenFarmacia, Medicamento)\
+        .join(Medicamento, MovimientoAlmacenFarmacia.id_medicamento == Medicamento.id_medicamento)
+    
+    # Si seleccionan CADUCADO, buscamos la etiqueta exacta de tu BD: BAJA_CADUCIDAD
+    if tipo != 'TODOS':
+        if tipo == 'CADUCADO':
+            query = query.filter(MovimientoAlmacenFarmacia.observaciones.like("BAJA_CADUCIDAD%"))
+        else:
+            query = query.filter(MovimientoAlmacenFarmacia.observaciones.like(f"{tipo}%"))
+        
+    movimientos = query.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
+    
+    return render_template('farmacia/movimientos_tabla.html', movimientos=movimientos, tipo_actual=tipo)
+
+
+# --- RUTA 2: DESCARGA DE EXCEL MATRICIAL O COMPLETO ---
+@bp.route('/movimientos/descargar_excel')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def descargar_movimientos_excel():
+    ahora = datetime.now()
+    rango = request.args.get('rango', 'todos')
+    tipo_movimiento = request.args.get('tipo_movimiento', 'TODOS')
+    
+    query_traspasos = db.session.query(MovimientoAlmacenFarmacia)
+    
+    # Ajuste de filtro para BAJA_CADUCIDAD
+    if tipo_movimiento != 'TODOS':
+        if tipo_movimiento == 'CADUCADO':
+            query_traspasos = query_traspasos.filter(MovimientoAlmacenFarmacia.observaciones.like("BAJA_CADUCIDAD%"))
+        else:
+            query_traspasos = query_traspasos.filter(MovimientoAlmacenFarmacia.observaciones.like(f"{tipo_movimiento}%"))
+
+    # REPORTE MATRICIAL POR DÍAS (MENSUAL)
+    if rango == 'mes':
+        anio = request.args.get('anio', ahora.year, type=int)
+        mes = request.args.get('mes', ahora.month, type=int)
+        dias_mes = calendar.monthrange(anio, mes)[1]
+
+        traspasos = query_traspasos.filter(
+            db.extract('year', MovimientoAlmacenFarmacia.fecha_movimiento) == anio,
+            db.extract('month', MovimientoAlmacenFarmacia.fecha_movimiento) == mes
+        ).all()
+
+        medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
+
+        matriz = {}
+        totales_piezas_dia = {d: 0 for d in range(1, dias_mes + 1)}
+        claves_por_dia = {d: set() for d in range(1, dias_mes + 1)}
+
+        for med in medicamentos:
+            nombre_completo = f"{med.principio_activo or ''} - {med.presentacion or ''}".strip().upper()
+            matriz[med.id_medicamento] = {
+                'clave': med.clave,
+                'nombre': nombre_completo,
+                'dias': {d: 0 for d in range(1, dias_mes + 1)}
+            }
+
+        for t in traspasos:
+            dia = t.fecha_movimiento.day
+            if t.id_medicamento in matriz:
+                matriz[t.id_medicamento]['dias'][dia] += t.cantidad
+                totales_piezas_dia[dia] += t.cantidad
+                if t.cantidad > 0:
+                    claves_por_dia[dia].add(t.id_medicamento)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"Reporte {mes}_{anio}"
+
+        font_bold = Font(bold=True)
+        fill_resumen = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        
+        ws.append(["TOTAL CLAVES:", ""] + [len(claves_por_dia[d]) for d in range(1, dias_mes + 1)])
+        ws.append(["TOTAL PIEZAS:", ""] + [totales_piezas_dia[d] for d in range(1, dias_mes + 1)])
+
+        for row in ws.iter_rows(min_row=1, max_row=2):
+            for cell in row:
+                cell.font = font_bold
+                cell.fill = fill_resumen
+                cell.alignment = Alignment(horizontal="center")
+
+        ws.append([]) 
+
+        headers = ["CLAVE", "MEDICAMENTO"] + [str(d) for d in range(1, dias_mes + 1)]
+        ws.append(headers)
+        
+        color_header = "198754" 
+        if tipo_movimiento == "CADUCADO": color_header = "DC3545" 
+        if tipo_movimiento == "EXTRAVIO": color_header = "FFC107" 
+
+        header_fill = PatternFill(start_color=color_header, end_color=color_header, fill_type="solid")
+        for cell in ws[4]:
+            cell.font = Font(bold=True, color="FFFFFF" if color_header != "FFC107" else "000000")
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+
+        for med in matriz.values():
+            fila = [med['clave'], med['nombre']] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+            ws.append(fila)
+
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 60
+        for col_idx in range(3, 3 + dias_mes):
+            ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = 5
+
+        filename = f"MATRIZ_{tipo_movimiento}_{mes:02d}_{anio}.xlsx"
+
+    # REPORTE HISTÓRICO LINEAL COMPLETO (Si eligen Todo)
+    else:
+        traspasos = query_traspasos.order_by(MovimientoAlmacenFarmacia.fecha_movimiento.desc()).all()
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Historial"
+        
+        headers = ["FECHA", "CLAVE", "MEDICAMENTO", "LOTE", "CANTIDAD", "OBSERVACIONES"]
+        ws.append(headers)
+        
+        header_fill = PatternFill(start_color="0D6EFD", end_color="0D6EFD", fill_type="solid")
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = header_fill
+            
+        for t in traspasos:
+            med = t.medicamento 
+            nombre = f"{med.principio_activo} - {med.presentacion}".upper() if med else "DESCONOCIDO"
+            clave = med.clave if med else "N/A"
+            ws.append([t.fecha_movimiento.strftime('%d/%m/%Y %H:%M'), clave, nombre, t.lote, t.cantidad, t.observaciones])
+            
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 18
+        ws.column_dimensions['C'].width = 50
+        ws.column_dimensions['D'].width = 15
+        ws.column_dimensions['E'].width = 12
+        ws.column_dimensions['F'].width = 50
+        
+        filename = f"HISTORIAL_{tipo_movimiento}.xlsx"
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(output, download_name=filename, as_attachment=True)
 
 #=========================================================================================TRANSFERENCIA DE MEDICAMENTO A OTRA UNIDAD MEDICA =================
 @bp.route('/transferencias')

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 text-dark mb-0"><i class="bi bi-journal-text text-success"></i> Bitácora General de Movimientos</h2>
+    <!-- BOTÓN DE REGRESO CORREGIDO HACIA LISTAR MOVIMIENTOS -->
+    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver a Movimientos
+    </a>
+  </div>
+
+  <!-- Barra de Filtros en Pantalla -->
+  <div class="card mb-4 border-0 shadow-sm bg-light">
+    <div class="card-body py-2 d-flex gap-2 align-items-center flex-wrap">
+      <span class="fw-bold small text-muted text-uppercase me-2">Filtrar Vista:</span>
+      <a href="{{ url_for('farmacia.ver_movimientos_tabla', tipo='TODOS') }}" class="btn btn-sm {% if tipo_actual == 'TODOS' %}btn-dark{% else %}btn-white border{% endif %}">Todos</a>
+      <a href="{{ url_for('farmacia.ver_movimientos_tabla', tipo='TRASLADO_FARMACIA') }}" class="btn btn-sm {% if tipo_actual == 'TRASLADO_FARMACIA' %}btn-primary{% else %}btn-white border{% endif %}">Farmacia</a>
+      <a href="{{ url_for('farmacia.ver_movimientos_tabla', tipo='CADUCADO') }}" class="btn btn-sm {% if tipo_actual == 'CADUCADO' %}btn-danger{% else %}btn-white border{% endif %}">Caducados</a>
+      <a href="{{ url_for('farmacia.ver_movimientos_tabla', tipo='EXTRAVIO') }}" class="btn btn-sm {% if tipo_actual == 'EXTRAVIO' %}btn-warning text-dark{% else %}btn-white border{% endif %}">Extraviados</a>
+    </div>
+  </div>
+
+  <!-- Tabla de Resultados -->
+  <div class="card shadow border-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0 align-middle small">
+        <thead class="table-dark">
+          <tr>
+            <th>Fecha / Hora</th>
+            <th>Clave</th>
+            <th>Principio Activo y Presentación</th>
+            <th>Lote</th>
+            <th>Caducidad</th>
+            <th class="text-center">Pzas</th>
+            <th>Tipo Movimiento</th>
+            <th>Detalles / Observaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mov, med in movimientos %}
+          <tr>
+            <td class="text-nowrap">{{ mov.fecha_movimiento.strftime('%d/%m/%Y %H:%M') }}</td>
+            <td><code class="fw-bold text-success">{{ med.clave }}</code></td>
+            <td class="fw-bold text-uppercase">{{ med.principio_activo }} <span class="text-muted fw-normal">({{ med.presentacion or 'N/A' }})</span></td>
+            <td><span class="badge bg-light text-dark border">{{ mov.lote }}</span></td>
+            <td class="text-nowrap">{{ mov.fecha_vencimiento.strftime('%d/%m/%Y') if mov.fecha_vencimiento else 'N/A' }}</td>
+            <td class="text-center fw-bold text-primary">{{ mov.cantidad }}</td>
+            <!-- ETIQUETA VISUAL DE TIPO DE MOVIMIENTO SEGÚN TU CONTENIDO -->
+            <td>
+              {% if mov.observaciones.startswith('TRASLADO_FARMACIA') %}
+                <span class="badge bg-primary">FARMACIA</span>
+              {% elif mov.observaciones.startswith('BAJA_CADUCIDAD') %}
+                <span class="badge bg-danger">CADUCADO</span>
+              {% elif mov.observaciones.startswith('EXTRAVIO') %}
+                <span class="badge bg-warning text-dark">EXTRAVIO</span>
+              {% else %}
+                <span class="badge bg-secondary">OTRO</span>
+              {% endif %}
+            </td>
+            <td class="text-muted text-uppercase">{{ mov.observaciones }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              <i class="bi bi-info-circle d-block fs-4 mb-2"></i>
+              No se encontraron registros bajo el filtro seleccionado.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
