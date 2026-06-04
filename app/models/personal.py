@@ -128,7 +128,8 @@ class Usuario(db.Model, UserMixin):
 
     entrada_almacenes = relationship('EntradaAlmacen', back_populates='usuario')
     movimientos_almacen_farmacia = relationship('MovimientoAlmacenFarmacia', back_populates='usuario')
-    salida_farmacia_paciente = relationship('SalidaFarmaciaPaciente', back_populates='usuario')
+    #salida_farmacia_paciente = relationship('SalidaFarmaciaPaciente', back_populates='usuario')
+    salidas_farmacia = relationship('SalidaFarmacia', back_populates='usuario')
     transferencias_salientes = relationship('TransferenciaSaliente', back_populates='usuario')
     transferencias_entrantes = relationship('TransferenciaEntrante', back_populates='usuario')
     recetas = relationship('RecetaMedica', back_populates='usuario')

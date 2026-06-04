@@ -2,30 +2,127 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h2>Historial de Salidas de Farmacia</h2>
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Medicamento</th>
-        <th>Cantidad</th>
-        <th>Médico</th>
-        <th>Folio Receta</th>
-        <th>Fecha</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for salida in salidas %}
-      <tr>
-        <td>{{ salida.id_salida }}</td>
-        <td>{{ salida.medicamento.nombre }}</td>
-        <td>{{ salida.cantidad }}</td>
-        <td>{{ salida.usuario.nombre }}</td>
-        <td>{{ salida.folio_receta }}</td>
-        <td>{{ salida.fecha_salida.strftime("%d/%m/%Y %H:%M") }}</td>
-      </tr>
+  <!-- Encabezado con Botón de Regreso -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <!-- Botón de regreso usando el Blueprint 'recetas' -->
+      <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+        ⬅️ Volver a Recetas
+      </a>
+      <h2 class="mb-0">Historial de Salidas de Farmacia</h2>
+    </div>
+  </div>
+  
+  <div class="table-responsive shadow-sm rounded">
+    <table class="table table-striped table-hover align-middle mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Principio Activo</th>
+          <th>Cantidad</th>
+          <th>Médico / Usuario</th>
+          <th>Folio Receta</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for salida in salidas %}
+        <tr>
+          <!-- ID del movimiento de salida -->
+          <td>{{ salida.id_salida }}</td>
+          
+          <!-- Principio Activo (Medicamento) -->
+          <td>
+            {% if salida.medicamento %}
+              <strong>{{ salida.medicamento.principio_activo }}</strong>
+              <small class="text-muted d-block">{{ salida.medicamento.concentracion }} - {{ salida.medicamento.presentacion }}</small>
+            {% else %}
+              <span class="text-muted">ID Med: {{ salida.id_medicamento }}</span>
+            {% endif %}
+          </td>
+          
+          <!-- Cantidad de piezas surtidas -->
+          <td><span class="badge bg-secondary fs-6">{{ salida.cantidad }} pz</span></td>
+          
+          <!-- Médico que prescribe (Usuario -> Empleado -> Nombre) -->
+          <td>
+            {% if salida.usuario and salida.usuario.empleado and salida.usuario.empleado.nombre %}
+              {{ salida.usuario.empleado.nombre }}
+            {% elif salida.usuario and salida.usuario.empleado and salida.usuario.empleado.nombre_completo %}
+              {{ salida.usuario.empleado.nombre_completo }}
+            {% else %}
+              <span class="text-muted">ID Usr: {{ salida.id_usuario }}</span>
+            {% endif %}
+          </td>
+          
+          <!-- Folio de la Receta Vinculado con el Blueprint 'recetas' -->
+          <td>
+            {% if salida.receta and salida.receta.folio %}
+              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
+                <span class="badge bg-primary fs-6 hover-shadow">📋 {{ salida.receta.folio }}</span>
+              </a>
+            {% else %}
+              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
+                <span class="badge bg-warning text-dark fs-6">🆔 Ver ID: {{ salida.id_receta }}</span>
+              </a>
+            {% endif %}
+          </td>
+          
+          <!-- Fecha y Hora del surtimiento -->
+          <td>
+            {% if salida.fecha_salida %}
+              {{ salida.fecha_salida.strftime("%d/%m/%Y %H:%M") }}
+            {% else %}
+              <span class="text-muted">--/--/----</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">No se encontraron registros de salidas en la farmacia.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- COMPONENTE DE PAGINACIÓN -->
+  {% if pagination and pagination.pages > 1 %}
+  <nav aria-label="Navegación de páginas" class="mt-4">
+    <ul class="pagination justify-content-center">
+      
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">Anterior</a>
+      </li>
+
+      {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+          <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for(request.endpoint, page=page_num) }}">{{ page_num }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
+
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">Siguiente</a>
+      </li>
+
+    </ul>
+  </nav>
+  <div class="text-center text-muted small mt-2">
+    Mostrando página {{ pagination.page }} de {{ pagination.pages }} (Total: {{ pagination.total }} registros)
+  </div>
+  {% endif %}
 </div>
+
+<style>
+  .hover-shadow:hover {
+    filter: brightness(0.85);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+  }
+</style>
 {% endblock %}

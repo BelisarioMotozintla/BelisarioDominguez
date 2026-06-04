@@ -2,24 +2,191 @@ from flask import Blueprint, jsonify, request, render_template, redirect, url_fo
 from datetime import datetime,timedelta
 import calendar
 from app import db
-from app.models.farmacia import SalidaFarmaciaPaciente, Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, TransferenciaEntrante
+from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado
 from app.models.personal import Usuario
 from flask_login import current_user
 from app.utils.helpers import roles_required
-
+from sqlalchemy.orm import joinedload
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
-
+from sqlalchemy import func
 
 bp = Blueprint('farmacia', __name__, template_folder='templates/farmacia')
 
 # Página principal de farmacia
 @bp.route('/')
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def index():
-    return render_template('farmacia/index.html')
+    # 1. Capturar el criterio de búsqueda desde el formulario de la plantilla
+    query = request.args.get('q', '').strip()
+    
+    # 2. Base de la consulta: Traer los medicamentos usando tu modelo real
+    medicamentos_query = Medicamento.query
+    
+    # 3. Aplicar filtro de búsqueda usando tus campos exactos
+    if query:
+        medicamentos_query = medicamentos_query.filter(
+            (Medicamento.clave.ilike(f'%{query}%')) |        
+            (Medicamento.principio_activo.ilike(f'%{query}%')) 
+        )
+    
+    lista_medicamentos = medicamentos_query.all()
+    inventario = []
+    
+    # 4. Calcular Entradas, Salidas Totales y Existencias usando 'id_medicamento'
+    for med in lista_medicamentos:
+        # Sumar total de entradas desde la tabla EntradaAlmacen
+        total_entradas = db.session.query(func.sum(EntradaAlmacen.cantidad))\
+            .filter(EntradaAlmacen.id_medicamento == med.id_medicamento).scalar() or 0
+            
+        # Sumar TODAS las salidas desde SalidaFarmacia
+        total_salidas = db.session.query(func.sum(SalidaFarmacia.cantidad))\
+            .filter(SalidaFarmacia.id_medicamento == med.id_medicamento).scalar() or 0
+            
+        # Operación matemática del Stock real en almacén
+        existencia = total_entradas - total_salidas
+        
+        # Guardar los datos estructurados mapeando tus columnas reales
+        inventario.append({
+            'id_medicamento': med.id_medicamento,
+            'clave': med.clave,
+            'principio_activo': med.principio_activo or 'Sin descripción',
+            'presentacion': med.presentacion or '',
+            'concentracion': med.concentracion or '',
+            'unidad': med.unidad or '',
+            'stock_minimo': med.stock_minimo,
+            'total_entradas': total_entradas,
+            'total_salidas': total_salidas,
+            'existencia': existencia
+        })
+        
+    # 5. Renderizar la plantilla enviando las variables requeridas
+    return render_template(
+        'farmacia/index.html', 
+        inventario=inventario, 
+        query=query
+    )
 
+@bp.context_processor
+def inject_today():
+    """Inyecta la FECHA PURA (date) sin hora para evitar el error de comparación"""
+    return dict(today=datetime.now().date()) # 🌟 Añadimos .date() al final
+
+#)))))))))))))))))))))))))))))(((((((((((((((((*********************************** otras salidas es colectivo , oc99
+
+@bp.route('/salidas/otras', methods=['GET', 'POST'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def otras_salidas():
+    if request.method == 'POST':
+        # 1. Recuperar cabecera del abanico
+        tipo_salida = request.form.get('tipo_salida')
+        entidad_destino = request.form.get('entidad_destino', '').upper().strip()
+        documento_soporte = request.form.get('documento_soporte', '').upper().strip()
+        
+        # 2. Capturar las listas dinámicas de la tabla masiva
+        med_ids = request.form.getlist('id_medicamento[]')
+        lotes = request.form.getlist('lote[]')
+        cantidades = request.form.getlist('cantidad[]')
+        
+        try:
+            # Procesar renglón por renglón
+            for i in range(len(med_ids)):
+                id_med = int(med_ids[i])
+                lote_req = lotes[i]
+                cant_req = int(cantidades[i])
+                
+                if cant_req <= 0:
+                    continue
+                
+                # Buscar el lote específico que el usuario seleccionó del anaquel
+                inv_farmacia = InventarioFarmacia.query.filter_by(
+                    id_medicamento=id_med, 
+                    lote=lote_req
+                ).first()
+                
+                # Validar stock físico síncronamente antes de guardar
+                if not inv_farmacia or inv_farmacia.cantidad < cant_req:
+                    db.session.rollback()
+                    flash(f"❌ Stock insuficiente en Farmacia para el lote {lote_req}.", "danger")
+                    return redirect(url_for('farmacia.otras_salidas'))
+                
+                # 3. Guardar en la tabla unificada ESPECIALIZADA
+                nueva_salida = SalidaFarmacia(
+                    id_medicamento=id_med,
+                    cantidad=cant_req,
+                    lote=lote_req,
+                    fecha_vencimiento=inv_farmacia.fecha_vencimiento,
+                    fecha_salida=datetime.now(timezone.utc),
+                    id_usuario=current_user.id_usuario,
+                    
+                    # Campos específicos del abanico (id_receta se va en NULL)
+                    tipo_salida=tipo_salida,
+                    id_receta=None, 
+                    entidad_destino=entidad_destino if entidad_destino else None,
+                    documento_soporte=documento_soporte if documento_soporte else None
+                )
+                db.session.add(nueva_salida)
+                
+                # 4. Restar del anaquel de la farmacia
+                inv_farmacia.cantidad -= cant_req
+                if inv_farmacia.cantidad == 0:
+                    db.session.delete(inv_farmacia)
+                
+                # 5. Registro en bitácora de trazabilidad
+                bitacora = BitacoraMovimiento(
+                    id_medicamento=id_med,
+                    id_usuario=current_user.id_usuario,
+                    fecha_hora=datetime.now(timezone.utc),
+                    movimiento=f"SALIDA EXTRA CLINICA [{tipo_salida}] - CANT: {cant_req} - LOTE: {lote_req} - DEST: {entidad_destino}"
+                )
+                db.session.add(bitacora)
+                
+            db.session.commit()
+            flash("🚀 Salida masiva del abanico procesada de manera exitosa.", "success")
+            return redirect(url_for('recetas.recetas_pendientes'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f"❌ Error al procesar la salida especial de farmacia: {str(e)}", "danger")
+            return redirect(url_for('farmacia.otras_salidas'))
+
+    return render_template('farmacia/otras_salidas.html')
+
+
+# 🌟 ENDPOINT AJAX 1: Obtiene lotes vigentes de farmacia para el renglón de la tabla
+@bp.route('/api/lotes_farmacia/<int:id_medicamento>')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def api_lotes_farmacia(id_medicamento):
+    lotes = InventarioFarmacia.query.filter(
+        InventarioFarmacia.id_medicamento == id_medicamento,
+        InventarioFarmacia.cantidad > 0
+    ).all()
+    
+    resultados = [
+        {
+            'lote': l.lote,
+            'cantidad': l.cantidad,
+            'fecha_vencimiento': l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else 'S/V'
+        } for l in lotes
+    ]
+    return jsonify(resultados)
+
+
+# 🌟 ENDPOINT AJAX 2: Para el buscador masivo del Select2
+@bp.route('/api/buscar_insumos_select2')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def buscar_insumos_select2():
+    q = request.args.get('q', '').strip()
+    insumos = Medicamento.query.filter(
+        (Medicamento.clave.ilike(f"%{q}%")) | 
+        (Medicamento.principio_activo.ilike(f"%{q}%"))
+    ).limit(20).all()
+    
+    resultados = [{'id': m.id_medicamento, 'text': f"{m.clave} - {m.principio_activo} ({m.presentacion or ''})"} for m in insumos]
+    return jsonify(resultados)
+
+#}||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 # Registrar salida
 @bp.route('/salida/<int:id_medicamento>', methods=['GET', 'POST'])
@@ -45,7 +212,7 @@ def registrar_salida(id_medicamento):
             flash("⚠️ El bloque asignado está agotado", "danger")
             return redirect(url_for('farmacia.registrar_salida', id_medicamento=id_medicamento))
 
-        salida = SalidaFarmaciaPaciente(
+        salida = SalidaFarmacia(
             id_medicamento=id_medicamento,
             cantidad=cantidad,
             fecha_salida=datetime.utcnow(),
@@ -62,28 +229,59 @@ def registrar_salida(id_medicamento):
     return render_template('farmacia/salida.html', medicamento=medicamento, medicos=medicos)
 
 
-# Listar salidas
+# Listar todas las salidas 
 @bp.route('/salidas')
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
-    salidas = SalidaFarmaciaPaciente.query.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
-    return render_template('farmacia/listar_salidas.html', salidas=salidas)
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    # Importación interna para evitar problemas de dependencias circulares o NameError
+    from app.models import Usuario, Empleado 
+
+    # Consulta maestra optimizada para SQLAlchemy 2.0 usando atributos de clase directos
+    query = (
+        SalidaFarmacia.query
+        .options(
+            joinedload(SalidaFarmacia.medicamento),
+            joinedload(SalidaFarmacia.receta),
+            joinedload(SalidaFarmacia.usuario).joinedload(Usuario.empleado)
+        )
+        .order_by(SalidaFarmacia.fecha_salida.desc())
+    )
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    salidas = pagination.items
+
+    return render_template(
+        'farmacia/listar_salidas.html', 
+        salidas=salidas, 
+        pagination=pagination
+    )
 
 @bp.route('/reporte_medicamentos')
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def reporte_medicamentos():
-    query = request.args.get('q', '')
-    salidas = SalidaFarmaciaPaciente.query.join(Usuario).join(Medicamento)
+    query = request.args.get('q', '').strip()
+    
+    # 1. Consulta limpia uniendo únicamente las tablas directas de tu modelo
+    salidas_query = db.session.query(SalidaFarmacia)\
+        .join(Usuario, SalidaFarmacia.id_usuario == Usuario.id_usuario)\
+        .join(Medicamento, SalidaFarmacia.id_medicamento == Medicamento.id_medicamento)
 
+    # 2. Filtros del buscador por medicamento o por el usuario que despachó
     if query:
-        salidas = salidas.filter(
+        salidas_query = salidas_query.filter(
             (Medicamento.clave.ilike(f'%{query}%')) |
             (Medicamento.principio_activo.ilike(f'%{query}%')) |
             (Usuario.usuario.ilike(f'%{query}%'))
         )
 
-    salidas = salidas.order_by(SalidaFarmaciaPaciente.fecha_salida.desc()).all()
+    # 3. Ordenar por la fecha de salida más reciente
+    salidas = salidas_query.order_by(SalidaFarmacia.fecha_salida.desc()).all()
+    
     return render_template('farmacia/reporte_medicamentos.html', salidas=salidas, query=query)
+
 #)))))))))))))))))))))))))))))))))) medicamento
 # Listar medicamentos
 @bp.route('/medicamentos')

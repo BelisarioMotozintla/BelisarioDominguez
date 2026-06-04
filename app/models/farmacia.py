@@ -35,7 +35,8 @@ class Medicamento(db.Model):
     # Relaciones con otras tablas
     entrada_almacen = relationship('EntradaAlmacen', back_populates='medicamento')
     movimiento_almacen_farmacia = relationship('MovimientoAlmacenFarmacia', back_populates='medicamento')
-    salida_farmacia_paciente = relationship('SalidaFarmaciaPaciente', back_populates='medicamento')
+    #salida_farmacia_paciente = relationship('SalidaFarmaciaPaciente', back_populates='medicamento')
+    salidas_farmacia = relationship('SalidaFarmacia', back_populates='medicamento')
     transferencia_saliente = relationship('TransferenciaSaliente', back_populates='medicamento')
     transferencia_entrante = relationship('TransferenciaEntrante', back_populates='medicamento')
     inventario_almacen = relationship('InventarioAlmacen', back_populates='medicamento')
@@ -105,25 +106,51 @@ class MovimientoAlmacenFarmacia(db.Model):
     usuario = relationship('Usuario', back_populates='movimientos_almacen_farmacia')
 
 
-# Modelo SalidaFarmaciaPaciente
-class SalidaFarmaciaPaciente(db.Model):
-    __tablename__ = 'SalidaFarmaciaPaciente'
+class SalidaFarmacia(db.Model):
+    __tablename__ = 'SalidaFarmacia'
+    
     id_salida = Column(Integer, primary_key=True)
-    id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
+    id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'), nullable=False)
     cantidad = Column(Integer, nullable=False)
-    fecha_salida = Column(TIMESTAMP, default=datetime.utcnow)
-    lote = Column(String(50))
+    lote = Column(String(50), nullable=False)
     fecha_vencimiento = Column(Date)
-    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
+    fecha_salida = Column(TIMESTAMP, default=lambda: datetime.now(timezone.utc))
+    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'), nullable=False)
+
+    # El cambio principal: Tu abanico optimizado
+    tipo_salida = Column(
+        Enum('RECETA', 'COLECTIVO', 'BAJA_0C99', 'BAJA_CADUCIDAD', 'BAJA_EXTRAVIO', 'TRASLADO_UNIDAD', name='tipo_salida_enum'),
+        nullable=False
+    )
+    
+    # Campos condicionales (pueden ser Null/None si no es receta)
+    id_receta = Column(Integer, ForeignKey('RecetaMedica.id_receta'), nullable=True) 
+    entidad_destino = Column(String(100), nullable=True) # Ej: 'CEYE', 'URGENCIAS', 'HOSPITAL X'
+    documento_soporte = Column(String(50), nullable=True) # Folio de vale, acta de extravío, u oficio
+    
+    receta = relationship('RecetaMedica', back_populates='salidas')
+    medicamento = relationship('Medicamento', back_populates='salidas_farmacia')
+    usuario = relationship('Usuario', back_populates='salidas_farmacia')
+
+# Modelo SalidaFarmaciaPaciente esta por removerse por que se especializo
+#class SalidaFarmaciaPaciente(db.Model):
+#    __tablename__ = 'SalidaFarmaciaPaciente'
+#    id_salida = Column(Integer, primary_key=True)
+#    id_medicamento = Column(Integer, ForeignKey('Medicamento.id_medicamento'))
+#    cantidad = Column(Integer, nullable=False)
+#    fecha_salida = Column(TIMESTAMP, default=datetime.utcnow)
+#    lote = Column(String(50))
+#    fecha_vencimiento = Column(Date)
+#    id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))
     
     # CAMBIO: Usamos id_receta (Primary Key) en lugar de folio para la relación
-    id_receta = Column(Integer, ForeignKey('RecetaMedica.id_receta'), nullable=False)
+#    id_receta = Column(Integer, ForeignKey('RecetaMedica.id_receta'), nullable=False)
 
-    medicamento = relationship('Medicamento', back_populates='salida_farmacia_paciente')
-    usuario = relationship('Usuario', back_populates='salida_farmacia_paciente')
+#    medicamento = relationship('Medicamento', back_populates='salida_farmacia_paciente')
+#    usuario = relationship('Usuario', back_populates='salida_farmacia_paciente')
     
     # SQLAlchemy entiende automáticamente que debe usar id_receta para el "join"
-    receta = relationship('RecetaMedica', back_populates='salidas')
+#    receta = relationship('RecetaMedica', back_populates='salidas')
 
 
 
@@ -267,7 +294,7 @@ class RecetaMedica(db.Model):
     id_paciente = Column(Integer, ForeignKey('Paciente.id_paciente'))
     id_usuario = Column(Integer, ForeignKey('Usuario.id_usuario'))  # médico que recetó
     
-    folio = Column(Integer, nullable=False)
+    folio = Column(String(50), nullable=False, unique=True) 
     fecha_emision = Column(TIMESTAMP, default=datetime.utcnow)
     tipo_surtimiento = Column(String(20), default="No surtida", nullable=False)
     #nota_id = db.Column(db.Integer, db.ForeignKey("nota_consulta_externa.id_nota"), unique=True, nullable=False)# esto es para que sea receta por nota
@@ -285,7 +312,7 @@ class RecetaMedica(db.Model):
     diagnostico = db.relationship('Diagnostico')
 
     # Relación a las salidas de farmacia
-    salidas = relationship('SalidaFarmaciaPaciente', back_populates='receta')
+    salidas = relationship('SalidaFarmacia', back_populates='receta')
  
     # Property para calcular tipo de surtimiento dinámicamente
     @property

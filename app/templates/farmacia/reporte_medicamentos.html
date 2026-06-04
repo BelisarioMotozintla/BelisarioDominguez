@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container-fluid mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2><i class="bi bi-file-earmark-medical"></i> Reporte de Salidas (Surtido de Recetas)</h2>
+    <h2><i class="bi bi-file-earmark-medical"></i> Reporte Global de Salidas (Trazabilidad)</h2>
     <div>
       <a href="{{ url_for('farmacia.index') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Menú Principal
@@ -25,11 +25,11 @@
     </div>
   </div>
 
-  <!-- Buscador -->
+  <!-- Buscador Avanzado -->
   <form method="get" class="mb-3">
     <div class="input-group">
       <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-      <input type="text" name="q" class="form-control" placeholder="Buscar por medicamento, médico o folio..." value="{{ query or '' }}">
+      <input type="text" name="q" class="form-control" placeholder="Buscar por principio activo, clave o usuario que surtió..." value="{{ query or '' }}">
       <button type="submit" class="btn btn-primary">Filtrar Reporte</button>
     </div>
   </form>
@@ -37,42 +37,87 @@
   <!-- Tabla de salidas con trazabilidad -->
   <div class="table-responsive">
     <table class="table table-hover table-sm align-middle">
-      <thead class="table-dark">
+      <thead class="table-dark text-center">
         <tr>
           <th>ID</th>
-          <th>Folio Receta</th>
-          <th>Medicamento / Lote</th>
+          <th>Tipo / Documento</th>
+          <th class="text-start">Principio Activo / Lote</th>
           <th>Vencimiento</th>
           <th>Cantidad</th>
-          <th>Médico / Despachó</th>
+          <th class="text-start">Origen / Trazabilidad</th>
           <th>Fecha y Hora</th>
-          <th class="text-center">Acciones</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for salida in salidas %}
         <tr>
-          <td><small class="text-muted">{{ salida.id_salida }}</small></td>
-          <td class="fw-bold text-primary">{{ salida.folio_receta }}</td>
-          <td>
-            {{ salida.medicamento.principio_activo }}<br>
-            <small class="badge bg-light text-dark border">Lote: {{ salida.lote }}</small>
+          <!-- 1. ID REGISTRO -->
+          <td class="text-center"><small class="text-muted">{{ salida.id_salida }}</small></td>
+          
+          <!-- 2. TIPO DE SALIDA / FOLIO -->
+          <td class="text-center font-monospace">
+            {% if salida.tipo_salida == 'RECETA' %}
+              <span class="badge bg-primary text-wrap px-2 py-1">RECETA</span>
+            {% elif salida.tipo_salida == 'COLECTIVO' %}
+              <span class="badge bg-info text-dark text-wrap px-2 py-1">COLECTIVO</span>
+            {% elif 'BAJA' in salida.tipo_salida %}
+              <span class="badge bg-danger text-wrap px-2 py-1">{{ salida.tipo_salida }}</span>
+            {% else %}
+              <span class="badge bg-secondary text-wrap px-2 py-1">{{ salida.tipo_salida }}</span>
+            {% endif %}
           </td>
+          
+          <!-- 3. MEDICAMENTO / LOTE -->
           <td>
-            <small class="{{ 'text-danger fw-bold' if salida.fecha_vencimiento <= today else '' }}">
-              {{ salida.fecha_vencimiento.strftime('%d/%m/%Y') }}
+            <strong class="text-dark">{{ salida.medicamento.principio_activo }}</strong><br>
+            <small class="badge bg-light text-dark border mt-1">Lote: {{ salida.lote }}</small>
+          </td>
+          
+          <!-- 4. FECHA VENCIMIENTO -->
+          <td class="text-center">
+            {% if salida.fecha_vencimiento %}
+              <small class="{{ 'text-danger fw-bold' if salida.fecha_vencimiento <= today else 'text-muted' }}">
+                {{ salida.fecha_vencimiento.strftime('%d/%m/%Y') }}
+                {% if salida.fecha_vencimiento <= today %}
+                  <i class="bi bi-exclamation-octagon-fill ms-1" title="Lote Caducado"></i>
+                {% endif %}
+              </small>
+            {% else %}
+              <span class="text-muted small">N/A</span>
+            {% endif %}
+          </td>
+          
+          <!-- 5. CANTIDAD -->
+          <td class="text-center fw-bold fs-6">{{ salida.cantidad }}</td>
+          
+          <!-- 6. TRAZABILIDAD (MÉDICO / QUIEN SURTIÓ) -->
+          <td>
+            {% if salida.tipo_salida == 'RECETA' %}
+              <small class="d-block text-truncate" style="max-width: 250px;">
+                <i class="bi bi-person-heart text-primary"></i> Paciente / Receta
+              </small>
+            {% else %}
+              <small class="d-block text-secondary">
+                <i class="bi bi-shield-exclamation text-warning"></i> Ajuste: {{ salida.tipo_salida.replace('BAJA_', '') }}
+              </small>
+            {% endif %}
+            <small class="text-muted d-block mt-1">
+              <i class="bi bi-person-check"></i> Despachó: <strong>{{ salida.usuario.usuario }}</strong>
             </small>
           </td>
-          <td class="text-center fw-bold">{{ salida.cantidad }}</td>
-          <td>
-            <small>Recetó: {{ salida.receta.usuario.nombre if salida.receta else 'N/A' }}</small><br>
-            <small class="text-muted">Surtió: {{ salida.usuario.usuario }}</small>
-          </td>
-          <td><small>{{ salida.fecha_salida.strftime('%d/%m/%Y %H:%M') }}</small></td>
+          
+          <!-- 7. FECHA SALIDA -->
           <td class="text-center">
-            <form method="POST" action="{{ url_for('farmacia.eliminar_salida', id=salida.id_salida) }}" 
+            <small class="d-block text-dark">{{ salida.fecha_salida.strftime('%d/%m/%Y') }}</small>
+            <small class="text-muted text-xs">{{ salida.fecha_salida.strftime('%H:%M') }} hrs</small>
+          </td>
+          
+          <!-- 8. ACCIONES -->
+          <td class="text-center">
+            <form method="POST" action="{{ url_for('recetas.eliminar_salida', id=salida.id_salida) }}" 
                   onsubmit="return confirm('¿Eliminar registro de salida? El stock NO se recuperará automáticamente a menos que lo programes.')">
-              <button type="submit" class="btn btn-sm btn-outline-danger">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar Registro">
                 <i class="bi bi-trash"></i>
               </button>
             </form>
@@ -80,12 +125,13 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="8" class="text-center py-4">No se encontraron registros de salida.</td>
+          <td colspan="8" class="text-center text-muted py-4">
+            <i class="bi bi-folder-x fs-3 d-block mb-2"></i> No se encontraron registros de salida con los parámetros especificados.
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-
 {% endblock %}

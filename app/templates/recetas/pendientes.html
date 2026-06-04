@@ -2,6 +2,7 @@
 
 {% block content %}
 
+<!-- TOM SELECT-->
 <!-- TOM SELECT -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
@@ -49,8 +50,8 @@
             <input
                 type="text"
                 name="q"
-                class="form-control"
-                placeholder="Buscar por folio o nombre del paciente..."
+                class="form-control text-uppercase"
+                placeholder="Buscar por folio (Ej: JR0151) o nombre del paciente..."
                 value="{{ query or '' }}"
             >
 
@@ -174,7 +175,6 @@
         </div>
     </div>
 </div>
-
 <!-- MODAL RECETA EXPRESS -->
 <div class="modal fade"
      id="modalRecetaExpress"
@@ -187,12 +187,10 @@
 
             <!-- HEADER -->
             <div class="modal-header bg-success text-white">
-
                 <h5 class="modal-title">
                     <i class="bi bi-lightning-charge"></i>
                     Captura Manual Rápida
                 </h5>
-
                 <button type="button"
                         class="btn-close btn-close-white"
                         data-bs-dismiss="modal">
@@ -211,28 +209,23 @@
 
                     <!-- FOLIO -->
                     <div class="row mb-4">
-
                         <div class="col-md-5">
-
                             <label class="form-label fw-bold">
                                 Folio del Papel
                             </label>
-
                             <input
-                                type="number"
+                                type="text"
                                 name="folio"
-                                class="form-control"
+                                class="form-control text-uppercase"
                                 required
-                                min="1"
+                                placeholder="Ej: JR0151"
                             >
-
                             <div class="invalid-feedback">
                                 Ingresa un folio válido.
                             </div>
                         </div>
 
                         <div class="col-md-7 text-end pt-4">
-
                             <span class="text-muted small">
                                 <i class="bi bi-info-circle"></i>
                                 Captura rápida sin paciente.
@@ -245,301 +238,200 @@
                         Medicamentos Entregados
                     </h6>
 
-                    {% for i in range(1,4) %}
-
+                    {% for i in range(1, 4) %}
+                    <!-- FILA DEL MEDICAMENTO {{ i }} -->
                     <div class="row g-2 mb-3 align-items-end p-2 bg-light rounded border">
-
-                        <!-- MEDICAMENTO -->
+                        
+                        <!-- COLUMNA 1: SELECT DE MEDICAMENTO (Ocupa la mitad de la fila) -->
                         <div class="col-md-6">
-
-                            <label class="form-label small text-muted fw-bold">
-                                Medicamento {{ i }}
-                            </label>
-
+                            <label for="medicamento_{{ i }}" class="form-label small text-muted fw-bold">Medicamento {{ i }}</label>
                             <select
                                 name="medicamento_{{ i }}"
                                 id="medicamento_{{ i }}"
                                 class="form-select selector-busqueda"
                                 data-index="{{ i }}"
                             >
-
-                                <option value="">
-                                    -- Buscar medicamento --
-                                </option>
-
-                                {% for m in medicamentos %}
-
-                                <option
-                                    value="{{ m.id }}"
-                                    data-stock="{{ m.existencia }}"
-                                    data-clave="{{ m.clave }}"
-                                >
-                                    {{ m.clave }}
-                                    -
-                                    {{ m.descripcion }}
-                                    |
-                                    Existencia:
-                                    {{ m.existencia }}
-                                </option>
-
-                                {% endfor %}
+                                <option value="">-- Buscar medicamento --</option>
+                             {% for m in medicamentos %}
+<option
+    value="{{ m.id }}"
+    data-stock="{{ m.existencia }}"
+    data-clave="{{ m.clave }}"
+>
+    {{ m.clave }} - {{ m.descripcion }} | Existencia: {{ m.existencia }}
+</option>
+{% endfor %}
                             </select>
-
-                            <small
-                                id="stock_info_{{ i }}"
-                                class="text-success fw-bold">
-                            </small>
+                            
+                            <!-- Información de stock dinámico -->
+                            <small id="stock_info_{{ i }}" class="text-success fw-bold d-block mt-1"></small>
                         </div>
 
-                        <!-- RECETADO -->
+                        <!-- COLUMNA 2: CANTIDAD RECETADA (Ocupa un cuarto de la fila) -->
                         <div class="col-md-3">
-
-                            <label class="form-label small text-muted">
-                                Cant. Recetada
-                            </label>
-
-                            <input
-                                type="number"
-                                name="recetado_{{ i }}"
-                                id="recetado_{{ i }}"
-                                class="form-control"
-                                min="1"
+                            <label for="recetado_{{ i }}" class="form-label small text-muted">Cant. Recetada</label>
+                            <input 
+                                type="number" 
+                                name="recetado_{{ i }}" 
+                                id="recetado_{{ i }}" 
+                                class="form-control" 
+                                min="1" 
+                                placeholder="Ej. 5"
                             >
-
-                            <div class="invalid-feedback">
+                            <div class="invalid-feedback" id="feedback_recetado_{{ i }}">
                                 Ingresa cantidad recetada.
                             </div>
                         </div>
 
-                        <!-- SURTIDO -->
+                        <!-- COLUMNA 3: CANTIDAD SURTIDA (Ocupa un cuarto de la fila) -->
                         <div class="col-md-3">
-
-                            <label class="form-label small text-muted">
-                                Cant. Surtida
-                            </label>
-
-                            <input
-                                type="number"
-                                name="surtido_{{ i }}"
-                                id="surtido_{{ i }}"
-                                class="form-control"
+                            <label for="surtido_{{ i }}" class="form-label small text-muted">Cant. Surtida</label>
+                            <input 
+                                type="number" 
+                                name="surtido_{{ i }}" 
+                                id="surtido_{{ i }}" 
+                                class="form-control" 
                                 min="0"
+                                placeholder="Ej. 3"
                             >
-
-                            <div class="invalid-feedback"
-                                 id="feedback_surtido_{{ i }}">
-
+                            <div class="invalid-feedback" id="feedback_surtido_{{ i }}">
                                 Ingresa cantidad surtida.
                             </div>
                         </div>
 
                     </div>
-
                     {% endfor %}
 
                 </div>
 
-                <!-- FOOTER -->
-                <div class="modal-footer">
-
-                    <button type="button"
-                            class="btn btn-secondary"
-                            data-bs-dismiss="modal">
-
+                <!-- FOOTER CON BOTONES ACCIÓN -->
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         Cancelar
                     </button>
-
-                    <button type="submit"
-                            class="btn btn-success">
-
-                        <i class="bi bi-check-circle"></i>
-                        Registrar y Surtir
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Registrar y Surtir
                     </button>
                 </div>
+
             </form>
         </div>
     </div>
 </div>
-
-<!-- JAVASCRIPT -->
+<!-- SCRIPTS DE INICIALIZACIÓN Y VALIDACIÓN -->
 <script>
-
 document.addEventListener("DOMContentLoaded", function () {
 
-    // =========================
-    // TOM SELECT
-    // =========================
+    // ==========================================
+    // TOM SELECT OBLIGATORIO Y REPARADO
+    // ==========================================
     document.querySelectorAll('.selector-busqueda').forEach(select => {
 
-        new TomSelect(select, {
-
+        const ts = new TomSelect(select, {
             create: false,
-
-            valueField: 'value',
-
-            labelField: 'text',
-
-            searchField: ['text'],
-
-            sortField: {
-                field: "text",
-                direction: "asc"
-            },
-
             placeholder: "Buscar por clave o nombre...",
-
             allowEmptyOption: true
         });
 
-        // MOSTRAR EXISTENCIA
-        select.addEventListener("change", function () {
+        // Capturamos el cambio de opción
+        ts.on('change', function (value) {
+            const index = select.dataset.index;
+            const stockInfo = document.getElementById(`stock_info_${index}`);
 
-            const index = this.dataset.index;
-
-            const stockInfo =
-                document.getElementById(`stock_info_${index}`);
-
-            const optionSeleccionada =
-                this.options[this.selectedIndex];
-
-            if (this.value !== "") {
-
-                const stock =
-                    optionSeleccionada.getAttribute("data-stock");
-
-                stockInfo.innerHTML =
-                    `Existencia disponible: ${stock}`;
-
+            if (value !== "") {
+                // Conseguimos el texto de la opción que el usuario está viendo en pantalla
+                const textoSeleccionado = ts.options[value].text;
+                
+                // Usamos una expresión regular para buscar el número que va después de "Existencia: "
+                const coincidencia = textoSeleccionado.match(/Existencia:\s*(\d+)/);
+                
+                if (coincidencia && coincidencia[1]) {
+                    const stockReal = coincidencia[1];
+                    stockInfo.innerHTML = `Existencia disponible: ${stockReal}`;
+                } else {
+                    stockInfo.innerHTML = "Existencia disponible: 0";
+                }
             } else {
-
                 stockInfo.innerHTML = "";
             }
         });
     });
 
-    // =========================
-    // VALIDACIÓN FORM
-    // =========================
-    const form =
-        document.getElementById("formRecetaExpress");
+    // ==========================================
+    // VALIDACIÓN DEL FORMULARIO
+    // ==========================================
+    const form = document.getElementById("formRecetaExpress");
 
     form.addEventListener("submit", function (event) {
-
         let formularioValido = true;
-
         let alMenosUnMedicamento = false;
 
-        // VALIDAR FOLIO
-        const folioInput =
-            form.querySelector('input[name="folio"]');
-
-        if (
-            !folioInput.value ||
-            parseInt(folioInput.value) <= 0
-        ) {
-
+        const folioInput = form.querySelector('input[name="folio"]');
+        if (!folioInput.value || folioInput.value.trim() === "") {
             folioInput.classList.add("is-invalid");
-
             formularioValido = false;
-
         } else {
-
             folioInput.classList.remove("is-invalid");
         }
 
-        // VALIDAR MEDICAMENTOS
         for (let i = 1; i <= 3; i++) {
-
-            const selectMed =
-                document.getElementById(`medicamento_${i}`);
-
-            const recetadoInput =
-                document.getElementById(`recetado_${i}`);
-
-            const surtidoInput =
-                document.getElementById(`surtido_${i}`);
-
-            const feedbackSurtido =
-                document.getElementById(`feedback_surtido_${i}`);
+            const selectMed = document.getElementById(`medicamento_${i}`);
+            const recetadoInput = document.getElementById(`recetado_${i}`);
+            const surtidoInput = document.getElementById(`surtido_${i}`);
+            const feedbackSurtido = document.getElementById(`feedback_surtido_${i}`);
 
             recetadoInput.classList.remove("is-invalid");
-
             surtidoInput.classList.remove("is-invalid");
 
             if (selectMed.value !== "") {
-
                 alMenosUnMedicamento = true;
 
-                const optionSeleccionado =
-                    selectMed.options[selectMed.selectedIndex];
+                const controlTom = selectMed.tomselect;
+                let stockDisponible = 0;
 
-                const stockDisponible =
-                    parseInt(
-                        optionSeleccionado.getAttribute("data-stock")
-                    ) || 0;
+                if (controlTom && controlTom.options[selectMed.value]) {
+                    const textoOption = controlTom.options[selectMed.value].text;
+                    const coincidencia = textoOption.match(/Existencia:\s*(\d+)/);
+                    if (coincidencia && coincidencia[1]) {
+                        stockDisponible = parseInt(coincidencia[1]);
+                    }
+                }
+                
+                const valRecetado = parseInt(recetadoInput.value) || 0;
+                const valSurtido = parseInt(surtidoInput.value) || 0;
 
-                const valRecetado =
-                    parseInt(recetadoInput.value) || 0;
-
-                const valSurtido =
-                    parseInt(surtidoInput.value) || 0;
-
-                // VALIDAR RECETADO
                 if (valRecetado <= 0) {
-
                     recetadoInput.classList.add("is-invalid");
-
                     formularioValido = false;
                 }
 
-                // VALIDAR SURTIDO VACÍO
                 if (surtidoInput.value === "") {
-
                     surtidoInput.classList.add("is-invalid");
-
-                    feedbackSurtido.textContent =
-                        "Ingresa cantidad surtida.";
-
+                    feedbackSurtido.textContent = "Ingresa cantidad surtida.";
                     formularioValido = false;
                 }
 
-                // VALIDAR STOCK
                 if (valSurtido > stockDisponible) {
-
                     surtidoInput.classList.add("is-invalid");
-
-                    feedbackSurtido.textContent =
-                        `Stock insuficiente. Máximo: ${stockDisponible}`;
-
+                    feedbackSurtido.textContent = `Stock insuficiente. Máximo: ${stockDisponible}`;
                     formularioValido = false;
                 }
             }
         }
 
-        // VALIDAR QUE HAYA MEDICAMENTO
-        if (
-            formularioValido &&
-            !alMenosUnMedicamento
-        ) {
-
-            alert(
-                "Debes seleccionar al menos un medicamento."
-            );
-
+        if (!alMenosUnMedicamento && formularioValido) {
+            alert("Debes seleccionar al menos un medicamento.");
             event.preventDefault();
-
             return false;
         }
 
-        // DETENER ENVÍO
         if (!formularioValido) {
-
             event.preventDefault();
-
-            event.stopPropagation();
+            return false;
         }
     });
 });
+
 </script>
 
 {% endblock %}

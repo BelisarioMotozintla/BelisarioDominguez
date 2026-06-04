@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Select2 para soporte multi-renglón dinámico -->
+<link href="https://jsdelivr.net" rel="stylesheet" />
+<link href="https://jsdelivr.net" rel="stylesheet" />
+<script src="https://jquery.com"></script>
+<script src="https://jsdelivr.net"></script>
+
+<div class="container-fluid mt-4 mb-5">
+    <div class="card shadow border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-box-arrow-up-right"></i> Abanico de Salidas Especiales de Farmacia</h5>
+            <span class="badge bg-secondary">Afectación Directa a Anaquel</span>
+        </div>
+        
+        <div class="card-body">
+            <form id="form-abanico-salidas" method="POST" action="{{ url_for('farmacia.otras_salidas') }}">
+                
+                <!-- SELECCIÓN DEL BRAZO DEL ABANICO -->
+                <div class="row g-3 mb-4 bg-light p-3 rounded border">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tipo de Operación</label>
+                        <select name="tipo_salida" id="tipo_salida" class="form-select border-primary fw-bold" onchange="adaptarFormulario()">
+                            <option value="COLECTIVO">Salida Colectiva (CEYE / Vales de Piso)</option>
+                            <option value="BAJA_0C99">Consumo Directo Masivo (0C99 / Jornadas)</option>
+                            <option value="BAJA_CADUCIDAD">Baja por Caducidad / Vencimiento</option>
+                            <option value="BAJA_EXTRAVIO">Baja por Extravío / Faltante de Auditoría</option>
+                            <option value="TRASLADO_UNIDAD">Traslado de Apoyo a otra Unidad Médica</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4" id="div_destino">
+                        <label class="form-label fw-bold" id="label_destino">Servicio Destino</label>
+                        <input type="text" name="entidad_destino" id="entidad_destino" class="form-control text-uppercase" placeholder="Ej: CEYE / PISO 3" required>
+                    </div>
+
+                    <div class="col-md-4" id="div_soporte">
+                        <label class="form-label fw-bold" id="label_soporte">Documento / Vale de Soporte</label>
+                        <input type="text" name="documento_soporte" id="documento_soporte" class="form-control text-uppercase" placeholder="Ej: VALE-451 / ACTA-02">
+                    </div>
+                </div>
+
+                <!-- TABLA MULTI-RENGLÓN -->
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle" id="tabla-abanico">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th style="width: 45%;">Medicamento / Insumo</th>
+                                <th style="width: 30%;">Lote en Farmacia (Disponible | Vence)</th>
+                                <th style="width: 15%;">Cantidad a Retirar</th>
+                                <th style="width: 10%;" class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpo-abanico">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- CONTROLADORES INFERIORES -->
+                <div class="d-flex justify-content-between mt-3">
+                    <button type="button" class="btn btn-outline-primary" onclick="agregarFilaInsumo()">
+                        <i class="bi bi-plus-circle"></i> Agregar Insumo
+                    </button>
+                    
+                    <div>
+                        <a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-primary px-5 shadow fw-bold">
+                            <i class="bi bi-check-all"></i> Procesar Salida Total
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- TEMPLATE JAVASCRIPT PARA NUEVAS FILAS -->
+<template id="fila-insumo-template">
+    <tr>
+        <td>
+            <select name="id_medicamento[]" class="form-select select2-ajax" required style="width:100%;"></select>
+        </td>
+        <td>
+            <select name="lote[]" class="form-select select-lote-farmacia" required disabled>
+                <option value="">-- Selecciona Insumo Primero --</option>
+            </select>
+            <small class="text-muted d-block mt-1 info-lote-stock"></small>
+        </td>
+        <td>
+            <input type="number" name="cantidad[]" class="form-control input-cantidad-farmacia" min="1" required placeholder="0" disabled>
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="$(this).closest('tr').remove()">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+// 1. Modificar textos dinámicamente de acuerdo al brazo del abanico seleccionado
+function adaptarFormulario() {
+    const tipo = document.getElementById('tipo_salida').value;
+    const labelDestino = document.getElementById('label_destino');
+    const inputDestino = document.getElementById('entidad_destino');
+    const labelSoporte = document.getElementById('label_soporte');
+    const inputSoporte = document.getElementById('documento_soporte');
+
+    inputDestino.setAttribute('required', 'true');
+    inputSoporte.removeAttribute('required');
+
+    if (tipo === 'COLECTIVO') {
+        labelDestino.innerText = "Servicio Destino Interno";
+        inputDestino.placeholder = "Ej: CEYE / PISO 2 CIRUGÍA";
+        labelSoporte.innerText = "Número de Vale Colectivo";
+        inputSoporte.placeholder = "Ej: VALE-1045";
+    } else if (tipo === 'BAJA_0C99') {
+        labelDestino.innerText = "Programa o Justificación 0C99";
+        inputDestino.placeholder = "Ej: JORNADA VACUNACIÓN / AMBULANCIA";
+        labelSoporte.innerText = "Folio Oficio Carga/Baja";
+        inputSoporte.placeholder = "Ej: OF-0C99-2024";
+    } else if (tipo === 'BAJA_CADUCIDAD') {
+        labelDestino.innerText = "Destino Final / Destrucción";
+        inputDestino.placeholder = "Ej: CONTENEDOR RPBI / BAJA ANAQUEL";
+        labelSoporte.innerText = "Número de Acta de Hechos *";
+        inputSoporte.placeholder = "Ej: ACTA-CAD-015";
+        inputSoporte.setAttribute('required', 'true');
+    } else if (tipo === 'BAJA_EXTRAVIO') {
+        labelDestino.innerText = "Área del Faltante";
+        inputDestino.placeholder = "Ej: AJUSTE INVENTARIO / AUDITORIA";
+        labelSoporte.innerText = "Folio del Reporte / Acta *";
+        inputSoporte.placeholder = "Ej: ACTA-EXT-004";
+        inputSoporte.setAttribute('required', 'true');
+    } else if (tipo === 'TRASLADO_UNIDAD') {
+        labelDestino.innerText = "Clínica u Hospital Destino";
+        inputDestino.placeholder = "Ej: HOSPITAL GENERAL TONALÁ";
+        labelSoporte.innerText = "Oficio de Comisión / Préstamo *";
+        inputSoporte.placeholder = "Ej: OF-PRES-88";
+        inputSoporte.setAttribute('required', 'true');
+    }
+}
+
+// 2. Insertar renglones y conectar las peticiones asíncronas
+function agregarFilaInsumo() {
+    const template = document.getElementById('fila-insumo-template').content.cloneNode(true);
+    const tbody = document.getElementById('cuerpo-abanico');
+    tbody.appendChild(template);
+
+    const $fila = $(tbody).find('tr').last();
+    const $selectMed = $fila.find('.select2-ajax');
+    const $selectLote = $fila.find('.select-lote-farmacia');
+    const $inputCant = $fila.find('.input-cantidad-farmacia');
+    const $infoLote = $fila.find('.info-lote-stock');
+
+    // Inicializar Select2 en el renglón clonado
+    $selectMed.select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Escribe clave o principio activo...',
+        ajax: {
+            url: "{{ url_for('farmacia.buscar_insumos_select2') }}",
+            dataType: 'json',
+            delay: 250,
+            data: params => ({ q: params.term }),
+            processResults: data => ({ results: data })
+        }
+    });
+
+    // Escuchar la selección de medicamento para cargar sus lotes
+    $selectMed.on('change', function() {
+        const id_med = $(this).val();
+        $selectLote.empty().append('<option value="">Cargando lotes...</option>').prop('disabled', true);
+        $inputCant.prop('disabled', true).val('');
+        $infoLote.text('');
+
+        if (id_med) {
+            $.getJSON(`/api/lotes_farmacia/${id_med}`, function(data) {
+                $selectLote.empty().append('<option value="">-- Elige Lote --</option>');
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}" data-vence="${item.fecha_vencimiento}">Lote: ${item.lote} (Disp: ${item.cantidad})</option>`);
+                    });
+                    $selectLote.prop('disabled', false);
+                } else {
+                    $selectLote.append('<option value="">❌ Sin existencias en Farmacia</option>');
+                }
+            });
+        }
+    });
+
+    // Escuchar el cambio de lote para definir topes de cantidad
+    $selectLote.on('change', function() {
+        const option = $(this).find('option:selected');
+        const maxStock = parseInt(option.data('max')) || 0;
+        const fechaVence = option.data('vence') || '';
+
+        
+         if ($(this).val()) {
+            $inputCant.prop('disabled', false).attr('max', maxStock).val('').attr('placeholder', `Máx: ${maxStock}`);
+            $infoLote.html(`<span class="text-primary fw-bold">Disponible: ${maxStock} pzas</span> | Vence: ${fechaVence}`);
+        } else {
+            $inputCant.prop('disabled', true).val('');
+            $infoLote.text('');
+        }
+    });
+}
+
+// Cargar primer renglón por defecto al abrir
+$(document).ready(function() {
+    agregarFilaInsumo();
+    adaptarFormulario();
+});
+</script>
+{% endblock %}

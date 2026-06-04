@@ -3,7 +3,7 @@
 from .archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
 from .personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios
 from .medicos import  Consulta,NotaConsultaExterna,FolioCertificado
-from .farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, SalidaFarmaciaPaciente, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
+from .farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia,SalidaFarmacia, TransferenciaSaliente, TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico, RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
 from .enfermeria import RegistroAdultoMayor, Archivo
 
 
