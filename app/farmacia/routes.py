@@ -31,7 +31,8 @@ def index():
             (Medicamento.principio_activo.ilike(f'%{query}%')) 
         )
     
-    lista_medicamentos = medicamentos_query.all()
+    # 🌟 CORRECCIÓN: Limitamos la consulta a solo 5 registros antes de traer los resultados con .all()
+    lista_medicamentos = medicamentos_query.limit(5).all()
     inventario = []
     
     # 4. Calcular Entradas, Salidas Totales y Existencias usando 'id_medicamento'
