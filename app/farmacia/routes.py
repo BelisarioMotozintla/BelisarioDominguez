@@ -77,84 +77,118 @@ def inject_today():
     return dict(today=datetime.now().date()) # 🌟 Añadimos .date() al final
 
 #)))))))))))))))))))))))))))))(((((((((((((((((*********************************** otras salidas es colectivo , oc99
-
 @bp.route('/salidas/otras', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def otras_salidas():
+    # 🟢 SI EL USUARIO PRESIONA "PROCESAR SALIDA TOTAL" (MANUAL)
     if request.method == 'POST':
-        # 1. Recuperar cabecera del abanico
+        # 1. Capturamos los datos generales de la interfaz
         tipo_salida = request.form.get('tipo_salida')
-        entidad_destino = request.form.get('entidad_destino', '').upper().strip()
-        documento_soporte = request.form.get('documento_soporte', '').upper().strip()
-        
-        # 2. Capturar las listas dinámicas de la tabla masiva
-        med_ids = request.form.getlist('id_medicamento[]')
+        entidad_destino = request.form.get('entidad_destino')   # Campo "Servicio Destino Interno"
+        documento_soporte = request.form.get('documento_soporte') # Campo "Número de Vale Colectivo"
+
+        # 2. ✨ BLINDAJE ESTRICTO DEL ENUM CONTRA 'OTRA_SALIDA' O 'NONE'
+        if not tipo_salida or tipo_salida == 'OTRA_SALIDA':
+            destino_limpio = entidad_destino.upper() if entidad_destino else ''
+            
+            # Deducimos el Enum correcto según lo que el usuario escribió en la interfaz
+            if 'CEYE' in destino_limpio or 'PISO' in destino_limpio or 'VALE' in destino_limpio:
+                tipo_salida_final = 'COLECTIVO'        # Salva tu inserción actual de CEYE
+            elif 'CADUC' in destino_limpio:
+                tipo_salida_final = 'BAJA_CADUCIDAD'
+            elif 'EXTRAV' in destino_limpio or 'FALTANTE' in destino_limpio:
+                tipo_salida_final = 'BAJA_EXTRAVIO'
+            elif 'TRASLADO' in destino_limpio or 'HOSPITAL' in destino_limpio:
+                tipo_salida_final = 'TRASLADO_UNIDAD'
+            else:
+                tipo_salida_final = 'COLECTIVO'        # Respaldo seguro que existe en tu Enum
+        else:
+            tipo_salida_final = tipo_salida
+
+        # 3. Capturamos las listas dinámicas del abanico de filas de la tabla
+        medicamentos_ids = request.form.getlist('id_medicamento[]')
         lotes = request.form.getlist('lote[]')
         cantidades = request.form.getlist('cantidad[]')
-        
-        try:
-            # Procesar renglón por renglón
-            for i in range(len(med_ids)):
-                id_med = int(med_ids[i])
-                lote_req = lotes[i]
-                cant_req = int(cantidades[i])
-                
-                if cant_req <= 0:
-                    continue
-                
-                # Buscar el lote específico que el usuario seleccionó del anaquel
-                inv_farmacia = InventarioFarmacia.query.filter_by(
-                    id_medicamento=id_med, 
-                    lote=lote_req
-                ).first()
-                
-                # Validar stock físico síncronamente antes de guardar
-                if not inv_farmacia or inv_farmacia.cantidad < cant_req:
-                    db.session.rollback()
-                    flash(f"❌ Stock insuficiente en Farmacia para el lote {lote_req}.", "danger")
-                    return redirect(url_for('farmacia.otras_salidas'))
-                
-                # 3. Guardar en la tabla unificada ESPECIALIZADA
-                nueva_salida = SalidaFarmacia(
-                    id_medicamento=id_med,
-                    cantidad=cant_req,
-                    lote=lote_req,
-                    fecha_vencimiento=inv_farmacia.fecha_vencimiento,
-                    fecha_salida=datetime.now(timezone.utc),
-                    id_usuario=current_user.id_usuario,
-                    
-                    # Campos específicos del abanico (id_receta se va en NULL)
-                    tipo_salida=tipo_salida,
-                    id_receta=None, 
-                    entidad_destino=entidad_destino if entidad_destino else None,
-                    documento_soporte=documento_soporte if documento_soporte else None
-                )
-                db.session.add(nueva_salida)
-                
-                # 4. Restar del anaquel de la farmacia
-                inv_farmacia.cantidad -= cant_req
-                if inv_farmacia.cantidad == 0:
-                    db.session.delete(inv_farmacia)
-                
-                # 5. Registro en bitácora de trazabilidad
-                bitacora = BitacoraMovimiento(
-                    id_medicamento=id_med,
-                    id_usuario=current_user.id_usuario,
-                    fecha_hora=datetime.now(timezone.utc),
-                    movimiento=f"SALIDA EXTRA CLINICA [{tipo_salida}] - CANT: {cant_req} - LOTE: {lote_req} - DEST: {entidad_destino}"
-                )
-                db.session.add(bitacora)
-                
-            db.session.commit()
-            flash("🚀 Salida masiva del abanico procesada de manera exitosa.", "success")
-            return redirect(url_for('recetas.recetas_pendientes'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f"❌ Error al procesar la salida especial de farmacia: {str(e)}", "danger")
+
+        if not medicamentos_ids:
+            flash('No se agregaron medicamentos al abanico.', 'danger')
             return redirect(url_for('farmacia.otras_salidas'))
 
+        registros_procesados = 0
+        errores = []
+
+        try:
+            # Usamos un bloque nested por si ocurre un error de stock poder hacer rollback
+            with db.session.begin_nested():
+                for i in range(len(medicamentos_ids)):
+                    id_med = int(medicamentos_ids[i])
+                    cant_solicitada = int(cantidades[i])
+                    lote_txt = lotes[i].strip()
+
+                    # 4. Buscamos el lote específico seleccionado en el inventario
+                    lote_inventario = InventarioFarmacia.query.filter_by(
+                        id_medicamento=id_med, 
+                        lote=lote_txt
+                    ).first()
+
+                    # 5. VALIDACIÓN: Verificar si el lote existe y tiene stock suficiente
+                    if not lote_inventario:
+                        errores.append(f"El lote '{lote_txt}' no existe en el inventario.")
+                        continue
+                        
+                    if lote_inventario.cantidad < cant_solicitada:
+                        errores.append(f"Stock insuficiente en lote '{lote_txt}'. Disponible: {lote_inventario.cantidad}, Solicitado: {cant_solicitada}")
+                        continue
+
+                    # 6. ✨ OPERACIÓN CRUCIAL: Descontar la cantidad directamente del anaquel
+                    lote_inventario.cantidad -= cant_solicitada
+                    fecha_venc = lote_inventario.fecha_vencimiento
+
+                    # 7. Creamos el registro de salida garantizando un valor del Enum válido para Postgres
+                    nueva_salida = SalidaFarmacia(
+                        id_medicamento=id_med,
+                        cantidad=cant_solicitada,
+                        lote=lote_txt,
+                        fecha_vencimiento=fecha_venc,
+                        fecha_salida=datetime.now(timezone.utc),
+                        id_usuario=current_user.id_usuario,
+                        tipo_salida=tipo_salida_final,  # 'COLECTIVO', 'BAJA_CADUCIDAD', ETC.
+                        entidad_destino=entidad_destino,
+                        documento_soporte=documento_soporte
+                    )
+                    db.session.add(nueva_salida)
+
+                    # 8. Creamos la bitácora de movimiento correspondientemente
+                    nueva_bitacora = BitacoraMovimiento(
+                        id_medicamento=id_med,
+                        id_usuario=current_user.id_usuario,
+                        fecha_hora=datetime.now(timezone.utc),
+                        movimiento=f"SALIDA_MANUAL_{tipo_salida_final} | Cantidad: {cant_solicitada} | Lote: {lote_txt}"
+                    )
+                    db.session.add(nueva_bitacora)
+                    registros_procesados += 1
+
+            # Si hubo errores de stock, cancelamos el proceso interno y avisamos al usuario
+            if errores:
+                db.session.rollback()
+                for err in errores:
+                    flash(err, 'danger')
+                return redirect(url_for('farmacia.otras_salidas'))
+
+            # Si todo el bucle del abanico manual termina bien, guardamos de manera definitiva
+            db.session.commit()
+            flash(f'¡Éxito! Se registró la salida manual de {registros_procesados} insumos y se afectó el inventario.', 'success')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al procesar la salida especial de farmacia: {str(e)}', 'danger')
+
+        return redirect(url_for('farmacia.otras_salidas'))
+
+    # 🔵 SI EL NAVEGADOR ENTRA POR PRIMERA VEZ (MÉTODO GET)
+    # Coloca aquí tus consultas normales si necesitas mandar catálogos al HTML
     return render_template('farmacia/otras_salidas.html')
+
 
 
 # 🌟 ENDPOINT AJAX 1: Obtiene lotes vigentes de farmacia para el renglón de la tabla
