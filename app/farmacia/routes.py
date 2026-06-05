@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request, render_template, redirect, url_for, flash,session,send_file
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone,date
 import calendar
 from app import db
-from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado
+from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento
 from app.models.personal import Usuario
 from flask_login import current_user
 from app.utils.helpers import roles_required
@@ -11,6 +11,8 @@ from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from sqlalchemy import func
+import os
+import pandas as pd
 
 bp = Blueprint('farmacia', __name__, template_folder='templates/farmacia')
 
@@ -159,20 +161,38 @@ def otras_salidas():
 @bp.route('/api/lotes_farmacia/<int:id_medicamento>')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def api_lotes_farmacia(id_medicamento):
-    lotes = InventarioFarmacia.query.filter(
-        InventarioFarmacia.id_medicamento == id_medicamento,
-        InventarioFarmacia.cantidad > 0
-    ).all()
-    
-    resultados = [
-        {
-            'lote': l.lote,
-            'cantidad': l.cantidad,
-            'fecha_vencimiento': l.fecha_vencimiento.strftime('%d/%m/%Y') if l.fecha_vencimiento else 'S/V'
-        } for l in lotes
-    ]
-    return jsonify(resultados)
+    try:
+        # 1. Forzar una consulta limpia usando db.session
+        lotes = db.session.query(InventarioFarmacia).filter(
+            InventarioFarmacia.id_medicamento == id_medicamento,
+            InventarioFarmacia.cantidad > 0
+        ).all()
+        
+        resultados = []
+        for l in lotes:
+            # 2. Formatear la fecha de vencimiento sin que rompa si viene como string o vacía
+            fecha_str = 'S/V'
+            if l.fecha_vencimiento:
+                if isinstance(l.fecha_vencimiento, (date, datetime)):
+                    fecha_str = l.fecha_vencimiento.strftime('%d/%m/%Y')
+                else:
+                    fecha_str = str(l.fecha_vencimiento)
 
+            resultados.append({
+                'lote': l.lote,
+                'cantidad': l.cantidad,
+                'fecha_vencimiento': fecha_str
+            })
+            
+        # 3. Responder de forma explícita con el JSON listo
+        return jsonify(resultados)
+
+    except Exception as e:
+        # 🌟 Esto va a imprimir el error exacto en tu terminal negra de Flask para saber qué falla
+        print("\n" + "="*50)
+        print(f"❌ ERROR CRÍTICO EN API LOTES: {str(e)}")
+        print("="*50 + "\n")
+        return jsonify({'error': str(e)}), 500
 
 # 🌟 ENDPOINT AJAX 2: Para el buscador masivo del Select2
 @bp.route('/api/buscar_insumos_select2')
@@ -184,8 +204,154 @@ def buscar_insumos_select2():
         (Medicamento.principio_activo.ilike(f"%{q}%"))
     ).limit(20).all()
     
-    resultados = [{'id': m.id_medicamento, 'text': f"{m.clave} - {m.principio_activo} ({m.presentacion or ''})"} for m in insumos]
+    resultados = [{'id': m.id_medicamento, 'text': f"{m.clave} - {m.principio_activo} ({m.presentacion or ''} {m.via_administracion or ''} {m.concentracion or ''} )"} for m in insumos]
     return jsonify(resultados)
+
+
+
+@bp.route('/salidas/carga_masiva_0c99', methods=['POST'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def carga_masiva_0c99():
+    if 'archivo_excel' not in request.files:
+        flash('No se seleccionó ningún archivo', 'danger')
+        return redirect(url_for('farmacia.otras_salidas'))
+        
+    archivo = request.files['archivo_excel']
+    if archivo.filename == '':
+        flash('Archivo no válido', 'danger')
+        return redirect(url_for('farmacia.otras_salidas'))
+
+    if archivo and (archivo.filename.endswith('.xlsx') or archivo.filename.endswith('.xls')):
+        try:
+            df = pd.read_excel(archivo)
+            df.columns = [str(col).strip().upper() for col in df.columns]
+            
+            if 'CLAVE' not in df.columns:
+                flash('El archivo debe contener la columna "CLAVE".', 'danger')
+                return redirect(url_for('farmacia.otras_salidas'))
+
+            # 🌟 NUEVA LÓGICA: Determinar qué columnas numéricas del IMSS se van a sumar
+            modo_filtro = request.form.get('modo_filtro', 'TODO')
+            columnas_a_sumar = []
+
+            if modo_filtro == 'UN_DIA':
+                dia = request.form.get('dia_unico', '').strip()
+                if dia and dia in df.columns:
+                    columnas_a_sumar = [dia]
+                else:
+                    flash(f'La columna del día {dia} no se encuentra en el archivo subido.', 'danger')
+                    return redirect(url_for('farmacia.otras_salidas'))
+                    
+            elif modo_filtro == 'RANGO_DIAS':
+                try:
+                    inicio = int(request.form.get('dia_inicio', 1))
+                    fin = int(request.form.get('dia_fin', 31))
+                    # Crear lista de strings con el rango de días válidos que existan en las columnas
+                    columnas_a_sumar = [str(d) for d in range(inicio, fin + 1) if str(d) in df.columns]
+                except ValueError:
+                    flash('Rango de días no válido.', 'danger')
+                    return redirect(url_for('farmacia.otras_salidas'))
+            else:
+                # Si es TODO, buscamos explícitamente la columna 'TOTAL' de la matriz
+                if 'TOTAL' in df.columns:
+                    columnas_a_sumar = ['TOTAL']
+                else:
+                    flash('No se encontró la columna "TOTAL" para procesar el mes completo.', 'danger')
+                    return redirect(url_for('farmacia.otras_salidas'))
+
+            registros_procesados = 0
+            errores = []
+            destino = request.form.get('excel_entidad_destino', 'CONSUMO DIRECTO OC99').upper()
+            soporte = request.form.get('excel_documento_soporte', 'S/D').upper()
+
+            with db.session.begin_nested():
+                for index, fila in df.iterrows():
+                    clave_cruda = str(fila['CLAVE']).strip()
+                    if not clave_cruda or clave_cruda.lower() == 'nan':
+                        continue
+
+                    # 🌟 MATEMÁTICA EN CALIENTE: Sumamos únicamente las celdas de los días elegidos
+                    cantidad_calculada = 0
+                    for col in columnas_a_sumar:
+                        try:
+                            val_celda = float(fila[col])
+                            if not pd.isna(val_celda):
+                                cantidad_calculada += int(val_celda)
+                        except (ValueError, TypeError):
+                            continue
+
+                    # Si para este rango el medicamento no tuvo salidas, pasamos de largo
+                    if cantidad_calculada <= 0:
+                        continue
+
+                    med = Medicamento.query.filter_by(clave=clave_cruda).first()
+                    if not med:
+                        errores.append(f"Fila {index+2}: La clave '{clave_cruda}' no existe en el catálogo.")
+                        continue
+
+                    # Buscar stock bajo orden PEPS
+                    lotes_disponibles = db.session.query(InventarioFarmacia).filter(
+                        InventarioFarmacia.id_medicamento == med.id_medicamento,
+                        InventarioFarmacia.cantidad > 0
+                    ).order_by(InventarioFarmacia.fecha_vencimiento.asc()).all()
+
+                    total_farmacia = sum(l.cantidad for l in lotes_disponibles)
+
+                    if total_farmacia < cantidad_calculada:
+                        errores.append(f"Clave {med.clave}: Stock insuficiente. Solicitado ({modo_filtro}): {cantidad_calculada}, En Anaquel: {total_farmacia}")
+                        continue
+
+                    # Aplicar descuentos lote por lote
+                    por_descontar = cantidad_calculada
+                    for lote_farmacia in lotes_disponibles:
+                        if por_descontar <= 0:
+                            break
+
+                        if lote_farmacia.cantidad >= por_descontar:
+                            cant_desde_este_lote = por_descontar
+                            lote_farmacia.cantidad -= por_descontar
+                            por_descontar = 0
+                        else:
+                            cant_desde_este_lote = lote_farmacia.cantidad
+                            por_descontar -= lote_farmacia.cantidad
+                            lote_farmacia.cantidad = 0
+
+                        # Registrar afectación
+                        nueva_salida = SalidaFarmacia(
+                            id_medicamento=med.id_medicamento,
+                            cantidad=cant_desde_este_lote, # Ajusta a tu campo 'cantidad'
+                            lote=lote_farmacia.lote,
+                            fecha_vencimiento=lote_farmacia.fecha_vencimiento,
+                            fecha_salida=datetime.now(timezone.utc),
+                            id_usuario=current_user.id_usuario,
+                            tipo_salida='BAJA_0C99'
+                        )
+                        db.session.add(nueva_salida)
+
+                        nueva_bitacora = BitacoraMovimiento(
+    						id_medicamento=med.id_medicamento,
+    						id_usuario=current_user.id_usuario,
+    						fecha_hora=datetime.now(timezone.utc),
+    						# Guardamos la cantidad como texto aquí adentro
+    						movimiento=f"SALIDA_BAJA_0C99 | Cantidad: {cant_desde_este_lote} | Lote: {lote_farmacia.lote}"
+						)
+                        db.session.add(nueva_bitacora)
+                        registros_procesados += 1
+
+            if errores:
+                db.session.rollback()
+                return render_template('farmacia/otras_salidas.html', errores_excel=errores)
+
+            db.session.commit()
+            flash(f'¡Éxito! Procesado en modo {modo_filtro}. Se afectaron {registros_procesados} lotes en el inventario.', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al procesar el documento Excel: {str(e)}', 'danger')
+            
+    return redirect(url_for('farmacia.otras_salidas'))
+
+
 
 #}||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 

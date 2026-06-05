@@ -57,15 +57,18 @@
           
           <!-- Folio de la Receta Vinculado con el Blueprint 'recetas' -->
           <td>
-            {% if salida.receta and salida.receta.folio %}
-              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
-                <span class="badge bg-primary fs-6 hover-shadow">📋 {{ salida.receta.folio }}</span>
-              </a>
-            {% else %}
-              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
-                <span class="badge bg-warning text-dark fs-6">🆔 Ver ID: {{ salida.id_receta }}</span>
-              </a>
-            {% endif %}
+           {% if salida.receta and salida.receta.id_receta %}
+  <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}" class="text-decoration-none">
+    <span class="badge bg-primary fs-6 hover-shadow">📋 {{ salida.receta.folio or 'Ver Receta' }}</span>
+  </a>
+{% elif salida.id_receta %}
+  <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
+    <span class="badge bg-warning text-dark fs-6">🆔 Ver ID: {{ salida.id_receta }}</span>
+  </a>
+{% else %}
+  <!-- Si es una salida especial (baja, merma, traslado) que no tiene receta, pintamos el tipo de movimiento estático -->
+  <span class="badge bg-secondary text-wrap px-2 py-1">⚙️ {{ salida.tipo_salida or 'Ajuste Stock' }}</span>
+{% endif %}
           </td>
           
           <!-- Fecha y Hora del surtimiento -->

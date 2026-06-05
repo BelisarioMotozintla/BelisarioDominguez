@@ -1,12 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Select2 para soporte multi-renglón dinámico -->
-<link href="https://jsdelivr.net" rel="stylesheet" />
-<link href="https://jsdelivr.net" rel="stylesheet" />
-<script src="https://jquery.com"></script>
-<script src="https://jsdelivr.net"></script>
-
 <div class="container-fluid mt-4 mb-5">
     <div class="card shadow border-0">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -15,63 +9,142 @@
         </div>
         
         <div class="card-body">
-            <form id="form-abanico-salidas" method="POST" action="{{ url_for('farmacia.otras_salidas') }}">
-                
-                <!-- SELECCIÓN DEL BRAZO DEL ABANICO -->
-                <div class="row g-3 mb-4 bg-light p-3 rounded border">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Tipo de Operación</label>
-                        <select name="tipo_salida" id="tipo_salida" class="form-select border-primary fw-bold" onchange="adaptarFormulario()">
-                            <option value="COLECTIVO">Salida Colectiva (CEYE / Vales de Piso)</option>
-                            <option value="BAJA_0C99">Consumo Directo Masivo (0C99 / Jornadas)</option>
-                            <option value="BAJA_CADUCIDAD">Baja por Caducidad / Vencimiento</option>
-                            <option value="BAJA_EXTRAVIO">Baja por Extravío / Faltante de Auditoría</option>
-                            <option value="TRASLADO_UNIDAD">Traslado de Apoyo a otra Unidad Médica</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-4" id="div_destino">
-                        <label class="form-label fw-bold" id="label_destino">Servicio Destino</label>
-                        <input type="text" name="entidad_destino" id="entidad_destino" class="form-control text-uppercase" placeholder="Ej: CEYE / PISO 3" required>
-                    </div>
-
-                    <div class="col-md-4" id="div_soporte">
-                        <label class="form-label fw-bold" id="label_soporte">Documento / Vale de Soporte</label>
-                        <input type="text" name="documento_soporte" id="documento_soporte" class="form-control text-uppercase" placeholder="Ej: VALE-451 / ACTA-02">
-                    </div>
+            <!-- SELECCIÓN DEL BRAZO DEL ABANICO -->
+            <div class="row g-3 mb-4 bg-light p-3 rounded border">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Tipo de Operación</label>
+                    <select name="tipo_salida" id="tipo_salida" class="form-select border-primary fw-bold" onchange="adaptarFormulario()">
+                        <option value="COLECTIVO">Salida Colectiva (CEYE / Vales de Piso)</option>
+                        <option value="BAJA_0C99">Consumo Directo Masivo (0C99 / Jornadas)</option>
+                        <option value="BAJA_CADUCIDAD">Baja por Caducidad / Vencimiento</option>
+                        <option value="BAJA_EXTRAVIO">Baja por Extravío / Faltante de Auditoría</option>
+                        <option value="TRASLADO_UNIDAD">Traslado de Apoyo a otra Unidad Médica</option>
+                    </select>
                 </div>
 
-                <!-- TABLA MULTI-RENGLÓN -->
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle" id="tabla-abanico">
-                        <thead class="table-secondary">
-                            <tr>
-                                <th style="width: 45%;">Medicamento / Insumo</th>
-                                <th style="width: 30%;">Lote en Farmacia (Disponible | Vence)</th>
-                                <th style="width: 15%;">Cantidad a Retirar</th>
-                                <th style="width: 10%;" class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cuerpo-abanico">
-                            <!-- Filas dinámicas -->
-                        </tbody>
-                    </table>
+                <div class="col-md-4" id="div_destino">
+                    <label class="form-label fw-bold" id="label_destino">Servicio Destino</label>
+                    <input type="text" name="entidad_destino" id="entidad_destino" form="form-abanico-salidas" class="form-control text-uppercase" placeholder="Ej: CEYE / PISO 3" required>
                 </div>
 
-                <!-- CONTROLADORES INFERIORES -->
-                <div class="d-flex justify-content-between mt-3">
-                    <button type="button" class="btn btn-outline-primary" onclick="agregarFilaInsumo()">
-                        <i class="bi bi-plus-circle"></i> Agregar Insumo
-                    </button>
-                    
-                    <div>
-                        <a href="{{ url_for('recetas.recetas_pendientes') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
-                        <button type="submit" class="btn btn-primary px-5 shadow fw-bold">
-                            <i class="bi bi-check-all"></i> Procesar Salida Total
+                <div class="col-md-4" id="div_soporte">
+                    <label class="form-label fw-bold" id="label_soporte">Documento / Vale de Soporte</label>
+                    <input type="text" name="documento_soporte" id="documento_soporte" form="form-abanico-salidas" class="form-control text-uppercase" placeholder="Ej: VALE-451 / ACTA-02">
+                </div>
+            </div>
+
+            <!-- 🟢 CONTENEDOR A: CARGA MASIVA EXCEL (OC99) OPTIMIZADO -->
+            <div id="contenedor-carga-excel" style="display: none;">
+                <div class="card border-danger shadow-sm mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="card-title mb-0"><i class="bi bi-file-earmark-excel"></i> Matriz de Consumo Masivo 0C99</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">
+                            Has seleccionado <strong>Consumo Directo 0C99</strong>. Define el rango de afectación de la matriz del IMSS antes de cargar el archivo [INDEX].
+                        </p>
+                        
+                        <form action="{{ url_for('farmacia.carga_masiva_0c99') }}" method="POST" enctype="multipart/form-data" id="form-excel-0c99">
+                            <!-- Campos espejo invisibles para llevar el Destino y Soporte -->
+                            <input type="hidden" name="excel_entidad_destino" id="excel_entidad_destino">
+                            <input type="hidden" name="excel_documento_soporte" id="excel_documento_soporte">
+                            
+                            <!-- PANEL DE ALCANCE DE LA BAJA -->
+                            <div class="row g-3 mb-4 p-3 bg-light rounded border align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small text-danger">Modo de Descuento:</label>
+                                    <select name="modo_filtro" id="modo_filtro" class="form-select border-danger fw-bold" onchange="alternarFiltrosDias()">
+                                        <option value="TODO">Descontar Todo el Mes (Columna TOTAL)</option>
+                                        <option value="UN_DIA">Descontar Solo Un Día</option>
+                                        <option value="RANGO_DIAS">Descontar Rango de Días</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Campo dinámico para un solo día -->
+                                <div class="col-md-5" id="div_un_dia" style="display: none;">
+                                    <label class="form-label fw-bold small">¿Qué columna de día deseas procesar?</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white">Día:</span>
+                                        <input type="number" name="dia_unico" class="form-control" min="1" max="31" placeholder="Ej: 4">
+                                    </div>
+                                </div>
+                                
+                                <!-- Campos dinámicos para rango de días -->
+                                <div class="col-md-5" id="div_rango_dias" style="display: none;">
+                                    <label class="form-label fw-bold small">Rango de columnas a sumar:</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white">Desde:</span>
+                                        <input type="number" name="dia_inicio" class="form-control" min="1" max="31" placeholder="1">
+                                        <span class="input-group-text bg-white">Hasta:</span>
+                                        <input type="number" name="dia_fin" class="form-control" min="1" max="31" placeholder="15">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="bi bi-upload"></i></span>
+                                        <input type="file" name="archivo_excel" class="form-control" accept=".xlsx, .xls" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mt-2 mt-md-0">
+                                    <button type="submit" class="btn btn-danger w-100 fw-bold">
+                                        <i class="bi bi-play-fill"></i> Procesar Matriz Seleccionada
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Visor de errores del Excel -->
+                        {% if errores_excel %}
+                          <div class="alert alert-warning mt-3 mb-0">
+                            <h6 class="alert-heading fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> No se pudo aplicar la matriz debido a los siguientes detalles:</h6>
+                            <ul class="mb-0 small" style="max-height: 200px; overflow-y: auto;">
+                              {% for error in errores_excel %}
+                                <li>{{ error }}</li>
+                              {% endfor %}
+                            </ul>
+                            <p class="mt-2 mb-0 text-xs text-secondary">* Nota: Ningún cambio fue aplicado a la base de datos para mantener la integridad de los inventarios.</p>
+                          </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <!-- 🔵 CONTENEDOR B: FORMULARIO MANUAL TRADICIONAL -->
+            <div id="contenedor-captura-manual">
+                <form id="form-abanico-salidas" method="POST" action="{{ url_for('farmacia.otras_salidas') }}">
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle" id="tabla-abanico">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th style="width: 45%;">Medicamento / Insumo</th>
+                                    <th style="width: 30%;">Lote en Farmacia (Disponible | Vence)</th>
+                                    <th style="width: 15%;">Cantidad a Retirar</th>
+                                    <th style="width: 10%;" class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpo-abanico">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <button type="button" class="btn btn-outline-primary" onclick="agregarFilaInsumo()">
+                            <i class="bi bi-plus-circle"></i> Agregar Insumo
                         </button>
+                        
+                        <div>
+                            <a href="{{ url_for('farmacia.index') }}" class="btn btn-outline-secondary me-2">Cancelar</a>
+                            <button type="submit" class="btn btn-primary px-5 shadow fw-bold">
+                                <i class="bi bi-check-all"></i> Procesar Salida Total
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </form>
+                </form>
+            </div>
+
         </div>
     </div>
 </div>
@@ -98,9 +171,8 @@
         </td>
     </tr>
 </template>
-
 <script>
-// 1. Modificar textos dinámicamente de acuerdo al brazo del abanico seleccionado
+// 1. Modificar textos dinámicamente y alternar entre carga manual y Excel
 function adaptarFormulario() {
     const tipo = document.getElementById('tipo_salida').value;
     const labelDestino = document.getElementById('label_destino');
@@ -108,39 +180,91 @@ function adaptarFormulario() {
     const labelSoporte = document.getElementById('label_soporte');
     const inputSoporte = document.getElementById('documento_soporte');
 
+    const contenedorExcel = document.getElementById('contenedor-carga-excel');
+    const contenedorManual = document.getElementById('contenedor-captura-manual');
+
+    // Resetear requeridos por defecto
     inputDestino.setAttribute('required', 'true');
     inputSoporte.removeAttribute('required');
 
-    if (tipo === 'COLECTIVO') {
-        labelDestino.innerText = "Servicio Destino Interno";
-        inputDestino.placeholder = "Ej: CEYE / PISO 2 CIRUGÍA";
-        labelSoporte.innerText = "Número de Vale Colectivo";
-        inputSoporte.placeholder = "Ej: VALE-1045";
-    } else if (tipo === 'BAJA_0C99') {
+    // CONTROL DE VISIBILIDAD DE INTERFAZ (EXCEL vs MANUAL)
+    if (tipo === 'BAJA_0C99') {
+        $(contenedorExcel).slideDown();
+        $(contenedorManual).slideUp();
+        
+        // Quitar requeridos de las filas manuales ocultas para permitir el envío del Excel
+        $('#cuerpo-abanico').find('select, input').removeAttr('required');
+
+        // Configuración de textos para 0C99
         labelDestino.innerText = "Programa o Justificación 0C99";
         inputDestino.placeholder = "Ej: JORNADA VACUNACIÓN / AMBULANCIA";
         labelSoporte.innerText = "Folio Oficio Carga/Baja";
         inputSoporte.placeholder = "Ej: OF-0C99-2024";
-    } else if (tipo === 'BAJA_CADUCIDAD') {
-        labelDestino.innerText = "Destino Final / Destrucción";
-        inputDestino.placeholder = "Ej: CONTENEDOR RPBI / BAJA ANAQUEL";
-        labelSoporte.innerText = "Número de Acta de Hechos *";
-        inputSoporte.placeholder = "Ej: ACTA-CAD-015";
-        inputSoporte.setAttribute('required', 'true');
-    } else if (tipo === 'BAJA_EXTRAVIO') {
-        labelDestino.innerText = "Área del Faltante";
-        inputDestino.placeholder = "Ej: AJUSTE INVENTARIO / AUDITORIA";
-        labelSoporte.innerText = "Folio del Reporte / Acta *";
-        inputSoporte.placeholder = "Ej: ACTA-EXT-004";
-        inputSoporte.setAttribute('required', 'true');
-    } else if (tipo === 'TRASLADO_UNIDAD') {
-        labelDestino.innerText = "Clínica u Hospital Destino";
-        inputDestino.placeholder = "Ej: HOSPITAL GENERAL TONALÁ";
-        labelSoporte.innerText = "Oficio de Comisión / Préstamo *";
-        inputSoporte.placeholder = "Ej: OF-PRES-88";
-        inputSoporte.setAttribute('required', 'true');
+    } else {
+        $(contenedorExcel).slideUp();
+        $(contenedorManual).slideDown();
+        
+        // Restaurar requeridos a las filas manuales que estén activas
+        $('#cuerpo-abanico').find('tr').each(function() {
+            $(this).find('.select2-ajax, .select-lote-farmacia, .input-cantidad-farmacia').attr('required', 'true');
+        });
+
+        // Configuración de textos para otras operaciones
+        if (tipo === 'COLECTIVO') {
+            labelDestino.innerText = "Servicio Destino Interno";
+            inputDestino.placeholder = "Ej: CEYE / PISO 2 CIRUGÍA";
+            labelSoporte.innerText = "Número de Vale Colectivo";
+            inputSoporte.placeholder = "Ej: VALE-1045";
+        } else if (tipo === 'BAJA_CADUCIDAD') {
+            labelDestino.innerText = "Destino Final / Destrucción";
+            inputDestino.placeholder = "Ej: CONTENEDOR RPBI / BAJA ANAQUEL";
+            labelSoporte.innerText = "Número de Acta de Hechos *";
+            inputSoporte.placeholder = "Ej: ACTA-CAD-015";
+            inputSoporte.setAttribute('required', 'true');
+        } else if (tipo === 'BAJA_EXTRAVIO') {
+            labelDestino.innerText = "Área del Faltante";
+            inputDestino.placeholder = "Ej: AJUSTE INVENTARIO / AUDITORIA";
+            labelSoporte.innerText = "Folio del Reporte / Acta *";
+            inputSoporte.placeholder = "Ej: ACTA-EXT-004";
+            inputSoporte.setAttribute('required', 'true');
+        } else if (tipo === 'TRASLADO_UNIDAD') {
+            labelDestino.innerText = "Clínica u Hospital Destino";
+            inputDestino.placeholder = "Ej: HOSPITAL GENERAL TONALÁ";
+            labelSoporte.innerText = "Oficio de Comisión / Préstamo *";
+            inputSoporte.placeholder = "Ej: OF-PRES-88";
+            inputSoporte.setAttribute('required', 'true');
+        }
     }
 }
+
+// Alternar los campos dinámicos para los días del Excel (Todo, Un Día o Rango)
+function alternarFiltrosDias() {
+    const modo = document.getElementById('modo_filtro').value;
+    const divUnDia = document.getElementById('div_un_dia');
+    const divRango = document.getElementById('div_rango_dias');
+    
+    $(divUnDia).find('input').removeAttr('required').val('');
+    $(divRango).find('input').removeAttr('required').val('');
+
+    if (modo === 'UN_DIA') {
+        $(divUnDia).slideDown();
+        $(divRango).slideUp();
+        $(divUnDia).find('input').attr('required', 'true');
+    } else if (modo === 'RANGO_DIAS') {
+        $(divUnDia).slideUp();
+        $(divRango).slideDown();
+        $(divRango).find('input').attr('required', 'true');
+    } else {
+        $(divUnDia).slideUp();
+        $(divRango).slideUp();
+    }
+}
+
+// Interceptar el envío del formulario de Excel para clonar los campos de cabecera
+document.getElementById('form-excel-0c99').addEventListener('submit', function(e) {
+    document.getElementById('excel_entidad_destino').value = document.getElementById('entidad_destino').value;
+    document.getElementById('excel_documento_soporte').value = document.getElementById('documento_soporte').value;
+});
 
 // 2. Insertar renglones y conectar las peticiones asíncronas
 function agregarFilaInsumo() {
@@ -175,9 +299,16 @@ function agregarFilaInsumo() {
         $infoLote.text('');
 
         if (id_med) {
-            $.getJSON(`/api/lotes_farmacia/${id_med}`, function(data) {
+            let urlDinamica = "{{ url_for('farmacia.api_lotes_farmacia', id_medicamento=0) }}".replace('0', id_med);
+
+            $.ajax({
+                url: urlDinamica, 
+                method: 'GET',
+                dataType: 'json'
+            })
+            .done(function(data) {
                 $selectLote.empty().append('<option value="">-- Elige Lote --</option>');
-                if (data.length > 0) {
+                if (data && data.length > 0) {
                     data.forEach(item => {
                         $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}" data-vence="${item.fecha_vencimiento}">Lote: ${item.lote} (Disp: ${item.cantidad})</option>`);
                     });
@@ -185,6 +316,11 @@ function agregarFilaInsumo() {
                 } else {
                     $selectLote.append('<option value="">❌ Sin existencias en Farmacia</option>');
                 }
+            })
+            .fail(function(xhr, status, error) {
+                console.error("❌ Error detectado en la API de lotes:", error);
+                $selectLote.empty().append('<option value="">❌ Error al obtener lotes</option>').prop('disabled', false);
+                $infoLote.html('<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Error de ruta con el servidor</span>');
             });
         }
     });
@@ -195,11 +331,10 @@ function agregarFilaInsumo() {
         const maxStock = parseInt(option.data('max')) || 0;
         const fechaVence = option.data('vence') || '';
 
-        
          if ($(this).val()) {
             $inputCant.prop('disabled', false).attr('max', maxStock).val('').attr('placeholder', `Máx: ${maxStock}`);
             $infoLote.html(`<span class="text-primary fw-bold">Disponible: ${maxStock} pzas</span> | Vence: ${fechaVence}`);
-        } else {
+         } else {
             $inputCant.prop('disabled', true).val('');
             $infoLote.text('');
         }
@@ -209,6 +344,12 @@ function agregarFilaInsumo() {
 // Cargar primer renglón por defecto al abrir
 $(document).ready(function() {
     agregarFilaInsumo();
+    
+    // Si viene de un redireccionamiento fallido de Excel, forzar la vista 0C99 activa
+    {% if errores_excel %}
+        document.getElementById('tipo_salida').value = 'BAJA_0C99';
+    {% endif %}
+    
     adaptarFormulario();
 });
 </script>
