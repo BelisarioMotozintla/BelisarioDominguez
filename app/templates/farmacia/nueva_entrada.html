@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <div class="container-fluid mt-4 mb-5">
   <div class="card shadow">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -12,44 +13,81 @@
       <form id="form-recepcion" method="POST" action="{{ url_for('farmacia.nueva_entrada') }}">
         
         <!-- SECCIÓN 1: DATOS GENERALES (CABECERA) -->
-        <div class="row mb-4 p-3 bg-light rounded border">
-          <div class="col-md-3 mb-3">
-            <label class="form-label fw-bold">Destino de la Carga</label>
-            <select name="destino" class="form-select border-primary" required>
-              <option value="almacen">ALMACÉN GENERAL</option>
-              <option value="farmacia">FARMACIA (ENTRADA DIRECTA)</option>
+       <div class="row mb-4 p-3 bg-light rounded border">
+  <div class="col-md-3 mb-3">
+    <label class="form-label fw-bold">Destino de la Carga</label>
+    <select name="destino" class="form-select border-primary" required>
+      <option value="almacen" {% if destino_previo == 'almacen' %}selected{% endif %}>ALMACÉN GENERAL</option>
+      <option value="farmacia" {% if destino_previo == 'farmacia' %}selected{% endif %}>FARMACIA (ENTRADA DIRECTA)</option>
+    </select>
+  </div>
+  <div class="col-md-5 mb-3">
+    <label class="form-label fw-bold">Proveedor</label>
+    <input type="text" name="proveedor" class="form-control uppercase-input" placeholder="NOMBRE DEL PROVEEDOR" value="{{ proveedor_previo or '' }}">
+  </div>
+  <div class="col-md-4 mb-3">
+    <label class="form-label fw-bold">Observaciones Generales</label>
+    <textarea name="observaciones_general" class="form-control uppercase-input" rows="1">{{ observaciones_previo or '' }}</textarea>
+  </div>
+</div>
+<!-- SECCIÓN DE CARGA MASIVA DESDE EXCEL -->
+<div class="mb-3 p-3 bg-light rounded border border-info">
+  <label class="form-label fw-bold text-info"><i class="bi bi-file-earmark-excel"></i> Cargar desde Archivo de Excel</label>
+  <div class="input-group">
+    <input type="file" id="input-excel" class="form-control" accept=".xlsx, .xls">
+    <button class="btn btn-info text-white" type="button" onclick="procesarExcel()">
+      <i class="bi bi-upload"></i> Cargar Datos a la Tabla
+    </button>
+  </div>
+  <small class="text-muted">El archivo debe contener los encabezados exactos: <strong>Código</strong>, <strong>Lote</strong>, <strong>Caducidad</strong>, <strong>Cantidad</strong> y <strong>Financiamiento</strong> (el financiamiento se unirá a las notas del item).</small>
+</div>
+<!-- SECCIÓN 2: TABLA DINÁMICA (ACTUALIZADA) -->
+<div class="table-responsive">
+  <table class="table table-bordered table-hover" id="tabla-medicamentos">
+    <thead class="table-dark">
+      <tr>
+        <th style="width: 25%;">Medicamento (Clave/Nombre)</th>
+        <th style="width: 20%;">Lote</th>
+        <th style="width: 15%;">Cant.</th>
+        <th style="width: 15%;">Caducidad</th>
+        <th style="width: 20%;">Notas Item</th>
+        <th style="width: 5%;"></th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-tabla">
+      {% if datos_previos %}
+        {% for i in range(datos_previos['id_medicamento']|length) %}
+        <tr>
+          <td>
+            <select name="id_medicamento[]" class="form-select select2-medicamento" required>
+              <option value="{{ datos_previos['id_medicamento'][i] }}" selected>
+                {{ datos_previos['texto_medicamento'][i] }}
+              </option>
             </select>
-            <small class="text-muted">¿A dónde entrará físicamente el stock?</small>
-          </div>
-          <div class="col-md-5 mb-3">
-            <label class="form-label fw-bold">Proveedor</label>
-            <input type="text" name="proveedor" class="form-control uppercase-input" placeholder="NOMBRE DEL PROVEEDOR">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label fw-bold">Observaciones Generales</label>
-            <textarea name="observaciones_general" class="form-control uppercase-input" rows="1"></textarea>
-          </div>
-        </div>
-
-        <!-- SECCIÓN 2: TABLA DINÁMICA -->
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover" id="tabla-medicamentos">
-            <thead class="table-dark">
-              <tr>
-                <th style="width: 15%;">Medicamento (Clave/Nombre)</th>
-                <th style="width: 20%;">Lote</th>
-                <th style="width: 20%;">Cant.</th>
-                <th style="width: 15%;">Caducidad</th>
-                <th style="width: 10%;">Notas Item</th>
-                <th style="width: 5%;"></th>
-              </tr>
-            </thead>
-            <tbody id="cuerpo-tabla">
-              <!-- Las filas se insertarán aquí -->
-            </tbody>
-          </table>
-        </div>
-
+          </td>
+          <td>
+            <input type="text" name="lote[]" class="form-control uppercase-input" value="{{ datos_previos['lote'][i] }}" required placeholder="LOTE">
+          </td>
+          <td>
+            <input type="number" name="cantidad[]" class="form-control" value="{{ datos_previos['cantidad'][i] }}" min="1" required placeholder="0">
+          </td>
+          <td>
+            <input type="date" name="fecha_caducidad[]" class="form-control" value="{{ datos_previos['fecha_caducidad'][i] }}" required>
+          </td>
+          <td>
+            <input type="text" name="notas_item[]" class="form-control uppercase-input" value="{{ datos_previos['notas_item'][i] }}" placeholder="Opcional">
+          </td>
+          <td class="text-center">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(this)">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      {% endif %}
+    </tbody>
+  </table>
+</div>
         <div class="d-flex justify-content-between mt-3">
           <button type="button" class="btn btn-outline-primary" onclick="agregarFila()">
             <i class="bi bi-plus-circle"></i> Agregar otro medicamento
@@ -135,8 +173,176 @@ function eliminarFila(btn) {
 }
 
 $(document).ready(function() {
-    // Agregar la primera fila por defecto
-    agregarFila();
+    const filasExistentes = $('#cuerpo-tabla tr');
+
+    if (filasExistentes.length === 0) {
+        // Carga normal: agregar la primera fila vacía por defecto
+        agregarFila();
+    } else {
+        // Retorno por error: reinicializar los plugins sobre las filas que pintó Jinja
+        filasExistentes.each(function() {
+            const fila = $(this);
+            
+            fila.find('.select2-medicamento').select2({
+                placeholder: "Buscar...",
+                minimumInputLength: 2,
+                ajax: {
+                    url: "{{ url_for('farmacia.buscar_medicamentos') }}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({ q: params.term }),
+                    processResults: data => ({ results: data }),
+                    cache: true
+                },
+                width: '100%'
+            });
+
+            fila.find('.uppercase-input').on('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        });
+    }
 });
+function procesarExcel() {
+    const input = document.getElementById('input-excel');
+    if (!input.files || input.files.length === 0) {
+        alert("Por favor, selecciona un archivo de Excel primero.");
+        return;
+    }
+
+    const archivo = input.files[0];
+    const lector = new FileReader();
+
+    lector.onload = function(e) {
+        const datos = new Uint8Array(e.target.result);
+        const libro = XLSX.read(datos, { type: 'array' });
+        const nombreHoja = libro.SheetNames[0];
+        const hoja = libro.Sheets[nombreHoja];
+        
+        // Convertir la hoja a JSON
+        const filasExcel = XLSX.utils.sheet_to_json(hoja);
+
+        if (filasExcel.length === 0) {
+            alert("El archivo de Excel está vacío o no se pudo leer.");
+            return;
+        }
+
+        // Limpiar la tabla antes de insertar
+        const cuerpoTabla = document.getElementById('cuerpo-tabla');
+        cuerpoTabla.innerHTML = '';
+
+        filasExcel.forEach((fila, index) => {
+            // Mapeo estricto de columnas (eliminando espacios fantasmas de los encabezados)
+            const llaves = Object.keys(fila);
+            const buscarColumna = (nombres) => {
+                const llaveEncontrada = llaves.find(k => nombres.includes(k.trim()));
+                return llaveEncontrada ? fila[llaveEncontrada] : '';
+            };
+
+            const codigo = buscarColumna(['Código', 'Codigo', 'CODIGO', 'CÓDIGO']).toString().trim();
+            const lote = buscarColumna(['Lote', 'LOTE']).toString().trim().toUpperCase();
+            const cantidad = parseInt(buscarColumna(['Cantidad', 'CANTIDAD'])) || 0;
+            const financiamiento = buscarColumna(['Financiamiento', 'FINANCIAMIENTO', 'Producto / Descripción']).toString().trim().toUpperCase();
+            
+            // --- CORRECCIÓN EN EL PROCESAMIENTO DE FECHAS ---
+            let fechaCaducidad = '';
+            let rawFecha = buscarColumna(['Caducidad', 'CADUCIDAD', 'Fecha']);
+            
+            if (rawFecha) {
+                if (typeof rawFecha === 'number') {
+                    // Si Excel la lee como número nativo, usamos el parseador interno SSF
+                    const parseado = XLSX.SSF.parse_date_code(rawFecha);
+                    const yyyy = parseado.y;
+                    const mm = String(parseado.m).padStart(2, '0');
+                    const dd = String(parseado.d).padStart(2, '0');
+                    fechaCaducidad = `${yyyy}-${mm}-${dd}`;
+                } else {
+                    // Si viene como texto (ej. "28/09/2027" o "2027-09-28")
+                    let strFecha = rawFecha.toString().trim();
+                    if (strFecha.includes('/')) {
+                        let partes = strFecha.split('/');
+                        if (partes.length === 3) {
+                            // Si viene como DD/MM/AAAA -> Transformar a AAAA-MM-DD
+                            const dd = partes[0].padStart(2, '0');
+                            const mm = partes[1].padStart(2, '0');
+                            const yyyy = partes[2];
+                            fechaCaducidad = `${yyyy}-${mm}-${dd}`;
+                        }
+                    } else if (strFecha.includes('-')) {
+                        fechaCaducidad = strFecha; // Ya viene correcto en formato AAAA-MM-DD
+                    }
+                }
+            }
+
+            // Clonar e insertar Fila en el DOM
+            const template = document.getElementById('fila-template').content.cloneNode(true);
+            const nuevaFila = template.querySelector('tr');
+            
+            nuevaFila.querySelector('input[name="lote[]"]').value = lote;
+            nuevaFila.querySelector('input[name="cantidad[]"]').value = cantidad;
+            nuevaFila.querySelector('input[name="fecha_caducidad[]"]').value = fechaCaducidad;
+            
+            // Guardamos el Financiamiento en notas_item
+            let notaFinal = buscarColumna(['Financiamiento', 'FINANCIAMIENTO']).toString().trim().toUpperCase();
+            nuevaFila.querySelector('input[name="notas_item[]"]').value = notaFinal;
+
+            cuerpoTabla.appendChild(nuevaFila);
+
+            // Inicializar Select2 en la fila recién creada
+            const select = $(nuevaFila).find('.select2-medicamento');
+            select.select2({
+                placeholder: "Buscar...",
+                minimumInputLength: 2,
+                ajax: {
+                    url: "{{ url_for('farmacia.buscar_medicamentos') }}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: params => ({ q: params.term }),
+                    processResults: data => ({ results: data }),
+                    cache: true
+                },
+                width: '100%'
+            });
+
+            // --- CORRECCIÓN EN LA PRESELECCIÓN ASÍNCRONA ---
+            if (codigo) {
+                $.ajax({
+                    url: "{{ url_for('farmacia.buscar_medicamentos') }}",
+                    dataType: 'json',
+                    data: { q: codigo },
+                    success: function(respuesta) {
+                        // Select2 comúnmente responde con un Arreglo de elementos: [ {id: X, text: Y} ]
+                        if (Array.isArray(respuesta) && respuesta.length > 0) {
+                            const medicamentoEncontrado = respuesta[0]; // Tomamos el primer match exacto
+                            const nuevaOpcion = new Option(medicamentoEncontrado.text, medicamentoEncontrado.id, true, true);
+                            select.append(nuevaOpcion).trigger('change');
+                        } else if (respuesta && respuesta.id && respuesta.text) {
+                            // En caso de que tu endpoint responda con un solo objeto plano directo
+                            const nuevaOpcion = new Option(respuesta.text, respuesta.id, true, true);
+                            select.append(nuevaOpcion).trigger('change');
+                        } else {
+                            console.warn(`No se encontró coincidencia en BD para el código: ${codigo}`);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(`Error de red al buscar el código ${codigo}:`, error);
+                    }
+                });
+            }
+
+            // Configurar paso automático a mayúsculas
+            $(nuevaFila).find('.uppercase-input').on('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        });
+
+        input.value = ''; // Reset del input file
+        alert(`Proceso terminado. Se mapearon ${filasExcel.length} filas del Excel.`);
+    };
+
+    lector.readAsArrayBuffer(archivo);
+}
+
+
 </script>
 {% endblock %}

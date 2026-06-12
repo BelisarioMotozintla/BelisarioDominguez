@@ -995,33 +995,32 @@ def nueva_entrada():
     if request.method == 'GET':
         return render_template('farmacia/nueva_entrada.html')
 
+    # Inicializamos las variables fuera del try para que estén disponibles en el except
+    destino = request.form.get('destino')
+    proveedor = request.form.get('proveedor', '').strip().upper()
+    obs_general = request.form.get('observaciones_general', '').strip().upper()
+
+    ids_medicamentos = request.form.getlist('id_medicamento[]')
+    lotes = request.form.getlist('lote[]')
+    cantidades = request.form.getlist('cantidad[]')
+    fechas_cad = request.form.getlist('fecha_caducidad[]')
+    notas_items = request.form.getlist('notas_item[]')
+
     try:
-        # 1. Parámetros de Cabecera
-        destino = request.form.get('destino') # 'almacen' o 'farmacia'
-        proveedor = request.form.get('proveedor', '').strip().upper()
-        obs_general = request.form.get('observaciones_general', '').strip().upper()
-
-        # 2. Listas del Formulario (Multi-fila)
-        ids_medicamentos = request.form.getlist('id_medicamento[]')
-        lotes = request.form.getlist('lote[]')
-        cantidades = request.form.getlist('cantidad[]')
-        fechas_cad = request.form.getlist('fecha_caducidad[]')
-        notas_items = request.form.getlist('notas_item[]')
-
         if not ids_medicamentos:
             flash("❌ No hay datos para registrar.", "warning")
-            return redirect(url_for('farmacia.nueva_entrada'))
+            # Levantamos un error controlado para reutilizar la lógica de retorno del except
+            raise ValueError("La lista de medicamentos está vacía.")
 
         # 3. Procesamiento en Bloque
         for i in range(len(ids_medicamentos)):
-            # Conversión y limpieza de datos por fila
             id_med = int(ids_medicamentos[i])
             cant = int(cantidades[i])
             lote_actual = lotes[i].strip().upper()
             f_cad = datetime.strptime(fechas_cad[i], '%Y-%m-%d').date()
             nota_actual = f"{obs_general} | {notas_items[i]}".strip(" | ").upper()
 
-            # A. Historial Global (Siempre en EntradaAlmacen como log de auditoría)
+            # A. Historial Global
             nueva_entrada_log = EntradaAlmacen(
                 id_medicamento=id_med,
                 cantidad=cant,
@@ -1034,13 +1033,9 @@ def nueva_entrada():
             )
             db.session.add(nueva_entrada_log)
 
-            # B. Actualización de Stock según Destino Seleccionado
-            if destino == 'farmacia':
-                modelo_inventario = InventarioFarmacia
-            else:
-                modelo_inventario = InventarioAlmacen
+            # B. Actualización de Stock
+            modelo_inventario = InventarioFarmacia if destino == 'farmacia' else InventarioAlmacen
 
-            # Buscar si el lote ya existe en el destino seleccionado
             stock_item = modelo_inventario.query.filter_by(
                 id_medicamento=id_med, 
                 lote=lote_actual
@@ -1064,8 +1059,39 @@ def nueva_entrada():
 
     except Exception as e:
         db.session.rollback()
-        flash(f"❌ Error en el proceso masivo: {str(e)}", "danger")
-        return redirect(url_for('farmacia.nueva_entrada'))
+        
+        # Evitamos duplicar el flash si ya pusimos el de lista vacía
+        if "La lista de medicamentos está vacía." not in str(e):
+            flash(f"❌ Error en el proceso masivo: {str(e)}", "danger")
+        
+        # Recuperamos los nombres reales de la BD para reconstruir el Select2
+        textos_medicamentos = []
+        for id_med in ids_medicamentos:
+            if id_med.isdigit():
+                # Reemplaza 'Medicamento' por tu modelo real y 'nombre' por tu columna de texto/clave
+                med = Medicamento.query.get(int(id_med))
+                textos_medicamentos.append(f"{med.clave} - {med.principio_activo}" if med else f"ID: {id_med}")
+            else:
+                textos_medicamentos.append("Seleccionar Medicamento")
+
+        # Empaquetamos los datos de las filas
+        datos_previos = {
+            'id_medicamento': ids_medicamentos,
+            'texto_medicamento': textos_medicamentos,
+            'lote': lotes,
+            'cantidad': cantidades,
+            'fecha_caducidad': fechas_cad,
+            'notas_item': notas_items
+        }
+
+        # Retornamos la plantilla inyectando lo capturado (Cabecera y Tabla)
+        return render_template(
+            'farmacia/nueva_entrada.html',
+            destino_previo=destino,
+            proveedor_previo=proveedor,
+            observaciones_previo=obs_general,
+            datos_previos=datos_previos
+        )
 
 @bp.route('/entradas/editar/<int:id_entrada>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
