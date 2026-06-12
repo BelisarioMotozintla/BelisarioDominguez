@@ -242,7 +242,7 @@
                     <!-- FILA DEL MEDICAMENTO {{ i }} -->
                     <div class="row g-2 mb-3 align-items-end p-2 bg-light rounded border">
                         
-                        <!-- COLUMNA 1: SELECT DE MEDICAMENTO (Ocupa la mitad de la fila) -->
+                        <!-- COLUMNA 1: SELECT DE MEDICAMENTO -->
                         <div class="col-md-6">
                             <label for="medicamento_{{ i }}" class="form-label small text-muted fw-bold">Medicamento {{ i }}</label>
                             <select
@@ -252,29 +252,30 @@
                                 data-index="{{ i }}"
                             >
                                 <option value="">-- Buscar medicamento --</option>
-                             {% for m in medicamentos %}
-<option
-    value="{{ m.id }}"
-    data-stock="{{ m.existencia }}"
-    data-clave="{{ m.clave }}"
->
-    {{ m.clave }} - {{ m.descripcion }} | Existencia: {{ m.existencia }}
-</option>
-{% endfor %}
+                                {% for m in medicamentos %}
+                                <option
+                                    value="{{ m.id }}"
+                                    data-stock="{{ m.existencia }}"
+                                    data-clave="{{ m.clave }}"
+                                >
+                                    {{ m.clave }} - {{ m.descripcion }} | Existencia: {{ m.existencia }}
+                                </option>
+                                {% endfor %}
                             </select>
                             
                             <!-- Información de stock dinámico -->
                             <small id="stock_info_{{ i }}" class="text-success fw-bold d-block mt-1"></small>
                         </div>
 
-                        <!-- COLUMNA 2: CANTIDAD RECETADA (Ocupa un cuarto de la fila) -->
+                        <!-- COLUMNA 2: CANTIDAD RECETADA -->
                         <div class="col-md-3">
                             <label for="recetado_{{ i }}" class="form-label small text-muted">Cant. Recetada</label>
                             <input 
                                 type="number" 
                                 name="recetado_{{ i }}" 
                                 id="recetado_{{ i }}" 
-                                class="form-control" 
+                                class="form-control input-recetado" 
+                                data-index="{{ i }}"
                                 min="1" 
                                 placeholder="Ej. 5"
                             >
@@ -283,16 +284,17 @@
                             </div>
                         </div>
 
-                        <!-- COLUMNA 3: CANTIDAD SURTIDA (Ocupa un cuarto de la fila) -->
+                        <!-- COLUMNA 3: CANTIDAD SURTIDA (Solo Lectura) -->
                         <div class="col-md-3">
                             <label for="surtido_{{ i }}" class="form-label small text-muted">Cant. Surtida</label>
                             <input 
                                 type="number" 
                                 name="surtido_{{ i }}" 
                                 id="surtido_{{ i }}" 
-                                class="form-control" 
+                                class="form-control bg-light" 
                                 min="0"
-                                placeholder="Ej. 3"
+                                placeholder="Automático"
+                                readonly
                             >
                             <div class="invalid-feedback" id="feedback_surtido_{{ i }}">
                                 Ingresa cantidad surtida.
@@ -337,7 +339,8 @@ document.addEventListener("DOMContentLoaded", function () {
         ts.on('change', function (value) {
             const index = select.dataset.index;
             const stockInfo = document.getElementById(`stock_info_${index}`);
-
+            const recetadoInput = document.getElementById(`recetado_${index}`);
+            
             if (value !== "") {
                 // Conseguimos el texto de la opción que el usuario está viendo en pantalla
                 const textoSeleccionado = ts.options[value].text;
@@ -353,6 +356,43 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             } else {
                 stockInfo.innerHTML = "";
+            }
+            
+            // Forzar recálculo automático si cambian de medicamento con números ya escritos
+            if (recetadoInput.value !== "") {
+                recetadoInput.dispatchEvent(new Event('input'));
+            }
+        });
+    });
+
+    // ==========================================
+    // LÓGICA DE CALCULO AUTOMÁTICO DE SURTIMIENTO
+    // ==========================================
+    document.querySelectorAll('.input-recetado').forEach(input => {
+        input.addEventListener('input', function () {
+            const index = this.dataset.index;
+            const selectMed = document.getElementById(`medicamento_${index}`);
+            const surtidoInput = document.getElementById(`surtido_${index}`);
+            
+            const valRecetado = parseInt(this.value) || 0;
+            let stockDisponible = 0;
+
+            if (selectMed && selectMed.value !== "") {
+                const controlTom = selectMed.tomselect;
+                if (controlTom && controlTom.options[selectMed.value]) {
+                    const textoOption = controlTom.options[selectMed.value].text;
+                    const coincidencia = textoOption.match(/Existencia:\s*(\d+)/);
+                    if (coincidencia && coincidencia[1]) {
+                        stockDisponible = parseInt(coincidencia[1]);
+                    }
+                }
+            }
+
+            if (valRecetado <= 0) {
+                surtidoInput.value = "";
+            } else {
+                // Toma el valor recetado si hay existencia, si no, toma lo que hay disponible en stock
+                surtidoInput.value = Math.min(valRecetado, stockDisponible);
             }
         });
     });
@@ -386,17 +426,6 @@ document.addEventListener("DOMContentLoaded", function () {
             if (selectMed.value !== "") {
                 alMenosUnMedicamento = true;
 
-                const controlTom = selectMed.tomselect;
-                let stockDisponible = 0;
-
-                if (controlTom && controlTom.options[selectMed.value]) {
-                    const textoOption = controlTom.options[selectMed.value].text;
-                    const coincidencia = textoOption.match(/Existencia:\s*(\d+)/);
-                    if (coincidencia && coincidencia[1]) {
-                        stockDisponible = parseInt(coincidencia[1]);
-                    }
-                }
-                
                 const valRecetado = parseInt(recetadoInput.value) || 0;
                 const valSurtido = parseInt(surtidoInput.value) || 0;
 
@@ -405,20 +434,17 @@ document.addEventListener("DOMContentLoaded", function () {
                     formularioValido = false;
                 }
 
-                if (surtidoInput.value === "") {
+                if (surtidoInput.value === "" || valSurtido < 0) {
                     surtidoInput.classList.add("is-invalid");
-                    feedbackSurtido.textContent = "Ingresa cantidad surtida.";
-                    formularioValido = false;
-                }
-
-                if (valSurtido > stockDisponible) {
-                    surtidoInput.classList.add("is-invalid");
-                    feedbackSurtido.textContent = `Stock insuficiente. Máximo: ${stockDisponible}`;
+                    feedbackSurtido.textContent = "Error en cálculo de surtimiento.";
                     formularioValido = false;
                 }
             }
         }
 
+        // ==========================================
+        // VALIDACIÓN FINAL DEL CONTROL DE ENVÍO
+        // ==========================================
         if (!alMenosUnMedicamento && formularioValido) {
             alert("Debes seleccionar al menos un medicamento.");
             event.preventDefault();
@@ -431,7 +457,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 });
-
 </script>
 
 {% endblock %}

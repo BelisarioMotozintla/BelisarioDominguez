@@ -201,6 +201,7 @@ def crear_receta_express():
         flash(f"❌ Error al procesar la captura de farmacia: {str(e)}", "danger")
 
     return redirect(url_for("recetas.recetas_pendientes"))
+
 @bp.route("/recetas/crear/<int:id_nota>", methods=["GET", "POST"])
 @roles_required(['USUARIOMEDICO', 'UsuarioPasante', 'Administrador'])
 def crear_receta(id_nota):

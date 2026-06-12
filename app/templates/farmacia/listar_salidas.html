@@ -9,6 +9,9 @@
       <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
         ⬅️ Volver a Recetas
       </a>
+      <button type="button" class="btn btn-success fw-bold d-flex align-items-center gap-2" onclick="abrirFiltroSalidasOC99()">
+    <i class="bi bi-file-earmark-excel"></i> Exportar Salidas OC99
+</button>
       <h2 class="mb-0">Historial de Salidas de Farmacia</h2>
     </div>
   </div>
@@ -128,4 +131,44 @@
     transition: all 0.2s ease;
   }
 </style>
+<script>
+function abrirFiltroSalidasOC99() {
+    const d = new Date();
+    const anioActual = d.getFullYear();
+    const mesActual = d.getMonth() + 1;
+
+    Swal.fire({
+        title: 'Reporte de Salidas OC99',
+        html: `
+            <div class="p-2 text-start">
+                <label class="form-label fw-bold">Año:</label>
+                <select id="swal-anio-s" class="form-select mb-3">
+                    <option value="${anioActual}" selected>${anioActual}</option>
+                    <option value="${anioActual - 1}">${anioActual - 1}</option>
+                </select>
+                <label class="form-label fw-bold">Mes:</label>
+                <select id="swal-mes-s" class="form-select">
+                    ${[...Array(12).keys()].map(i => `
+                        <option value="${i+1}" ${i+1 === mesActual ? 'selected' : ''}>
+                            ${new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(2000, i))}
+                        </option>`).join('')}
+                </select>
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Generar Salidas',
+        confirmButtonColor: '#198754',
+        preConfirm: () => ({
+            anio: document.getElementById('swal-anio-s').value,
+            mes: document.getElementById('swal-mes-s').value
+        })
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Vinculado al nuevo endpoint del blueprint 'bp'
+            const url = "{{ url_for('farmacia.descargar_salidas_oc99') }}";
+            window.location.href = `${url}?anio=${result.value.anio}&mes=${result.value.mes}`;
+        }
+    });
+}
+
+</script>
 {% endblock %}

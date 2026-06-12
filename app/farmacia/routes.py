@@ -3,7 +3,7 @@ from datetime import datetime,timedelta,timezone,date
 import calendar
 from app import db
 from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento
-from app.models.personal import Usuario
+from app.models.personal import Usuario, Empleado
 from flask_login import current_user
 from app.utils.helpers import roles_required
 from sqlalchemy.orm import joinedload
@@ -437,8 +437,7 @@ def listar_salidas():
     page = request.args.get('page', 1, type=int)
     per_page = 20
 
-    # Importación interna para evitar problemas de dependencias circulares o NameError
-    from app.models import Usuario, Empleado 
+       
 
     # Consulta maestra optimizada para SQLAlchemy 2.0 usando atributos de clase directos
     query = (
@@ -459,6 +458,115 @@ def listar_salidas():
         salidas=salidas, 
         pagination=pagination
     )
+
+#)))))))))) exportar todas las salidas a traves de un 0c99 excel
+@bp.route('/descargar_salidas_oc99')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def descargar_salidas_oc99():
+    from datetime import datetime
+    import calendar
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    from flask import request, send_file
+    # Asegúrate de importar tus modelos db, Medicamento y Salida aquí si no son globales
+
+    ahora = datetime.now()
+    anio = request.args.get('anio', ahora.year, type=int)
+    mes = request.args.get('mes', ahora.month, type=int)
+    dias_mes = calendar.monthrange(anio, mes)[1]
+
+    # 1. Obtener datos
+    medicamentos = db.session.query(Medicamento).order_by(Medicamento.clave).all()
+    # Filtramos las salidas por el año y mes seleccionados
+    salidas = db.session.query(SalidaFarmacia).filter(
+        db.extract('year', SalidaFarmacia.fecha_salida) == anio,
+        db.extract('month', SalidaFarmacia.fecha_salida) == mes
+    ).all()
+
+    # 2. Matriz de datos y Totales por día
+    matriz = {}
+    totales_piezas_dia = {d: 0 for d in range(1, dias_mes + 1)}
+    claves_por_dia = {d: set() for d in range(1, dias_mes + 1)}
+
+    for med in medicamentos:
+        nombre_completo = f"{med.principio_activo or ''} - {med.presentacion or ''}".strip().upper()
+        matriz[med.id_medicamento] = {
+            'clave': med.clave,
+            'nombre': nombre_completo,
+            'dias': {d: "" for d in range(1, dias_mes + 1)}  # Inicializado en vacío
+        }
+
+    for s in salidas:
+        if s.fecha_salida:
+            dia = s.fecha_salida.day
+            if s.id_medicamento in matriz:
+                # Recuperar valor previo controlando si está vacío
+                valor_actual = matriz[s.id_medicamento]['dias'][dia]
+                cantidad_previa = valor_actual if isinstance(valor_actual, int) else 0
+                
+                matriz[s.id_medicamento]['dias'][dia] = cantidad_previa + s.cantidad
+                totales_piezas_dia[dia] += s.cantidad
+                if s.cantidad > 0:
+                    claves_por_dia[dia].add(s.id_medicamento)
+
+    # 3. Crear Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "OC99 Salidas"
+
+    # --- CUADRO DE RESUMEN SUPERIOR ---
+    font_bold = Font(bold=True)
+    fill_resumen = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    
+    # Fila de TOTAL CLAVES (Vacío si es 0)
+    fila_claves = ["TOTAL CLAVES:", ""] + [len(claves_por_dia[d]) if len(claves_por_dia[d]) > 0 else "" for d in range(1, dias_mes + 1)]
+    ws.append(fila_claves)
+    
+    # Fila de TOTAL PIEZAS (Vacío si es 0)
+    fila_piezas = ["TOTAL PIEZAS:", ""] + [totales_piezas_dia[d] if totales_piezas_dia[d] > 0 else "" for d in range(1, dias_mes + 1)]
+    ws.append(fila_piezas)
+
+    # Estilo para el resumen
+    for row in ws.iter_rows(min_row=1, max_row=2):
+        for cell in row:
+            cell.font = font_bold
+            cell.fill = fill_resumen
+            cell.alignment = Alignment(horizontal="center")
+
+    ws.append([]) # Espacio en blanco
+
+    # 4. ENCABEZADOS DE LA TABLA
+    headers = ["CLAVE", "MEDICAMENTO"] + [str(d) for d in range(1, dias_mes + 1)]
+    ws.append(headers)
+    
+    header_fill = PatternFill(start_color="198754", end_color="198754", fill_type="solid")
+    for cell in ws[4]: # La fila 4 es el encabezado
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    # 5. DATOS DE MEDICAMENTOS
+    for med in matriz.values():
+        fila = [med['clave'], med['nombre']] + [med['dias'][d] for d in range(1, dias_mes + 1)]
+        ws.append(fila)
+
+    # 6. AJUSTES FINALES
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 60
+    
+    # Ajustar ancho de columnas de días
+    for col_idx in range(3, 3 + dias_mes):
+        ws.column_dimensions[ws.cell(row=4, column=col_idx).column_letter].width = 5
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name=f"OC99_SALIDAS_{mes:02d}_{anio}.xlsx", as_attachment=True)
+
+
+
 
 @bp.route('/reporte_medicamentos')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -729,14 +837,18 @@ def descargar_oc99():
             matriz[med.id_medicamento] = {
                 'clave': med.clave,
                 'nombre_completo': nombre_full,
-                'dias': {d: 0 for d in range(1, dias_mes + 1)}
+                'dias': {d: "" for d in range(1, dias_mes + 1)}  # Inicializado en vacío
             }
 
         # Llenar la matriz con las cantidades de las entradas
         for e in entradas:
             dia = e.fecha_entrada.day
             if e.id_medicamento in matriz:
-                matriz[e.id_medicamento]['dias'][dia] += e.cantidad
+                # Recuperar valor previo controlando si está vacío
+                valor_actual = matriz[e.id_medicamento]['dias'][dia]
+                cantidad_previa = valor_actual if isinstance(valor_actual, int) else 0
+                
+                matriz[e.id_medicamento]['dias'][dia] = cantidad_previa + e.cantidad
 
         # 6. CONSTRUIR EL ARCHIVO EXCEL
         wb = Workbook()
@@ -794,8 +906,6 @@ def descargar_oc99():
     except Exception as e:
         flash(f"❌ Error al generar el reporte: {str(e)}", "danger")
         return redirect(url_for('farmacia.reporte_inventario'))
-
-
 
 @bp.route('/descargar_entradas')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -1332,6 +1442,10 @@ def eliminar_movimiento(id):
 def descargar_traspasos_oc99():
     from datetime import datetime
     import calendar
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    from flask import request, send_file
     
     ahora = datetime.now()
     anio = request.args.get('anio', ahora.year, type=int)
@@ -1355,16 +1469,21 @@ def descargar_traspasos_oc99():
         matriz[med.id_medicamento] = {
             'clave': med.clave,
             'nombre': nombre_completo,
-            'dias': {d: 0 for d in range(1, dias_mes + 1)}
+            'dias': {d: "" for d in range(1, dias_mes + 1)}  # Inicializado en vacío
         }
 
     for t in traspasos:
-        dia = t.fecha_movimiento.day
-        if t.id_medicamento in matriz:
-            matriz[t.id_medicamento]['dias'][dia] += t.cantidad
-            totales_piezas_dia[dia] += t.cantidad
-            if t.cantidad > 0:
-                claves_por_dia[dia].add(t.id_medicamento)
+        if t.fecha_movimiento:
+            dia = t.fecha_movimiento.day
+            if t.id_medicamento in matriz:
+                # Recuperar valor previo controlando si está vacío
+                valor_actual = matriz[t.id_medicamento]['dias'][dia]
+                cantidad_previa = valor_actual if isinstance(valor_actual, int) else 0
+                
+                matriz[t.id_medicamento]['dias'][dia] = cantidad_previa + t.cantidad
+                totales_piezas_dia[dia] += t.cantidad
+                if t.cantidad > 0:
+                    claves_por_dia[dia].add(t.id_medicamento)
 
     # 3. Crear Excel
     wb = Workbook()
@@ -1375,12 +1494,12 @@ def descargar_traspasos_oc99():
     font_bold = Font(bold=True)
     fill_resumen = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
     
-    # Fila de TOTAL CLAVES
-    fila_claves = ["TOTAL CLAVES:", ""] + [len(claves_por_dia[d]) for d in range(1, dias_mes + 1)]
+    # Fila de TOTAL CLAVES (Vacío si es 0)
+    fila_claves = ["TOTAL CLAVES:", ""] + [len(claves_por_dia[d]) if len(claves_por_dia[d]) > 0 else "" for d in range(1, dias_mes + 1)]
     ws.append(fila_claves)
     
-    # Fila de TOTAL PIEZAS
-    fila_piezas = ["TOTAL PIEZAS:", ""] + [totales_piezas_dia[d] for d in range(1, dias_mes + 1)]
+    # Fila de TOTAL PIEZAS (Vacío si es 0)
+    fila_piezas = ["TOTAL PIEZAS:", ""] + [totales_piezas_dia[d] if totales_piezas_dia[d] > 0 else "" for d in range(1, dias_mes + 1)]
     ws.append(fila_piezas)
 
     # Estilo para el resumen

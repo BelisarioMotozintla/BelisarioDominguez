@@ -5,43 +5,67 @@
   <h2>Menú Farmacia</h2>
 
   <!-- Botones principales (Cuadrícula fluida) -->
-  <div class="mb-4">
-    <div class="d-flex flex-wrap gap-2" role="group" aria-label="Menú Farmacia">
-      <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-sm btn-outline-success d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-box-arrow-in-down mb-1 fs-5"></i> Entradas
-      </a>
-      <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movi<br>mientos
-      </a>
-      <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-danger d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-box-arrow-up-right mb-1 fs-5"></i> Salidas<br>Paciente
-      </a>
-      <a href="{{ url_for('farmacia.otras_salidas') }}" class="btn btn-sm btn-outline-danger d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-box-arrow-up-right mb-1 fs-5"></i> Otras<br>Salidas
-      </a>
-      <a href="{{ url_for('recetas.nuevo_bloque') }}" class="btn btn-sm btn-outline-info d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-file-earmark-plus mb-1 fs-5"></i> Nuevo<br>Bloque
-      </a>
-      <a href="{{ url_for('recetas.asignar') }}" class="btn btn-sm btn-outline-success d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-person-badge mb-1 fs-5"></i> Asignar<br>Bloque
-      </a>
-      <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-clipboard-data mb-1 fs-5"></i> Medi<br>camentos
-      </a>
-      <a href="{{ url_for('farmacia.reporte_inventario') }}" class="btn btn-sm btn-outline-dark d-flex flex-column align-items-center justify-content-center px-3 py-2">
-        <i class="bi bi-clipboard-check mb-1 fs-5"></i> Reporte<br>Inventario
-      </a>
-      <div class="btn-group" role="group">
-        <button id="btnGroupDrop1" type="button" class="btn btn-sm btn-outline-warning dropdown-toggle d-flex flex-column align-items-center justify-content-center px-3 py-2" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="bi bi-cpu mb-1 fs-5"></i> At 
-        </button>
-        <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
-          <li><a class="dropdown-item" href="{{ url_for('at.auditoria') }}">Auditoria Recetas</a></li>
-          <li><a class="dropdown-item" href="{{ url_for('at.generador') }}">Generador Json</a></li>
-        </ul>
-      </div>
+<div class="mb-4">
+  <div class="d-flex flex-wrap gap-2" role="group" aria-label="Menú Farmacia">
+    
+    <!-- Entradas -->
+    <a href="{{ url_for('farmacia.listar_entradas') }}" class="btn btn-sm btn-outline-success d-flex flex-column align-items-center justify-content-center px-3 py-2">
+      <i class="bi bi-box-arrow-in-down mb-1 fs-5"></i> Entradas
+    </a>
+    
+    <!-- Movimientos -->
+    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary d-flex flex-column align-items-center justify-content-center px-3 py-2">
+      <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movi<br>mientos
+    </a>
+
+    <!-- DROPDOWN: Salidas -->
+    <div class="btn-group" role="group">
+      <button id="btnGroupSalidas" type="button" class="btn btn-sm btn-outline-danger dropdown-toggle d-flex flex-column align-items-center justify-content-center px-3 py-2" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-box-arrow-up-right mb-1 fs-5"></i> Salidas
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="btnGroupSalidas">
+        <li><a class="dropdown-item" href="{{ url_for('recetas.listar_salidas') }}">Salidas Paciente</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('farmacia.otras_salidas') }}">Otras Salidas</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('recetas.recetas_pendientes') }}">Recetas Pendientes</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('farmacia.listar_salidas') }}">Ver Salidas</a></li>
+      </ul>
     </div>
+
+    <!-- DROPDOWN: Recetas -->
+    <div class="btn-group" role="group">
+      <button id="btnGroupRecetas" type="button" class="btn btn-sm btn-outline-info dropdown-toggle d-flex flex-column align-items-center justify-content-center px-3 py-2" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-file-earmark-plus mb-1 fs-5"></i> Recetas
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="btnGroupRecetas">
+        <li><a class="dropdown-item" href="{{ url_for('recetas.nuevo_bloque') }}">Nuevo Bloque</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('recetas.asignar') }}">Asignar Bloque</a></li>
+      </ul>
+    </div>
+    
+    <!-- Medicamentos -->
+    <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary d-flex flex-column align-items-center justify-content-center px-3 py-2">
+      <i class="bi bi-clipboard-data mb-1 fs-5"></i> Medi<br>camentos
+    </a>
+    
+    <!-- Reporte Inventario -->
+    <a href="{{ url_for('farmacia.reporte_inventario') }}" class="btn btn-sm btn-outline-dark d-flex flex-column align-items-center justify-content-center px-3 py-2">
+      <i class="bi bi-clipboard-check mb-1 fs-5"></i> Reporte<br>Inventario
+    </a>
+    
+    <!-- Menú AT -->
+    <div class="btn-group" role="group">
+      <button id="btnGroupDrop1" type="button" class="btn btn-sm btn-outline-warning dropdown-toggle d-flex flex-column align-items-center justify-content-center px-3 py-2" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-cpu mb-1 fs-5"></i> At 
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+        <li><a class="dropdown-item" href="{{ url_for('at.auditoria') }}">Auditoria Recetas</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('at.generador') }}">Generador Json</a></li>
+      </ul>
+    </div>
+
   </div>
+</div>
+
 
   <hr>
 
