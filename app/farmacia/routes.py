@@ -1751,75 +1751,128 @@ def listar_transferencias():
 #============================================================================================================Reporte de inventario================================
 from datetime import datetime, timedelta
 
+from datetime import datetime, timedelta
+from sqlalchemy.orm import selectinload
+
 @bp.route('/inventario/reporte')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def reporte_inventario():
-    # 1. Traemos medicamentos con sus relaciones (Optimizado)
-    medicamentos = Medicamento.query.options(
-        db.joinedload(Medicamento.inventario_almacen),
-        db.joinedload(Medicamento.inventario_farmacia)
+
+    # Cargar observaciones una sola vez
+    entradas = EntradaAlmacen.query.with_entities(
+        EntradaAlmacen.id_medicamento,
+        EntradaAlmacen.lote,
+        EntradaAlmacen.observaciones
     ).all()
-    
+
+    obs_map = {
+        (e.id_medicamento, e.lote): e.observaciones or ""
+        for e in entradas
+    }
+
+    # Cargar medicamentos e inventarios
+    medicamentos = Medicamento.query.options(
+        selectinload(Medicamento.inventario_almacen),
+        selectinload(Medicamento.inventario_farmacia)
+    ).all()
+
     reporte = []
+
     hoy = datetime.utcnow().date()
-    limite_vencimiento = hoy + timedelta(days=90) 
+    limite_vencimiento = hoy + timedelta(days=90)
+
+    def calcular_color(cantidad, min_s, max_s):
+        if cantidad <= min_s:
+            return "danger"
+        if cantidad <= (max_s * 0.5):
+            return "warning"
+        return "success"
 
     for med in medicamentos:
-        # --- PROCESAR ALMACÉN ---
+
+        # ==========================
+        # ALMACÉN
+        # ==========================
         lotes_alm = []
         cant_alm = 0
+
         for i in med.inventario_almacen:
             if i.cantidad > 0:
+
                 cant_alm += i.cantidad
-                
-                # Buscamos la observación en la tabla EntradaAlmacen
-                entrada_orig = EntradaAlmacen.query.filter_by(
-                    id_medicamento=med.id_medicamento, 
-                    lote=i.lote
-                ).first()
-                
-                obs_texto = entrada_orig.observaciones if (entrada_orig and entrada_orig.observaciones) else ""
+
+                obs_texto = obs_map.get(
+                    (med.id_medicamento, i.lote),
+                    ""
+                )
 
                 lotes_alm.append({
-                    "lote": i.lote, 
-                    "cant": i.cantidad, 
-                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A',
+                    "lote": i.lote,
+                    "cant": i.cantidad,
+                    "vence": (
+                        i.fecha_vencimiento.strftime('%d/%m/%Y')
+                        if i.fecha_vencimiento
+                        else 'N/A'
+                    ),
                     "observaciones": obs_texto
                 })
 
-        # --- PROCESAR FARMACIA ---
+        # ==========================
+        # FARMACIA
+        # ==========================
         lotes_far = []
         cant_far = 0
+
         for i in med.inventario_farmacia:
             if i.cantidad > 0:
+
                 cant_far += i.cantidad
-                
-                ent_f = EntradaAlmacen.query.filter_by(id_medicamento=med.id_medicamento, lote=i.lote).first()
-                obs_f = ent_f.observaciones if (ent_f and ent_f.observaciones) else ""
+
+                obs_f = obs_map.get(
+                    (med.id_medicamento, i.lote),
+                    ""
+                )
 
                 lotes_far.append({
-                    "lote": i.lote, 
-                    "cant": i.cantidad, 
-                    "vence": i.fecha_vencimiento.strftime('%d/%m/%Y') if i.fecha_vencimiento else 'N/A',
+                    "lote": i.lote,
+                    "cant": i.cantidad,
+                    "vence": (
+                        i.fecha_vencimiento.strftime('%d/%m/%Y')
+                        if i.fecha_vencimiento
+                        else 'N/A'
+                    ),
                     "observaciones": obs_f
                 })
 
-        # --- CÁLCULOS Y SEMÁFORO ---
+        # ==========================
+        # TOTALES
+        # ==========================
         total = cant_alm + cant_far
-        texto_busqueda_lotes = " ".join([l['lote'] for l in lotes_alm] + [l['lote'] for l in lotes_far])
-        
-        # Clasificación independiente de los estados de caducidad
+
+        texto_busqueda_lotes = " ".join(
+            [l['lote'] for l in lotes_alm] +
+            [l['lote'] for l in lotes_far]
+        )
+
+        # ==========================
+        # CADUCIDAD
+        # ==========================
         tiene_caducados = False
         tiene_proximos = False
 
-        for inv in (med.inventario_almacen + med.inventario_farmacia):
+        for inv in (
+            list(med.inventario_almacen) +
+            list(med.inventario_farmacia)
+        ):
+
             if inv.cantidad > 0 and inv.fecha_vencimiento:
+
                 if inv.fecha_vencimiento <= hoy:
                     tiene_caducados = True
+
                 elif inv.fecha_vencimiento <= limite_vencimiento:
                     tiene_proximos = True
 
-        # Asignación de etiqueta de texto para búsqueda exacta
         if tiene_caducados:
             estado_caducidad = "ESTADO_CADUCADO"
         elif tiene_proximos:
@@ -1827,23 +1880,45 @@ def reporte_inventario():
         else:
             estado_caducidad = "ESTADO_VIGENTE"
 
-        def calcular_color(cantidad, min_s, max_s):
-            if cantidad <= min_s: return "danger"
-            if cantidad <= (max_s * 0.5): return "warning"
-            return "success"
-
+        # ==========================
+        # REPORTE
+        # ==========================
         reporte.append({
             "clave": med.clave,
             "nombre": med.principio_activo,
             "presentacion": med.presentacion,
             "concentracion": med.concentracion,
             "lotes_busqueda": texto_busqueda_lotes,
-            "estado_caducidad": estado_caducidad,  # <--- Enviado a la vista HTML
+            "estado_caducidad": estado_caducidad,
             "lotes_almacen": lotes_alm,
             "lotes_farmacia": lotes_far,
-            "almacen": {"cant": cant_alm, "color": calcular_color(cant_alm, med.stock_minimo, med.stock_maximo)},
-            "farmacia": {"cant": cant_far, "color": calcular_color(cant_far, med.stock_minimo, med.stock_maximo)},
-            "total": {"cant": total, "color": calcular_color(total, med.stock_minimo, med.stock_maximo)}
+            "almacen": {
+                "cant": cant_alm,
+                "color": calcular_color(
+                    cant_alm,
+                    med.stock_minimo,
+                    med.stock_maximo
+                )
+            },
+            "farmacia": {
+                "cant": cant_far,
+                "color": calcular_color(
+                    cant_far,
+                    med.stock_minimo,
+                    med.stock_maximo
+                )
+            },
+            "total": {
+                "cant": total,
+                "color": calcular_color(
+                    total,
+                    med.stock_minimo,
+                    med.stock_maximo
+                )
+            }
         })
 
-    return render_template('farmacia/reporte_inventario.html', reporte=reporte)
+    return render_template(
+        'farmacia/reporte_inventario.html',
+        reporte=reporte
+    )
