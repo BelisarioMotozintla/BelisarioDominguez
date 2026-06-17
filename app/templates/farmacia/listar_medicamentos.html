@@ -8,6 +8,16 @@
       <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-success">
         <i class="bi bi-plus-circle"></i> Nuevo Medicamento
       </a>
+      <!-- Botón para descargar el PDF filtrado o completo -->
+<div class="mb-3 text-end">
+    <a href="{{ url_for('farmacia.catalogo_medicamentos', q=query) }}" target="_blank" class="btn btn-danger">
+        <i class="fas fa-file-pdf"></i> Descargar Catálogo PDF
+    </a>
+     <a href="{{ url_for('farmacia.existencias_medicamentos', q=query) }}" target="_blank" class="btn btn-success">
+            <i class="fas fa-boxes"></i> Descargar Existencias
+        </a>
+</div>
+      
       <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Regresar
       </a>

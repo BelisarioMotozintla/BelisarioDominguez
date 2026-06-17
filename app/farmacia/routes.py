@@ -6,13 +6,25 @@ from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenF
 from app.models.personal import Usuario, Empleado
 from flask_login import current_user
 from app.utils.helpers import roles_required
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from sqlalchemy import func
 import os
 import pandas as pd
+
+import io
+
+from flask import make_response, request  # Añadido request para capturar el parámetro 'q'
+
+# Importaciones requeridas para construir el PDF con ReportLab
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+
 
 bp = Blueprint('farmacia', __name__, template_folder='templates/farmacia')
 
@@ -776,6 +788,354 @@ def eliminar_medicamento(id_medicamento):
     db.session.commit()
     flash("✅ Medicamento eliminado correctamente", "success")
     return redirect(url_for('farmacia.listar_medicamentos'))
+
+ancho_hoja, alto_hoja = letter
+
+# Clase auxiliar para agregar numeración dinámica y contadores en el pie de página
+class NumberedCanvas(canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+        # Variables para almacenar los totales
+        self.total_meds = 0
+        self.total_mats = 0
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, page_count):
+        self.saveState()
+        self.setFont("Helvetica", 7.5)
+        self.setFillColor(colors.HexColor("#4A5568"))
+        
+        # Formatear el texto de los contadores encontrados
+        texto_contadores = f"{self.total_meds} Medicamentos | {self.total_mats} Materiales de Curación"
+        fecha_str = datetime.utcnow().strftime("%d/%m/%Y %H:%M")
+        
+        # Pie de página alineado
+        self.drawString(46, 20, texto_contadores)
+        self.drawCentredString(ancho_hoja / 2, 20, f"Generado: {fecha_str} UTC")
+        self.drawRightString(ancho_hoja - 46, 20, f"Página {self._pageNumber} de {page_count}")
+        self.restoreState()
+
+
+@bp.route('/inventario/catalogo')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def catalogo_medicamentos():
+    # 1. Capturar el parámetro de búsqueda 'q' enviado desde la interfaz web
+    query = request.args.get('q', '').strip()
+    
+    # Base de la consulta (Catálogo maestro sin paginación)
+    medicamentos_query = Medicamento.query
+
+    # Aplicar filtro parcial si el usuario ingresó un criterio de búsqueda
+    if query:
+        medicamentos_query = medicamentos_query.filter(
+            (Medicamento.clave.ilike(f'%{query}%')) |
+            (Medicamento.principio_activo.ilike(f'%{query}%'))
+        )
+    
+    # Ejecutar la consulta en la base de datos
+    medicamentos = medicamentos_query.all()
+
+    catalogo_medicamentos = []
+    catalogo_materiales = []
+
+    # 2. Clasificación por prefijo de Clave
+    for med in medicamentos:
+        clave_limpia = (med.clave or "").strip()
+        
+        es_medicamento = clave_limpia.startswith("010") or clave_limpia.startswith("040")
+        es_material = clave_limpia.startswith("060") or clave_limpia.startswith("080")
+
+        if not (es_medicamento or es_material):
+            continue
+
+        item = {
+            "clave": med.clave or "N/A",
+            "nombre": med.principio_activo or "Sin Nombre",
+            "presentacion": med.presentacion or "N/A",
+            "concentracion": med.concentracion or "N/A"
+        }
+
+        if es_medicamento:
+            catalogo_medicamentos.append(item)
+        elif es_material:
+            catalogo_materiales.append(item)
+
+    # 3. Ordenamiento Alfabético (A-Z) estricto por Principio Activo / Nombre
+    catalogo_medicamentos.sort(key=lambda x: x["nombre"].lower())
+    catalogo_materiales.sort(key=lambda x: x["nombre"].lower())
+
+    # 4. Configuración inicial del Documento PDF en memoria
+    pdf_buffer = io.BytesIO()
+    
+    # Optimizamos los márgenes verticales (25 arriba y 35 abajo) para ganar espacio de impresión
+    doc = SimpleDocTemplate(
+        pdf_buffer, 
+        pagesize=letter, 
+        rightMargin=46, 
+        leftMargin=46, 
+        topMargin=25, 
+        bottomMargin=35
+    )
+    story = []
+    
+    # Estilos de tipografía y colores corporativos
+    styles = getSampleStyleSheet()
+    titulo_style = ParagraphStyle('T1', parent=styles['Heading1'], fontSize=16, leading=18, textColor=colors.HexColor('#1A365D'), spaceAfter=2)
+    subtitulo_style = ParagraphStyle('T2', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#4A5568'), spaceAfter=8)
+    seccion_style = ParagraphStyle('T3', parent=styles['Heading2'], fontSize=11, leading=14, textColor=colors.HexColor('#2B6CB0'), spaceBefore=8, spaceAfter=4, keepWithNext=True)
+    
+    # OPTIMIZACIÓN DE INTERLINEADO: Letra 7.5 y leading de 8.5 para máxima compresión horizontal y vertical
+    th_style = ParagraphStyle('TH', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold', textColor=colors.white)
+    td_style = ParagraphStyle('TD', parent=styles['Normal'], fontSize=7.5, leading=8.5, textColor=colors.HexColor('#2D3748'))
+
+    # Encabezados del Reporte PDF
+    story.append(Paragraph("Catálogo Institucional de Insumos Médicos", titulo_style))
+    
+    texto_subtitulo = "Listado completo de claves vigentes en el sistema."
+    if query:
+        texto_subtitulo = f"Resultados filtrados bajo el criterio: <b>'{query}'</b>."
+    story.append(Paragraph(texto_subtitulo, subtitulo_style))
+
+    # Definición estética de las tablas (Reducimos el padding a 2 para compactar filas)
+    estilo_tabla = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2B6CB0')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ])
+
+    # Función interna para estructurar y dibujar los bloques de tablas continuas
+    def agregar_bloque_catalogo(titulo_bloque, lista_elementos):
+        story.append(Paragraph(titulo_bloque, seccion_style))
+        if not lista_elementos:
+            story.append(Paragraph("No se encontraron registros en esta categoría.", td_style))
+            return
+
+        # Estructura e inicialización de cabeceras
+        filas_tabla = [[
+            Paragraph("Clave", th_style),
+            Paragraph("Principio Activo / Nombre", th_style),
+            Paragraph("Presentación", th_style),
+            Paragraph("Concentración", th_style)
+        ]]
+
+        # Inyección de registros de la base de datos
+        for el in lista_elementos:
+            filas_tabla.append([
+                Paragraph(el["clave"], td_style),
+                Paragraph(el["nombre"], td_style),
+                Paragraph(el["presentacion"], td_style),
+                Paragraph(el["concentracion"], td_style)
+            ])
+
+        # SOLUCCIÓN SYNTAX ERROR: Definición exacta de las columnas (Suman 520)
+        anchos_columnas = [95, 185, 140, 100]
+        
+        # Constructor de tabla con división de filas habilitada contra LayoutError
+        tabla_pdf = Table(
+            filas_tabla, 
+            colWidths=anchos_columnas, 
+            repeatRows=1, 
+            splitByRow=1
+        )
+        tabla_pdf.setStyle(estilo_tabla)
+        story.append(tabla_pdf)
+
+    # 5. Renderizar las secciones jerárquicas ordenadas
+    agregar_bloque_catalogo("1. Medicamentos (Claves 010 / 040)", catalogo_medicamentos)
+    story.append(Spacer(1, 5))  # Espaciador mínimo
+    agregar_bloque_catalogo("2. Material de Curación (Claves 060 / 080)", catalogo_materiales)
+
+    # 6. ENLAZAR RESULTADOS AL CANVAS
+    def inicializar_canvas(*args, **kwargs):
+        canvas_obj = NumberedCanvas(*args, **kwargs)
+        canvas_obj.total_meds = len(catalogo_medicamentos)
+        canvas_obj.total_mats = len(catalogo_materiales)
+        return canvas_obj
+
+    # Compilar y construir el flujo del documento usando el inicializador personalizado
+    doc.build(story, canvasmaker=inicializar_canvas)
+
+    # 7. Retornar el flujo de bytes binarios directo al navegador web
+    pdf_buffer.seek(0)
+    response = make_response(pdf_buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=catalogo_medicamentos.pdf'
+    
+    return response
+
+@bp.route('/inventario/existencias')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def existencias_medicamentos():
+    # 1. Capturar el parámetro de búsqueda 'q' enviado desde la interfaz web
+    query = request.args.get('q', '').strip()
+    
+    # Cargar medicamentos e inventarios optimizando las relaciones
+    medicamentos_query = Medicamento.query.options(
+        selectinload(Medicamento.inventario_almacen),
+        selectinload(Medicamento.inventario_farmacia)
+    )
+
+    # Aplicar filtro parcial si el usuario ingresó un criterio de búsqueda
+    if query:
+        medicamentos_query = medicamentos_query.filter(
+            (Medicamento.clave.ilike(f'%{query}%')) |
+            (Medicamento.principio_activo.ilike(f'%{query}%'))
+        )
+    
+    medicamentos = medicamentos_query.all()
+
+    reporte_medicamentos = []
+    reporte_materiales = []
+
+    # 2. Clasificación y cálculo de existencias totales por área
+    for med in medicamentos:
+        clave_limpia = (med.clave or "").strip()
+        
+        es_medicamento = clave_limpia.startswith("010") or clave_limpia.startswith("040")
+        es_material = clave_limpia.startswith("060") or clave_limpia.startswith("080")
+
+        if not (es_medicamento or es_material):
+            continue
+
+        # Sumar cantidades disponibles en Almacén (filtrando solo registros > 0)
+        cant_alm = sum(i.cantidad for i in med.inventario_almacen if i.cantidad > 0)
+        
+        # Sumar cantidades disponibles en Farmacia (filtrando solo registros > 0)
+        cant_far = sum(i.cantidad for i in med.inventario_farmacia if i.cantidad > 0)
+
+        item = {
+            "clave": med.clave or "N/A",
+            "nombre": med.principio_activo or "Sin Nombre",
+            "presentacion": med.presentacion or "N/A",
+            "concentracion": med.concentracion or "N/A",
+            "almacen": cant_alm,
+            "farmacia": cant_far
+        }
+
+        if es_medicamento:
+            reporte_medicamentos.append(item)
+        elif es_material:
+            reporte_materiales.append(item)
+
+    # 3. Ordenamiento Alfabético (A-Z) estricto por Principio Activo
+    reporte_medicamentos.sort(key=lambda x: x["nombre"].lower())
+    reporte_materiales.sort(key=lambda x: x["nombre"].lower())
+
+    # 4. Configuración del Documento PDF en memoria
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        pdf_buffer, 
+        pagesize=letter, 
+        rightMargin=46, 
+        leftMargin=46, 
+        topMargin=25, 
+        bottomMargin=35
+    )
+    story = []
+    
+    # Reutilizamos tus estilos ultra-compactos y optimizados de interlineado
+    styles = getSampleStyleSheet()
+    titulo_style = ParagraphStyle('E_T1', parent=styles['Heading1'], fontSize=16, leading=18, textColor=colors.HexColor('#1A365D'), spaceAfter=2)
+    subtitulo_style = ParagraphStyle('E_T2', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#4A5568'), spaceAfter=8)
+    seccion_style = ParagraphStyle('E_T3', parent=styles['Heading2'], fontSize=11, leading=14, textColor=colors.HexColor('#2B6CB0'), spaceBefore=8, spaceAfter=4, keepWithNext=True)
+    
+    th_style = ParagraphStyle('E_TH', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold', textColor=colors.white)
+    td_style = ParagraphStyle('E_TD', parent=styles['Normal'], fontSize=7.5, leading=8.5, textColor=colors.HexColor('#2D3748'))
+    td_num = ParagraphStyle('E_TDN', parent=styles['Normal'], fontSize=7.5, leading=8.5, alignment=1, textColor=colors.HexColor('#2D3748')) # Centrado para números
+
+    # Encabezados del Reporte
+    story.append(Paragraph("Reporte de Existencias en Inventario", titulo_style))
+    
+    texto_subtitulo = "Saldos actuales consolidados por áreas de resguardo."
+    if query:
+        texto_subtitulo = f"Resultados filtrados bajo el criterio: <b>'{query}'</b>."
+    story.append(Paragraph(texto_subtitulo, subtitulo_style))
+
+    # Diseño estético de la tabla
+    estilo_tabla = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2B6CB0')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ])
+
+    def agregar_bloque_existencias(titulo_bloque, lista_elementos):
+        story.append(Paragraph(titulo_bloque, seccion_style))
+        if not lista_elementos:
+            story.append(Paragraph("No se encontraron registros en esta categoría.", td_style))
+            return
+
+        # Estructura de cabeceras incluyendo las dos nuevas columnas solicitadas
+        filas_tabla = [[
+            Paragraph("Clave", th_style),
+            Paragraph("Principio Activo / Nombre", th_style),
+            Paragraph("Presentación", th_style),
+            Paragraph("Concentración", th_style),
+            Paragraph("Almacén", th_style),
+            Paragraph("Farmacia", th_style)
+        ]]
+
+        for el in lista_elementos:
+            filas_tabla.append([
+                Paragraph(el["clave"], td_style),
+                Paragraph(el["nombre"], td_style),
+                Paragraph(el["presentacion"], td_style),
+                Paragraph(el["concentracion"], td_style),
+                Paragraph(str(el["almacen"]), td_num), # Nueva columna Almacén
+                Paragraph(str(el["farmacia"]), td_num)  # Nueva columna Farmacia
+            ])
+
+        # Redistribución exacta de anchos para meter 6 columnas en el límite de 520 puntos
+        # Clave(85) + Nombre(185) + Presentación(100) + Concentración(70) + Almacén(40) + Farmacia(40) = 520 puntos
+        anchos_columnas = [85, 185, 100, 70, 40, 40]
+        
+        tabla_pdf = Table(
+            filas_tabla, 
+            colWidths=anchos_columnas, 
+            repeatRows=1, 
+            splitByRow=1
+        )
+        tabla_pdf.setStyle(estilo_tabla)
+        story.append(tabla_pdf)
+
+    # 5. Renderizar bloques organizados
+    agregar_bloque_existencias("1. Medicamentos (Claves 010 / 040)", reporte_medicamentos)
+    story.append(Spacer(1, 5))
+    agregar_bloque_existencias("2. Material de Curación (Claves 060 / 080)", reporte_materiales)
+
+    # 6. Configurar e inicializar Canvas reutilizando el NumberedCanvas existente
+    def inicializar_canvas(*args, **kwargs):
+        canvas_obj = NumberedCanvas(*args, **kwargs)
+        canvas_obj.total_meds = len(reporte_medicamentos)
+        canvas_obj.total_mats = len(reporte_materiales)
+        return canvas_obj
+
+    doc.build(story, canvasmaker=inicializar_canvas)
+
+    # 7. Respuesta binaria inline para el navegador
+    pdf_buffer.seek(0)
+    response = make_response(pdf_buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=existencias_inventario.pdf'
+    
+    return response
 
 
 #===============================================================================ENTRADA AL ALMACEN================================
@@ -1749,10 +2109,8 @@ def listar_transferencias():
 
 
 #============================================================================================================Reporte de inventario================================
-from datetime import datetime, timedelta
 
-from datetime import datetime, timedelta
-from sqlalchemy.orm import selectinload
+
 
 @bp.route('/inventario/reporte')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])

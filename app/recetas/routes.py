@@ -74,34 +74,119 @@ def lista_recetas():
     recetas = RecetaMedica.query.order_by(RecetaMedica.fecha_emision.desc()).all()
     return render_template("recetas/lista_recetas.html", recetas=recetas)
 #=================================================================================== SALIDA DE RECETAS ================================
-
-from sqlalchemy import cast, String # 🌟 IMPORTANTE: Importa estas funciones
+from flask import render_template, request, url_for
+from flask_login import current_user
+from sqlalchemy import cast, String
+from collections import defaultdict
+from datetime import datetime
 
 @bp.route('/salidas/listar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
     query = request.args.get('q', '').strip()
     
+    # 1. Consulta base con Joins cargados
     salidas_query = SalidaFarmacia.query\
         .outerjoin(Medicamento)\
         .outerjoin(RecetaMedica)\
         .outerjoin(Paciente)
 
+    # 2. Restricción por rol utilizando tu modelo real (nombre_rol)
+    es_admin = False
+    if current_user.is_authenticated and current_user.rol:
+        if current_user.rol.nombre_rol == 'Administrador':
+            es_admin = True
+
+    # Si NO es administrador, se restringe a que solo vea sus capturas
+    if not es_admin:
+        salidas_query = salidas_query.filter(SalidaFarmacia.id_usuario == current_user.id_usuario)
+
+    # 3. Filtros activos del buscador predictivo
     if query:
         search = f"%{query}%"
         salidas_query = salidas_query.filter(
-            # 🌟 CORRECCIÓN AQUÍ: Convertimos el folio entero a String antes del ilike
             (cast(RecetaMedica.folio, String).ilike(search)) |
             (Paciente.nombre.ilike(search)) |
             (Medicamento.principio_activo.ilike(search)) |
             (SalidaFarmacia.lote.ilike(search))
         )
 
+    # 4. Obtener todos los registros ordenados por fecha
     salidas = salidas_query.order_by(SalidaFarmacia.fecha_salida.desc()).all()
-    
+
+    # =========================================================
+    # LÓGICA DE AUDITORÍA: PROCESAMIENTO DE INDICADORES DIARIOS
+    # =========================================================
+    dicc_dias = {}
+
+    for s in salidas:
+        dia = s.fecha_salida.day
+        
+        if dia not in dicc_dias:
+            dicc_dias[dia] = {
+                "dia": dia,
+                "folios_lista": [],       
+                "recetas_set": set(),     
+                "claves_set": set(),      
+                "claves_negadas_set": set(),
+                "piezas_surtidas": 0,
+                "piezas_negadas": 0,
+                "surtidas_count": 0,
+                "parciales_count": 0,
+                "negadas_count": 0,
+                "detalles_salidas": []    
+            }
+        
+        d_datos = dicc_dias[dia]
+        d_datos["detalles_salidas"].append(s)
+        
+        if s.receta:
+            folio = s.receta.folio or "S/F"
+            # USAMOS LA PROPIEDAD REAL DE TU MODELO
+            estado_receta = s.receta.tipo_surtimiento_calculado
+            
+            folio_ya_registrado = any(f["folio"] == folio for f in d_datos["folios_lista"])
+            if not folio_ya_registrado:
+                d_datos["folios_lista"].append({
+                    "folio": folio,
+                    "id_receta": s.id_receta,
+                    "estado": estado_receta
+                })
+            
+            # Contadores adaptados a los retornos de tu @property ("Completa", "Parcial", "No surtida")
+            if folio not in d_datos["recetas_set"]:
+                d_datos["recetas_set"].add(folio)
+                if estado_receta == "Completa":
+                    d_datos["surtidas_count"] += 1
+                elif estado_receta == "Parcial":
+                    d_datos["parciales_count"] += 1
+                elif estado_receta == "No surtida":
+                    d_datos["negadas_count"] += 1
+
+        if s.medicamento:
+            clave = s.medicamento.clave
+            if s.cantidad > 0:
+                d_datos["claves_set"].add(clave)
+                d_datos["piezas_surtidas"] += s.cantidad
+            else:
+                d_datos["claves_negadas_set"].add(clave)
+                d_datos["piezas_negadas"] += 1
+
+    reporte_dias = [dicc_dias[d] for d in sorted(dicc_dias.keys())]
+
+    for d in reporte_dias:
+        d["total_claves_surtidas"] = len(d["claves_set"])
+        d["total_claves_negadas"] = len(d["claves_negadas_set"])
+
     return render_template('recetas/listar_salidas.html', 
                            salidas=salidas, 
-                           query=query)
+                           query=query,
+                           es_admin=es_admin,
+                           reporte_dias=reporte_dias)
+
+
+
+
 
 
 # crear recetas express
