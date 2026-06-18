@@ -1,7 +1,7 @@
 # app/recetas/routes.py
 from flask import Blueprint, request, render_template, redirect, url_for, flash,send_file,current_app
 from app import db
-from datetime import datetime, timezone 
+from datetime import datetime, timezone ,timedelta
 from app.models import BloqueReceta, AsignacionReceta, Usuario,Roles, RecetaMedica,InventarioFarmacia,Medicamento,DetalleReceta,Diagnostico,SalidaFarmacia
 from app.models.medicos import NotaConsultaExterna
 from app.models.archivo_clinico import  Paciente
@@ -74,34 +74,43 @@ def lista_recetas():
     recetas = RecetaMedica.query.order_by(RecetaMedica.fecha_emision.desc()).all()
     return render_template("recetas/lista_recetas.html", recetas=recetas)
 #=================================================================================== SALIDA DE RECETAS ================================
-from flask import render_template, request, url_for
-from flask_login import current_user
+from datetime import datetime, timedelta
 from sqlalchemy import cast, String
-from collections import defaultdict
-from datetime import datetime
+from flask import render_template, request
+from flask_login import current_user
 
 @bp.route('/salidas/listar')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
     query = request.args.get('q', '').strip()
+    fecha_inicio_str = request.args.get('fecha_inicio', '').strip()
+    fecha_fin_str = request.args.get('fecha_fin', '').strip()
     
-    # 1. Consulta base con Joins cargados
+    if not fecha_inicio_str or not fecha_fin_str:
+        hoy = datetime.today()
+        lunes = hoy - timedelta(days=hoy.weekday())
+        domingo = lunes + timedelta(days=6)
+        fecha_inicio_str = lunes.strftime('%Y-%m-%d')
+        fecha_fin_str = domingo.strftime('%Y-%m-%d')
+        
+    f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+    f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+
     salidas_query = SalidaFarmacia.query\
         .outerjoin(Medicamento)\
         .outerjoin(RecetaMedica)\
-        .outerjoin(Paciente)
+        .outerjoin(Paciente)\
+        .filter(SalidaFarmacia.fecha_salida >= f_inicio)\
+        .filter(SalidaFarmacia.fecha_salida <= f_fin)
 
-    # 2. Restricción por rol utilizando tu modelo real (nombre_rol)
     es_admin = False
     if current_user.is_authenticated and current_user.rol:
         if current_user.rol.nombre_rol == 'Administrador':
             es_admin = True
 
-    # Si NO es administrador, se restringe a que solo vea sus capturas
     if not es_admin:
         salidas_query = salidas_query.filter(SalidaFarmacia.id_usuario == current_user.id_usuario)
 
-    # 3. Filtros activos del buscador predictivo
     if query:
         search = f"%{query}%"
         salidas_query = salidas_query.filter(
@@ -111,16 +120,15 @@ def listar_salidas():
             (SalidaFarmacia.lote.ilike(search))
         )
 
-    # 4. Obtener todos los registros ordenados por fecha
     salidas = salidas_query.order_by(SalidaFarmacia.fecha_salida.desc()).all()
 
-    # =========================================================
-    # LÓGICA DE AUDITORÍA: PROCESAMIENTO DE INDICADORES DIARIOS
-    # =========================================================
+    # =================================================================
+    # ETAPA 1: AGRUPACIÓN Y CONSOLIDACIÓN DE SALIDAS REALES
+    # =================================================================
     dicc_dias = {}
 
     for s in salidas:
-        dia = s.fecha_salida.day
+        dia = s.fecha_salida.strftime('%d/%m/%Y')
         
         if dia not in dicc_dias:
             dicc_dias[dia] = {
@@ -138,11 +146,9 @@ def listar_salidas():
             }
         
         d_datos = dicc_dias[dia]
-        d_datos["detalles_salidas"].append(s)
         
         if s.receta:
             folio = s.receta.folio or "S/F"
-            # USAMOS LA PROPIEDAD REAL DE TU MODELO
             estado_receta = s.receta.tipo_surtimiento_calculado
             
             folio_ya_registrado = any(f["folio"] == folio for f in d_datos["folios_lista"])
@@ -153,7 +159,6 @@ def listar_salidas():
                     "estado": estado_receta
                 })
             
-            # Contadores adaptados a los retornos de tu @property ("Completa", "Parcial", "No surtida")
             if folio not in d_datos["recetas_set"]:
                 d_datos["recetas_set"].add(folio)
                 if estado_receta == "Completa":
@@ -163,14 +168,68 @@ def listar_salidas():
                 elif estado_receta == "No surtida":
                     d_datos["negadas_count"] += 1
 
-        if s.medicamento:
-            clave = s.medicamento.clave
-            if s.cantidad > 0:
-                d_datos["claves_set"].add(clave)
-                d_datos["piezas_surtidas"] += s.cantidad
-            else:
-                d_datos["claves_negadas_set"].add(clave)
-                d_datos["piezas_negadas"] += 1
+            if s not in d_datos["detalles_salidas"]:
+                d_datos["detalles_salidas"].append(s)
+        else:
+            if s not in d_datos["detalles_salidas"]:
+                d_datos["detalles_salidas"].append(s)
+
+    # =================================================================
+    # ETAPA 2: INYECCIÓN CONTROLADA DE NEGADOS ABSOLUTOS POR FECHA
+    # =================================================================
+    for dia_key, d_datos in dicc_dias.items():
+        # Buscamos todas las recetas únicas que ya procesamos en este día específico
+        recetas_procesadas_en_dia = set(s.receta for s in d_datos["detalles_salidas"] if s.receta)
+        
+        for receta_obj in recetas_procesadas_en_dia:
+            for p in receta_obj.detalle:
+                # REVISIÓN MILIMÉTRICA: ¿Existe ya alguna salida física para este medicamento en esta receta HOY?
+                tiene_salida_real = any(
+                    x.id_medicamento == p.id_medicamento and x.id_receta == receta_obj.id_receta 
+                    for x in d_datos["detalles_salidas"]
+                )
+                
+                # SOLO SI NO TIENE NINGUNA SALIDA REAL, se trata de un negado total y se crea el renglón virtual
+                if not tiene_salida_real:
+                    clase_negada = SalidaFarmacia(
+                        id_receta=receta_obj.id_receta,
+                        id_medicamento=p.id_medicamento,
+                        cantidad=0,
+                        lote="SIN EXISTENCIA",
+                        id_usuario=receta_obj.id_usuario,
+                        fecha_salida=receta_obj.fecha_emision
+                    )
+                    clase_negada.medicamento = p.medicamento
+                    clase_negada.receta = receta_obj
+                    clase_negada.usuario = receta_obj.usuario
+                    
+                    d_datos["detalles_salidas"].append(clase_negada)
+
+    # =================================================================
+    # ETAPA 3: AUDITORÍA DE CONTADORES DE CLAVES Y PIEZAS (TAB 01)
+    # =================================================================
+    for dia_key, d_datos in dicc_dias.items():
+        for item_salida in d_datos["detalles_salidas"]:
+            if item_salida.medicamento:
+                clave = item_salida.medicamento.clave
+                cant_surtida = item_salida.amount if hasattr(item_salida, 'amount') else item_salida.cantidad
+                cant_solicitada = cant_surtida
+                
+                if item_salida.receta:
+                    partida_origen = next((pt for pt in item_salida.receta.detalle if pt.id_medicamento == item_salida.id_medicamento), None)
+                    if partida_origen:
+                        cant_solicitada = partida_origen.cantidad
+
+                if cant_surtida > 0:
+                    d_datos["claves_set"].add(clave)
+                    d_datos["piezas_surtidas"] += cant_surtida
+                else:
+                    d_datos["claves_negadas_set"].add(clave)
+
+                if cant_surtida < cant_solicitada:
+                    d_datos["piezas_negadas"] += (cant_solicitada - cant_surtida)
+                    if cant_surtida == 0:
+                        d_datos["claves_negadas_set"].add(clave)
 
     reporte_dias = [dicc_dias[d] for d in sorted(dicc_dias.keys())]
 
@@ -178,17 +237,25 @@ def listar_salidas():
         d["total_claves_surtidas"] = len(d["claves_set"])
         d["total_claves_negadas"] = len(d["claves_negadas_set"])
 
+    reporte_surtido = []
+    reporte_negados = []
+    dias_lista = [d["dia"] for d in reporte_dias]
+
     return render_template('recetas/listar_salidas.html', 
                            salidas=salidas, 
                            query=query,
                            es_admin=es_admin,
-                           reporte_dias=reporte_dias)
+                           reporte_dias=reporte_dias,
+                           reporte_surtido=reporte_surtido,
+                           reporte_negados=reporte_negados,
+                           dias=dias_lista,
+                           fecha_inicio=fecha_inicio_str,
+                           fecha_fin=fecha_fin_str)
+
+#________________________________________________________________________________
 
 
-
-
-
-
+   
 # crear recetas express
 @bp.route("/recetas/express", methods=["POST"])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
@@ -944,7 +1011,8 @@ from sqlalchemy import func
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def recetas_pendientes():
     query = request.args.get('q', '').strip().upper()
-    
+	 # Captura el parámetro enviado desde el menú desplegable
+    abrir_modal = request.args.get('abrir_modal', 'false')    
     # Usamos outerjoin con Paciente por si existen recetas previas sin paciente ligado
     recetas_query = RecetaMedica.query.outerjoin(Paciente)
 
@@ -988,7 +1056,7 @@ def recetas_pendientes():
     return render_template("recetas/pendientes.html", 
                            recetas=recetas_filtradas, 
                            query=query,
-                           medicamentos=medicamentos)
+                           medicamentos=medicamentos, abrir_modal=abrir_modal)
 
 
 @bp.route("/surtir/<int:id_receta>", methods=["GET", "POST"])

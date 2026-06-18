@@ -33,7 +33,14 @@
                 <i class="bi bi-arrow-left"></i>
                 Ver Salidas
             </a>
+             <div class="mb-3">
+    <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i>
+        Regresar
+    </a>
+</div>
         </div>
+       
     </div>
 
     <!-- BUSCADOR -->
@@ -458,5 +465,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
+{% if abrir_modal == 'true' %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var modalExpress = new bootstrap.Modal(document.getElementById('modalRecetaExpress'));
+        modalExpress.show();
+    });
+</script>
+{% endif %}
 
 {% endblock %}

@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+    <!-- ENCABEZADO DEL SISTEMA -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="text-danger"><i class="bi bi-box-arrow-up"></i> Sistema IMSS-BIENESTAR - Salidas</h3>
         <div>
@@ -12,38 +13,77 @@
         </div>
     </div>
 
-    <!-- Buscador Estilo Unificado -->
-    <form method="GET" class="mb-4">
+    <!-- 👤 PANEL DE PRODUCTIVIDAD Y FILTRO DE RANGO DE FECHAS -->
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('farmacia.listar_salidas') }}" class="row g-2 align-items-center">
+                {% if query %}
+                    <input type="hidden" name="q" value="{{ query }}">
+                {% endif %}
+                <div class="col-md-4">
+                    <span class="fw-bold text-secondary">
+                        <i class="bi bi-person-workspace text-danger me-1"></i> 
+                        Usuario: <span class="text-dark">{{ current_user.usuario if current_user is defined else 'Operador Logueado' }}</span>
+                    </span>
+                    <div class="text-muted small">Por defecto mostrando: <span class="badge bg-secondary">Semana Actual</span></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted">Desde</span>
+                        <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted">Hasta</span>
+                        <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin or '' }}">
+                    </div>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-sm btn-danger fw-bold">
+                        <i class="bi bi-funnel-fill"></i> Filtrar Fechas
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- BUSCADOR ESTILO UNIFICADO -->
+    <form method="GET" action="{{ url_for('farmacia.listar_salidas') }}" class="mb-4">
+        {% if fecha_inicio %}<input type="hidden" name="fecha_inicio" value="{{ fecha_inicio }}">{% endif %}
+        {% if fecha_fin %}<input type="hidden" name="fecha_fin" value="{{ fecha_fin }}">{% endif %}
+        
         <div class="input-group shadow-sm">
             <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
             <input type="text" name="q" class="form-control" placeholder="Buscar por folio, paciente, medicamento o lote..." value="{{ query or '' }}">
             <button class="btn btn-danger" type="submit">Buscar</button>
-            {% if query %}
-                <a href="{{ url_for('farmacia.listar_salidas') }}" class="btn btn-outline-secondary">Limpiar</a>
+            {% if query or request.args.get('fecha_inicio') or request.args.get('fecha_fin') %}
+                <a href="{{ url_for('farmacia.listar_salidas') }}" class="btn btn-outline-secondary">Limpiar Filtros</a>
             {% endif %}
         </div>
     </form>
 
-    <!-- Pestañas de Navegación Estilo Reporte Operativo -->
+    <!-- PESTAÑAS DE NAVEGACIÓN COMPLETAS CON MATRICES OC99 -->
     <ul class="nav nav-tabs mb-4" id="reporteTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="indicadores-tab" data-bs-toggle="tab" data-bs-target="#tab-indicadores" type="button" role="tab">TAB 01: INDICADORES</button>
+            <button class="nav-link active fw-bold text-dark" id="indicadores-tab" data-bs-toggle="tab" data-bs-target="#tab-indicadores" type="button" role="tab">TAB 01: INDICADORES</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="surtidos-tab" data-bs-toggle="tab" data-bs-target="#tab-surtidos" type="button" role="tab">TAB 02: MED. SURTIDOS</button>
+            <button class="nav-link fw-bold text-success" id="surtidos-tab" data-bs-toggle="tab" data-bs-target="#tab-surtidos" type="button" role="tab">TAB 02: MED. SURTIDOS OC99</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold text-danger" id="auditoria-tab" data-bs-toggle="tab" data-bs-target="#tab-auditoria" type="button" role="tab">TAB 04: AUDITORÍA</button>
+            <button class="nav-link fw-bold text-danger" id="negados-tab" data-bs-toggle="tab" data-bs-target="#tab-negados" type="button" role="tab">TAB 03: MED. NEGADOS OC99</button>
         </li>
     </ul>
-
     <div class="tab-content" id="reporteTabsContent">
-        <div class="tab-pane fade show active" id="tab-auditoria" role="tabpanel">
+        
+        <!-- TAB 01: INDICADORES Y DETALLES -->
+        <div class="tab-pane fade show active" id="tab-indicadores" role="tabpanel">
             
             <!-- 1. TABLA DE INDICADORES DE GESTIÓN DIARIOS -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-navy text-white fw-bold py-2" style="background-color: #1A365D;">
-                    1. Indicadores de Gestión Diarios
+                <div class="card-header text-white fw-bold py-2" style="background-color: #1A365D;">
+                    1. Indicadores de Gestión Diarios (Semana / Rango Seleccionado)
                 </div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm align-middle text-center mb-0 text-nowrap" style="font-size: 0.85rem;">
@@ -51,66 +91,67 @@
                             <tr>
                                 <th class="text-start" style="width: 250px;">CONCEPTO / DÍA</th>
                                 {% for d in reporte_dias %}
-                                    <th style="width: 60px;">{{ d.dia }}</th>
+                                    <th style="width: 70px;">{{ d.dia }}</th>
                                 {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="text-start text-muted"><i class="bi bi-check-circle text-success me-1"></i> RECETAS SURTIDAS</td>
+                            <tr style="background-color: #f1f8ff;">
+                                <td class="text-start text-muted"><i class="bi bi-check-circle text-success me-1"></i> 📄 RECETAS SURTIDAS</td>
                                 {% for d in reporte_dias %}<td>{{ d.surtidas_count }}</td>{% endfor %}
                             </tr>
-                            <tr>
-                                <td class="text-start text-warning fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> RECETAS PARCIALES</td>
-                                {% for d in reporte_dias %}<td class="text-warning fw-bold">{{ d.parciales_count }}</td>{% endfor %}
+                            <tr style="color: #f39c12;">
+                                <td class="text-start fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> ⚠️ RECETAS PARCIALES</td>
+                                {% for d in reporte_dias %}<td class="fw-bold">{{ d.parciales_count }}</td>{% endfor %}
                             </tr>
-                            <tr>
-                                <td class="text-start text-danger fw-bold"><i class="bi bi-slash-circle me-1"></i> RECETAS NEGADAS</td>
-                                {% for d in reporte_dias %}<td class="text-danger fw-bold">{{ d.negadas_count }}</td>{% endfor %}
+                            <tr style="color: #d32f2f;">
+                                <td class="text-start fw-bold"><i class="bi bi-slash-circle me-1"></i> 🚫 RECETAS NEGADAS</td>
+                                {% for d in reporte_dias %}<td class="fw-bold">{{ d.negadas_count }}</td>{% endfor %}
                             </tr>
-                            <tr class="table-light border-top">
-                                <td class="text-start text-muted"><i class="bi bi-tag text-primary me-1"></i> CLAVES SURTIDAS</td>
+                            <tr class="table-light border-top" style="border-top: 2px solid #2c3e50 !important;">
+                                <td class="text-start text-muted"><i class="bi bi-tag text-primary me-1"></i> 💊 CLAVES SURTIDAS</td>
                                 {% for d in reporte_dias %}<td>{{ d.total_claves_surtidas }}</td>{% endfor %}
                             </tr>
-                            <tr>
-                                <td class="text-start text-muted"><i class="bi bi-box-seam text-success me-1"></i> PIEZAS SURTIDAS</td>
-                                {% for d in reporte_dias %}<td>{{ d.piezas_surtidas }}</td>{% endfor %}
+                            <tr style="color: #2e7d32;">
+                                <td class="text-start fw-bold"><i class="bi bi-box-seam me-1"></i> 📦 PIEZAS SURTIDAS</td>
+                                {% for d in reporte_dias %}<td class="fw-bold">{{ d.piezas_surtidas }}</td>{% endfor %}
                             </tr>
                             <tr>
-                                <td class="text-start text-warning"><i class="bi bi-tag-fill text-warning me-1"></i> CLAVES NEGADAS</td>
+                                <td class="text-start text-muted"><i class="bi bi-tag-fill text-warning me-1"></i> 💊 CLAVES NEGADAS</td>
                                 {% for d in reporte_dias %}<td>{{ d.total_claves_negadas }}</td>{% endfor %}
                             </tr>
-                            <tr>
-                                <td class="text-start text-purple" style="color: #6B46C1;"><i class="bi bi-cart-x text-purple me-1"></i> PIEZAS NEGADAS</td>
-                                {% for d in reporte_dias %}<td>{{ d.piezas_negadas }}</td>{% endfor %}
+                            <tr style="background-color: #fff5f5;">
+                                <td class="text-start text-danger fw-bold"><i class="bi bi-cart-x me-1"></i> 🔍 PIEZAS NEGADAS</td>
+                                {% for d in reporte_dias %}<td class="text-danger fw-bold">{{ d.piezas_negadas }}</td>{% endfor %}
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
+
             <!-- 2. TABLA LISTADO DE FOLIOS POR DÍA -->
+			            <!-- 2. TABLA LISTADO DE FOLIOS POR DÍA -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-navy text-white fw-bold py-2" style="background-color: #1A365D;">
-                    2. Listado de Folios por Día (Clic para detalle)
+                <div class="card-header text-white fw-bold py-2" style="background-color: #1A365D;">
+                    2. Listado de Folios por Día (Clic para ir al bloque de abajo)
                 </div>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm align-middle mb-0" style="font-size: 0.85rem;">
                         <thead class="table-light text-secondary text-center">
                             <tr>
-                                <th style="width: 50px;">Día</th>
-                                <th style="width: 60px;">Cant.</th>
+                                <th style="width: 120px;">Día / Fecha</th>
+                                <th style="width: 70px;">Cant.</th>
                                 <th>Folios</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for d in reporte_dias %}
                             <tr>
-                                <td class="text-center fw-bold">{{ d.dia }}</td>
-                                <td class="text-center bg-light">{{ d.detalles_salidas|length }}</td>
+                                <td class="text-center fw-bold bg-light">{{ d.dia }}</td>
+                                <td class="text-center fw-bold">{{ d.folios_lista|length }}</td>
                                 <td class="py-2">
                                     <div class="d-flex flex-wrap gap-2 px-2">
                                         {% for f in d.folios_lista %}
-                                            <!-- Mapeo exacto de colores según tipo_surtimiento_calculado -->
                                             {% set clase_color = 'text-dark border-dark' %}
                                             {% if f.estado == 'Completa' %}
                                                 {% set clase_color = 'text-success border-success' %}
@@ -120,7 +161,9 @@
                                                 {% set clase_color = 'text-danger border-danger' %}
                                             {% endif %}
                                             
-                                            <a href="#card-dia-{{ d.dia }}" class="badge bg-white border {{ clase_color }} text-decoration-none p-1 fw-normal" style="font-size: 0.8rem;">
+                                            <!-- Se reemplaza el índice por d.dia reemplazando barras para el ID de HTML -->
+                                            {% set id_dia_limpio = d.dia|string|replace('/', '-') %}
+                                            <a href="#collapse-fecha-{{ id_dia_limpio }}" class="badge bg-white border {{ clase_color }} text-decoration-none p-2 fw-normal" style="font-size: 0.8rem;">
                                                 {{ f.folio }}
                                             </a>
                                         {% endfor %}
@@ -129,7 +172,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="3" class="text-center py-4 text-muted">No se encontraron folios capturados.</td>
+                                <td colspan="3" class="text-center py-4 text-muted">No se encontraron folios capturados en este rango de fechas.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -137,81 +180,207 @@
                 </div>
             </div>
 
-            <!-- 3. DETALLE DE OPERACIÓN POR DÍA (BLOQUES EXPANDIBLES) -->
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-navy text-white fw-bold py-2" style="background-color: #1A365D;">
-                    3. Detalle de Operación por Día (Clic para expandir)
+                       <!-- 3. DETALLE DE OPERACIÓN POR DÍA (BLOQUES EXPANDIBLES POR FECHA) -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header text-white fw-bold py-2" style="background-color: #1A365D;">
+                    3. Detalle de Operación por Día (Clic en la fecha para expandir todo el día)
                 </div>
                 <div class="p-3 bg-light">
                     {% for d in reporte_dias %}
-                    <div class="card mb-3 border-0 shadow-sm" id="card-dia-{{ d.dia }}">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center border-bottom py-2">
-                            <span class="fw-bold text-secondary"><i class="bi bi-calendar-event"></i> FECHA: {{ d.dia }}</span>
-                            <span class="badge bg-secondary">Total: {{ d.detalles_salidas|length }} Recetas ▼</span>
+                    {% set id_dia_limpio = d.dia|string|replace('/', '-') %}
+                    <div class="card mb-3 border-0 shadow-sm">
+                        
+                        <!-- Encabezado de la Fecha que despliega todo el bloque diario de recetas -->
+                        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center py-2" 
+                             data-bs-toggle="collapse" 
+                             data-bs-target="#collapse-fecha-{{ id_dia_limpio }}" 
+                             aria-expanded="false" 
+                             style="cursor: pointer;">
+                            <span class="fw-bold"><i class="bi bi-calendar-event me-1"></i> 📅 FECHA: {{ d.dia }}</span>
+                            <span class="fw-bold">Total: {{ d.folios_lista|length }} Recetas ▼</span>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle table-hover mb-0" style="font-size: 0.8rem;">
-                                <thead class="table-light text-muted">
-                                    <tr>
-                                        <th>Clave</th>
-                                        <th>Descripción / Insumo</th>
-                                        <th class="text-center">Req.</th>
-                                        <th class="text-center">Sur.</th>
-                                        <th>Usuario</th>
-                                        <th>Estado</th>
-                                        <th class="text-center">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for salida in d.detalles_salidas %}
-                                    <tr>
-                                        <td class="text-muted fw-bold">{{ salida.medicamento.clave }}</td>
-                                        <td>
-                                            <div class="fw-bold text-dark">{{ salida.medicamento.principio_activo }}</div>
-                                            <small class="text-muted">Lote: <span class="badge bg-light text-dark border p-0 px-1">{{ salida.lote }}</span></small>
-                                        </td>
-                                        <td class="text-center text-muted">{{ salida.receta.cantidad_solicitada if salida.receta else salida.cantidad }}</td>
-                                        <td class="text-center fw-bold text-primary">{{ salida.cantidad }}</td>
-                                        <td><small class="text-muted">{{ salida.usuario.usuario }}</small></td>
-                                        <td>
-                                            <!-- Mapeo exacto de badges de estado en el desglose -->
-                                            {% set badge_state = 'bg-secondary' %}
-                                            {% set text_state = 'No surtida' %}
-                                            {% if salida.receta %}
-                                                {% set text_state = salida.receta.tipo_surtimiento_calculado %}
-                                                {% if text_state == 'Completa' %}{% set badge_state = 'bg-success' %}
-                                                {% elif text_state == 'Parcial' %}{% set badge_state = 'bg-warning text-dark' %}
-                                                {% elif text_state == 'No surtida' %}{% set badge_state = 'bg-danger' %}{% endif %}
-                                            {% endif %}
-                                            <span class="badge {{ badge_state }}" style="font-size: 0.7rem;">{{ text_state }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="btn-group">
-                                                {% if salida.id_receta %}
-                                                <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="btn btn-xs btn-outline-primary p-0 px-1" title="Ver Receta">
-                                                    <i class="bi bi-file-earmark-medical" style="font-size: 0.75rem;"></i>
-                                                </a>
-                                                {% endif %}
-                                                {% if salida.id_usuario == current_user.id_usuario or es_admin %}
-                                                <form action="{{ url_for('recetas.eliminar_salida', id=salida.id_salida) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Revertir salida?');">
-                                                    <button class="btn btn-xs btn-outline-danger p-0 px-1" type="submit" title="Revertir">
-                                                        <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
-                                                    </button>
-                                                </form>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        
+                        <div class="collapse" id="collapse-fecha-{{ id_dia_limpio }}">
+                            <div class="card-body bg-white p-3">
+                                {% for f in d.folios_lista %}
+                                <div class="card mb-3 border shadow-sm" id="card-folio-{{ f.folio }}">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center py-2" style="border-bottom: 2px solid {% if f.estado == 'Completa' %}#2e7d32{% elif f.estado == 'Parcial' %}#f39c12{% else %}#d32f2f{% endif %};">
+                                        <span class="fw-bold text-dark"><i class="bi bi-file-earmark-text text-danger me-1"></i> 📄 Detalle de Receta Folio: {{ f.folio }}</span>
+                                        <span class="badge {% if f.estado == 'Completa' %}bg-success{% elif f.estado == 'Parcial' %}bg-warning text-dark{% else %}bg-danger{% endif %}" style="font-size: 0.75rem;">{{ f.estado }}</span>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle table-hover mb-0" style="font-size: 0.8rem;">
+                                            <thead class="table-light text-muted">
+                                                <tr>
+                                                    <th>Clave</th>
+                                                    <th>Descripción / Insumo</th>
+                                                    <th class="text-center">Req.</th>
+                                                    <th class="text-center">Sur.</th>
+                                                    <th>Usuario</th>
+                                                    <th>Estado Insumo</th>
+                                                    <th class="text-center">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for salida in d.detalles_salidas %}
+                                                    {% if salida.receta and salida.receta.folio == f.folio %}
+                                                    <tr>
+                                                        <td class="text-muted fw-bold">{{ salida.medicamento.clave if salida.medicamento else 'S/C' }}</td>
+                                                        <td>
+                                                            <div class="fw-bold text-dark">{{ salida.medicamento.principio_activo if salida.medicamento else 'S/D' }}</div>
+                                                            <small class="text-muted">Lote: <span class="badge bg-light text-dark border p-0 px-1">{{ salida.lote }}</span></small>
+                                                        </td>
+                                                        <td class="text-center text-muted fw-bold">
+                                                            {{ salida.receta.cantidad_solicitada if (salida.receta and salida.receta.cantidad_solicitada is defined) else salida.cantidad }}
+                                                        </td>
+                                                        <td class="text-center fw-bold text-primary">{{ salida.cantidad }}</td>
+                                                        <td><small class="text-muted">{{ salida.usuario.usuario if salida.usuario else 'Sistema' }}</small></td>
+                                                        <td>
+                                                            {% set req_cant = salida.receta.cantidad_solicitada if (salida.receta and salida.receta.cantidad_solicitada is defined) else salida.cantidad %}
+                                                            {% set sur_cant = salida.cantidad %}
+                                                            
+                                                            {% set badge_partida = 'bg-danger' %}
+                                                            {% set text_partida = 'No surtido' %}
+                                                            
+                                                            {% if sur_cant >= req_cant and sur_cant > 0 %}
+                                                                {% set text_partida = 'Surtido' %}
+                                                                {% set badge_partida = 'bg-success' %}
+                                                            {% elif sur_cant > 0 and sur_cant < req_cant %}
+                                                                {% set text_partida = 'Parcial' %}
+                                                                {% set badge_partida = 'bg-warning text-dark' %}
+                                                            {% endif %}
+                                                            <span class="badge {{ badge_partida }}" style="font-size: 0.7rem;">{{ text_partida }}</span>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <div class="btn-group">
+                                                                {% if salida.id_receta %}
+                                                                <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="btn btn-xs btn-outline-primary p-0 px-1" title="Ver Receta">
+                                                                    <i class="bi bi-file-earmark-medical" style="font-size: 0.75rem;"></i>
+                                                                </a>
+                                                                {% endif %}
+                                                                
+                                                                {% if salida.cantidad > 0 and (salida.id_usuario == current_user.id_usuario or es_admin) %}
+                                                                <form action="{{ url_for('recetas.eliminar_salida', id=salida.id_salida) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Revertir esta salida de medicamento de la base de datos?');">
+                                                                    <button class="btn btn-xs btn-outline-danger p-0 px-1" type="submit" title="Revertir">
+                                                                        <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
+                                                                    </button>
+                                                                </form>
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
+        </div> <!-- Fin Tab-Indicadores -->
 
+
+        <!-- TAB 02: MEDICAMENTOS SURTIDOS OC99 -->
+        <div class="tab-pane fade" id="tab-surtidos" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-success fw-bold mb-0">📦 Matriz de Salidas por Día (OC99 - Mes Actual)</h4>
+                <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="copyTable('tSurtido')">
+                    <i class="bi bi-clipboard-data"></i> Copiar Matriz Salidas
+                </button>
+            </div>
+            <div class="table-responsive shadow-sm border rounded">
+                <table class="table table-bordered table-sm align-middle text-center mb-0" id="tSurtido" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr class="table-success border-success text-dark fw-bold">
+                            <th style="width: 120px;">CLAVE</th>
+                            <th class="text-start" style="width: 300px;">DESCRIPCIÓN</th>
+                            {% for d in reporte_dias %}<th>{{ d.dia }}</th>{% endfor %}
+                            <th class="table-dark">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in reporte_surtido %}
+                        <tr>
+                            <td class="fw-bold text-secondary">{{ f.clave }}</td>
+                            <td class="text-start small" style="font-size: 0.75rem;">{{ f.descripcion }}</td>
+                            {% for d in reporte_dias %}
+                                <td>{{ f.dias.get(d.dia, 0)|int }}</td>
+                            {% endfor %}
+                            <td class="fw-bold table-light">{{ f.total }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ (reporte_dias|length) + 3 }}" class="text-center text-muted py-3">No hay registros de salidas en esta matriz.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-</div>
+
+        <!-- TAB 03: MEDICAMENTOS NEGADOS OC99 -->
+        <div class="tab-pane fade" id="tab-negados" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-danger fw-bold mb-0">🚫 Matriz de Negados por Día (OC99 - Mes Actual)</h4>
+                <button class="btn btn-danger btn-sm fw-bold shadow-sm" onclick="copyTable('tNegado')">
+                    <i class="bi bi-clipboard-x"></i> Copiar Matriz Negados
+                </button>
+            </div>
+            <div class="table-responsive shadow-sm border rounded">
+                <table class="table table-bordered table-sm align-middle text-center mb-0" id="tNegado" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr class="table-danger border-danger text-dark fw-bold">
+                            <th style="width: 120px;">CLAVE</th>
+                            <th class="text-start" style="width: 300px;">DESCRIPCIÓN</th>
+                            {% for d in reporte_dias %}<th>{{ d.dia }}</th>{% endfor %}
+                            <th class="table-dark">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in reporte_negados %}
+                        <tr>
+                            <td class="fw-bold text-secondary">{{ f.clave }}</td>
+                            <td class="text-start small" style="font-size: 0.75rem;">{{ f.descripcion }}</td>
+                            {% for d in reporte_dias %}
+                                <td>{{ f.dias.get(d.dia, 0)|int }}</td>
+                            {% endfor %}
+                            <td class="fw-bold table-light">{{ f.total }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ (reporte_dias|length) + 3 }}" class="text-center text-muted py-3">No hay registros de claves negadas en esta matriz.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div> <!-- Fin Tab-Content -->
+</div> <!-- Fin Container-fluid -->
+
+<!-- SCRIPTS PARA INTERFACES DE EXCEL -->
+<script>
+    function copyTable(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const range = document.createRange();
+        range.selectNode(el);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        try {
+            document.execCommand("copy");
+            alert("📊 ¡Matriz copiada! Ya puedes pegarla directamente en Excel.");
+        } catch (err) {
+            alert("No se pudo copiar de manera automática.");
+        }
+        window.getSelection().removeAllRanges();
+    }
+</script>
+</body>
 {% endblock %}

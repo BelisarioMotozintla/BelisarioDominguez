@@ -15,7 +15,7 @@
     
     <!-- Movimientos -->
     <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary d-flex flex-column align-items-center justify-content-center px-3 py-2">
-      <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movi<br>mientos
+      <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movimientos
     </a>
 
     <!-- DROPDOWN: Salidas -->
@@ -27,6 +27,12 @@
         <li><a class="dropdown-item" href="{{ url_for('recetas.listar_salidas') }}">Salidas Paciente</a></li>
         <li><a class="dropdown-item" href="{{ url_for('farmacia.otras_salidas') }}">Otras Salidas</a></li>
         <li><a class="dropdown-item" href="{{ url_for('recetas.recetas_pendientes') }}">Recetas Pendientes</a></li>
+        <li>
+    <a class="dropdown-item" href="{{ url_for('recetas.recetas_pendientes', abrir_modal='true') }}">
+        <i class="bi bi-lightning-charge text-success"></i> Recetas Rápida
+    </a>
+</li>
+        
         <li><a class="dropdown-item" href="{{ url_for('farmacia.listar_salidas') }}">Ver Salidas</a></li>
       </ul>
     </div>
@@ -44,7 +50,7 @@
     
     <!-- Medicamentos -->
     <a href="{{ url_for('farmacia.reporte_medicamentos') }}" class="btn btn-sm btn-outline-primary d-flex flex-column align-items-center justify-content-center px-3 py-2">
-      <i class="bi bi-clipboard-data mb-1 fs-5"></i> Medi<br>camentos
+      <i class="bi bi-clipboard-data mb-1 fs-5"></i> Medicamentos
     </a>
     
     <!-- Reporte Inventario -->

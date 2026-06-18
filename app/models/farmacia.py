@@ -321,29 +321,31 @@ class RecetaMedica(db.Model):
         if not self.salidas:
             return "No surtida"
 
-        completo = True
-        parcial = False
+        tiene_surtido_al_menos_uno = False
+        tiene_negado_al_menos_uno = False
 
         # Analizamos renglón por renglón lo solicitado vs lo entregado en total
-        for detalle in self.detalle:
+        for detalle_item in self.detalle:
             # Sumamos todas las salidas existentes para este medicamento específico en la receta
             total_surtido = sum(
-                s.cantidad for s in self.salidas if s.id_medicamento == detalle.id_medicamento
+                s.cantidad for s in self.salidas if s.id_medicamento == detalle_item.id_medicamento
             )
             
-            if total_surtido == 0:
-                completo = False
-            elif total_surtido < detalle.cantidad:
-                completo = False
-                parcial = True
-            # Nota: Si total_surtido >= detalle.cantidad, se mantiene completo para este medicamento
+            if total_surtido > 0:
+                tiene_surtido_al_menos_uno = True
+                
+            if total_surtido < detalle_item.cantidad:
+                tiene_negado_al_menos_uno = True
 
-        if completo:
-            return "Completa"
-        elif parcial:
+        # Clasificación matemática exacta y limpia:
+        if tiene_surtido_al_menos_uno and tiene_negado_al_menos_uno:
             return "Parcial"
-        
+        elif tiene_surtido_al_menos_uno and not tiene_negado_al_menos_uno:
+            return "Completa"
+        else:
+            return "No surtida"
         return "No surtida"
+        
 class DetalleReceta(db.Model):
     __tablename__ = 'DetalleReceta'
     id_detalle = Column(Integer, primary_key=True)
