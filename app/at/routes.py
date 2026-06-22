@@ -5,6 +5,11 @@ import pandas as pd
 import json
 from app.utils.helpers import roles_required
 from app.utils.helpers import usuarios_con_rol_requerido
+from app import db
+from app.models import BloqueReceta, AsignacionReceta, Usuario,Roles, RecetaMedica,InventarioFarmacia,Medicamento,DetalleReceta,Diagnostico,SalidaFarmacia
+from app.utils.helpers import roles_required
+from flask_login import current_user
+
 
 bp = Blueprint('at', __name__, template_folder='templates')
 
@@ -53,7 +58,6 @@ def obtener_catalogo_maestro():
             
     print("ALERTA: El archivo físico NO está en esa ruta")
     return {}
-
 
 
 @bp.route("/auditoria", methods=["GET", "POST"])
@@ -119,69 +123,73 @@ def auditoria():
                     'c_negadas': df_dia[df_dia[COL_EXPEDIDA] == 0][COL_CLAVE].nunique()
                 })
 
-                        # --- 2. MATRICES (OC99) ---
-            
-            # 1. Identificar colisiones en el catálogo para saber qué claves dejar a 15 caracteres
+            # --- 2. MATRICES (OC99) ---
             catalogo_crudo = obtener_catalogo_maestro()
             catalogo_crudo = {str(k).strip().replace('\r', ''): v for k, v in catalogo_crudo.items()}
             if not catalogo_crudo:
-                # Si no hay catálogo, generamos uno base de 12 caracteres desde el DF
                 print("ALERTA: No se encontró claves.csv en Render, usando datos de la receta")
                 catalogo = df[[COL_CLAVE, COL_DESC]].drop_duplicates(COL_CLAVE).set_index(COL_CLAVE)[COL_DESC].to_dict()
             else:
-                # Buscamos bases de 12 que se repiten (ej. .00 y .02)
                 import collections
                 claves_lista = [str(k).strip() for k in catalogo_crudo.keys()]
                 conteo_bases = collections.Counter([k[:12] for k in claves_lista])
                 
-                # Definimos la función de normalización según tu sugerencia
                 def normalizar_hibrido(c):
                     c_str = str(c).strip()
                     base_12 = c_str[:12]
-                    # Si la base tiene colisiones, respetamos los 15 caracteres, si no, a 12
                     return c_str[:15] if conteo_bases[base_12] > 1 else base_12
                  
-                 # Aplicamos la misma limpieza al DataFrame de recetas capturadas
                 df[COL_CLAVE] = df[COL_CLAVE].astype(str).str.strip().str.replace('\r', '', regex=True)
                 df[COL_CLAVE] = df[COL_CLAVE].apply(normalizar_hibrido)
-    
-                # Re-generamos el catálogo usando la misma lógica de normalización
                 catalogo = {normalizar_hibrido(k): v for k, v in catalogo_crudo.items()}
     
-                # Aplicamos la normalización al DataFrame y creamos el catálogo final
-               #df[COL_CLAVE] = df[COL_CLAVE].apply(normalizar_hibrido)
-               #catalogo = {normalizar_hibrido(k): v for k, v in catalogo_crudo.items()}
-    
-            # Ordenamos para que la descripción más completa quede arriba
             df = df.sort_values(by=[COL_CLAVE, COL_DESC], ascending=[True, False])
-    
+            
+            # ==========================================
+            # DATAFRAME LIMPIO PARA DETALLE OC99
+            # ==========================================
+            df_detalle = df.copy()
+            df_detalle = df_detalle.drop_duplicates(
+                subset=[COL_FOLIO, COL_CLAVE],
+                keep='first'
+            )
+
+            folios_validos = (
+                df_detalle.groupby(COL_FOLIO)[COL_CLAVE]
+                .nunique()
+            )
+            folios_validos = folios_validos[folios_validos <= 3].index.tolist()
+            df_detalle = df_detalle[df_detalle[COL_FOLIO].isin(folios_validos)]
             # 2. Generación de Matrices y Reportes (Usando las 330 claves)
             claves_orden = sorted(list(catalogo.keys()))
     
-            # Surtidos: aggfunc='sum' consolidará las capturas de .01, .02 en la base .00 SOLO si no son colisiones
             m_surt = df[df[COL_EXPEDIDA] > 0].pivot_table(index=COL_CLAVE, columns='Dia', values=COL_EXPEDIDA, aggfunc='sum').reindex(claves_orden).fillna(0)
             reporte_surtido = [{'clave': c, 'descripcion': catalogo.get(c, "S/D"), 'dias': m_surt.loc[c].to_dict(), 'total': int(m_surt.loc[c].sum())} for c in claves_orden]
     
-            # Negados
             m_neg = df[df[COL_EXPEDIDA] == 0].pivot_table(index=COL_CLAVE, columns='Dia', values=COL_RECETADA, aggfunc='sum').reindex(claves_orden).fillna(0)
             reporte_negados = [{'clave': c, 'descripcion': catalogo.get(c, "S/D"), 'dias': m_neg.loc[c].to_dict(), 'total': int(m_neg.loc[c].sum())} for c in claves_orden]
     
             # --- 3. FOLIOS, DUPLICADOS Y EXCEDIDOS ---
             listado_folios = []
             for dia in dias_eje:
-                df_dia = df[df['Dia'] == dia]
+                df_dia = df_detalle[df_detalle['Dia'] == dia]
                 f_det = []
                 for f in sorted(df_dia[COL_FOLIO].unique()):
                     df_f = df_dia[df_dia[COL_FOLIO] == f]
+                    
+                    # 🌟 FORZAMOS LA CONVERSIÓN A BOOL NATIVO CON bool() 🌟
+                    es_negado_nativo = bool(not (df_f[COL_EXPEDIDA] > 0).any())
+                    es_parcial_nativo = bool((df_f[COL_EXPEDIDA] > 0).any() and (df_f[COL_EXPEDIDA] == 0).any())
+                    
                     f_det.append({
                         'numero': f, 
-                        'es_negado': not (df_f[COL_EXPEDIDA] > 0).any(), 
-                        'es_parcial': (df_f[COL_EXPEDIDA] > 0).any() and (df_f[COL_EXPEDIDA] == 0).any()
+                        'es_negado': es_negado_nativo, 
+                        'es_parcial': es_parcial_nativo
                     })
                 listado_folios.append({'dia': dia, 'folios': f_det, 'cantidad': len(f_det)})
     
-            # Duplicados (Usa la clave normalizada híbrida)
-            dup_df = df.groupby(COL_FOLIO).agg({COL_ID: 'nunique', COL_FECHA: 'min'}).reset_index()
+            # Duplicados
+            dup_df = df.groupby(COL_FOLIO).agg({COL_ID: 'nunique', COL_FECHA: 'max'}).reset_index()
             listado_duplicados = [
                 {
                     'dia': r[COL_FECHA].day,
@@ -191,7 +199,7 @@ def auditoria():
                 } for _, r in dup_df[dup_df[COL_ID] > 1].iterrows()
             ]
     
-            # Excedidos (Usa la clave normalizada híbrida)
+            # Excedidos
             exc_df = df.groupby(COL_FOLIO).agg({COL_CLAVE: 'nunique', COL_FECHA: 'min'}).reset_index()
             listado_excedidos = [
                 {
@@ -203,21 +211,24 @@ def auditoria():
                 } for _, r in exc_df[exc_df[COL_CLAVE] > 3].iterrows()
             ]
 
-
             # --- 4. SIGNOS NEGATIVOS Y DETALLE MODAL ---
             df_negativos = df[df[COL_EXPEDIDA] < 0]
             listado_signos_negativos = [{'dia': d, 'detalles': df_negativos[df_negativos['Dia'] == d][[COL_FOLIO, COL_CLAVE, COL_EXPEDIDA]].to_dict(orient='records')} for d in dias_eje if not df_negativos[df_negativos['Dia'] == d].empty]
 
             detalle_folios_dict = {}
-            for folio in df[COL_FOLIO].unique():
-                df_f = df[df[COL_FOLIO] == folio]
-                detalle_folios_dict[str(folio)] = df_f.rename(columns={
-                    COL_CLAVE: 'Clave',
-                    COL_DESC: 'Descripcion',
-                    COL_RECETADA: 'Recetada',
-                    COL_EXPEDIDA: 'Surtida'
-                })[['Clave', 'Descripcion', 'Recetada', 'Surtida']].to_dict(orient='records')
-
+            for folio in sorted(df_detalle[COL_FOLIO].unique()):
+                df_f = df_detalle[df_detalle[COL_FOLIO] == folio]
+                detalle_folios_dict[str(folio)] = (
+                    df_f.rename(columns={
+                        COL_CLAVE: 'Clave',
+                        COL_DESC: 'Descripcion',
+                        COL_RECETADA: 'Recetada',
+                        COL_EXPEDIDA: 'Surtida'
+                    })
+                    [['Clave', 'Descripcion', 'Recetada', 'Surtida']]
+                    .to_dict(orient='records')
+                )
+			
             return render_template("resultado.html", 
                                    resumen=resumen_superior, 
                                    reporte_surtido=reporte_surtido, 
@@ -233,6 +244,125 @@ def auditoria():
             return f"Error: {str(e)}"
     return render_template("index.html")
 
+#_______________+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# 🌟 AGREGA ESTA IMPORTACIÓN AL INICIO DE TU ARCHIVO DE RUTAS 🌟
+from sqlalchemy.exc import OperationalError
+# 🌟 AGREGA 'jsonify' A TUS IMPORTACIONES DE FLASK AL INICIO DEL ARCHIVO 🌟
+from flask import Flask, render_template, request, Blueprint, jsonify, session
+
+@bp.route("/guardar_dia", methods=["POST"])
+@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+def guardar_dia_local():
+    payload = request.get_json() or {}
+    dia_seleccionado = payload.get('dia')
+    recetas_inyectadas = payload.get('recetas', {})
+
+    print(f"\n🚀 [INICIO] Petición recibida para el día: {dia_seleccionado}")
+    print(f"📦 Total de folios enviados desde el cliente: {len(recetas_inyectadas)}")
+
+    if not recetas_inyectadas:
+        print("❌ Error: El payload de recetas llegó vacío.")
+        return jsonify({'status': 'error', 'message': 'No se encontraron folios validados para guardar en este día.'}), 400
+
+    intentos_red = 3  
+
+    while intentos_red > 0:
+        folios_guardados = 0 
+        print(f"🔄 Intentando procesar lote en base de datos. Intentos restantes: {intentos_red}")
+        
+        try:
+            print("--- INICIANDO PROCESAMIENTO DE RECETAS ---")
+            for folio_str, medicamentos in recetas_inyectadas.items():
+                
+                # 1. Validación de unicidad contra Postgres
+                existe_en_db = db.session.query(RecetaMedica).filter_by(folio=folio_str).first()
+                if existe_en_db:
+                    print(f"⚠️ El folio [{folio_str}] YA EXISTE en Postgres. Saltando...")
+                    continue 
+
+                print(f"🔍 Procesando folio NUEVO: [{folio_str}] con {len(medicamentos)} medicamentos asignados.")
+                nueva_receta = RecetaMedica(
+                    folio=folio_str,
+                    fecha_emision=datetime.utcnow(), 
+                    id_paciente=64,        
+                    id_usuario=current_user.id_usuario if hasattr(current_user, 'id_usuario') else 1,  
+                    id_asignacion=2,      
+                    diagnostico_id=1,  
+                    tipo_surtimiento="No surtida",
+                    nota_id=5
+                )
+
+                # 3. Insertar los detalles buscando variantes (.00, .01, .02) con LIKE
+                for med in medicamentos:
+                    clave_reporte = str(med.get('Clave', '')).strip()
+                    
+                    # 🌟 BÚSQUEDA FLEXIBLE: Coincide sin importar los dos últimos dígitos (.00, .01, etc.)
+                    medicamento_db = db.session.query(Medicamento).filter(
+                        Medicamento.clave.like(f"{clave_reporte}%")
+                    ).first()
+                    
+                    if not medicamento_db:
+                        print(f"   ❌ No se encontró ninguna variante para la clave [{clave_reporte}%] en Postgres. Saltando medicamento.")
+                        continue 
+                    
+                    print(f"   🎯 Clave mapeada con éxito: [{clave_reporte}] -> Encontrado en DB como: [{medicamento_db.clave}]")
+                    
+                    nuevo_detalle = DetalleReceta(
+                        id_medicamento=medicamento_db.id_medicamento,  
+                        cantidad=int(med.get('Recetada', 0)),
+                        cantidad_surtida=int(med.get('Surtida', 0)),
+                        dosis="Dosis establecida por auditoría SAI",
+                        indicaciones=str(med.get('Descripcion', 'S/D'))
+                    )
+                    nueva_receta.detalle.append(nuevo_detalle)
+
+                # Validamos si la receta se quedó con al menos un detalle válido
+                if nueva_receta.detalle:
+                    db.session.add(nueva_receta)
+                    folios_guardados += 1
+                    print(f"   ✅ Folio [{folio_str}] preparado con éxito ({len(nueva_receta.detalle)} detalles válidos).")
+                else:
+                    print(f"   ❌ El folio [{folio_str}] se descartó por completo porque no tuvo ningún medicamento válido en el catálogo.")
+
+            print(f"--- FIN DEL CICLO. TOTAL FOLIOS LISTOS PARA GUARDAR: {folios_guardados} ---")
+
+            # 4. Intentar guardar definitivamente en PostgreSQL (Neon.tech)
+            if folios_guardados > 0:
+                print("💾 Ejecutando db.session.commit() en Neon.tech...")
+                db.session.commit()
+                print("🎉 ¡Commit exitoso! Datos guardados físicamente.")
+                return jsonify({
+                    'status': 'success', 
+                    'message': f'Sincronización completada. Se guardaron {folios_guardados} folios limpios en la base de datos local.'
+                })
+            else:
+                print("⚠️ Advertencia: El bucle terminó pero el contador de folios es 0. Nada que guardar.")
+                db.session.rollback() 
+                return jsonify({
+                    'status': 'warning', 
+                    'message': 'No se realizaron cambios. Todos los folios de este día ya existían en tu sistema local.'
+                })
+
+        except OperationalError as oe:
+            db.session.rollback() 
+            intentos_red -= 1
+            print(f"🚨 Advertencia de red: Falló la conexión con Neon. Error: {str(oe)}")
+            print(f"⏳ Reintentando en 2 segundos... ({intentos_red} intentos restantes)")
+            
+            if intentos_red == 0:
+                print("❌ Error definitivo: Se agotaron los intentos de red sin éxito.")
+                return jsonify({'status': 'error', 'message': 'Fallo de conexión temporal con Neon.tech. Verifica el internet del servidor local.'}), 503
+            
+            time.sleep(2)
+                
+        except Exception as e:
+            db.session.rollback()
+            print(f"💥 Error crítico de consistencia en Postgres: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Error de consistencia en Postgres: {str(e)}'}), 500
+
+
+#______________________________________________________________________________________________________________________________________________
 from datetime import datetime
 
 @bp.route("/generador", methods=["GET", "POST"])

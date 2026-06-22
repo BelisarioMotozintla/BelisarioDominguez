@@ -68,25 +68,39 @@
                 </tbody>
             </table>
 		
-            <h2>2. Listado de Folios por Día (Clic para detalle)</h2>
-            <table style="table-layout: auto;">
-                <thead><tr><th>Día</th><th>Cant.</th><th>Folios</th></tr></thead>
-                <tbody>
-                    {% for item in listado_folios %}
-                    <tr>
-                        <td><strong>{{ item.dia }}</strong></td><td>{{ item.cantidad }}</td>
-                        <td style="text-align:left;">
-    					{% for f in item.folios %}
-    					<span style="color: {{ 'red' if f.es_negado else ('#f39c12' if f.es_parcial else 'black') }}; cursor:pointer; text-decoration: underline;" 
-        					onclick="verDetalleFolio('{{ f.numero }}')" title="Clic para ver detalle">
-						    {{ f.numero }}</span>{{ ", " if not loop.last }}
-						{% endfor %}
-				        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
+           <h2>2. Listado de Folios por Día (Clic para detalle)</h2>
+<table style="table-layout: auto; width: 100%;">
+    <thead>
+        <tr>
+            <th>Día</th>
+            <th>Cant.</th>
+            <th>Folios</th>
+            <th>Acción</th> <!-- Nueva columna -->
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in listado_folios %}
+        <tr>
+            <td><strong>{{ item.dia }}</strong></td>
+            <td>{{ item.cantidad }}</td>
+            <td style="text-align:left;">
+                {% for f in item.folios %}
+                <span style="color: {{ 'red' if f.es_negado else ('#f39c12' if f.es_parcial else 'black') }}; cursor:pointer; text-decoration: underline;" 
+                    onclick="verDetalleFolio('{{ f.numero }}')" title="Clic para ver detalle">
+                    {{ f.numero }}</span>{{ ", " if not loop.last }}
+                {% endfor %}
+            </td>
+            <!-- BOTÓN INTEGRADO EN LA FILA DEL DÍA -->
+            <td>
+                <button class="btn-cargar-dia" data-dia="{{ item.dia }}" style="background-color: #28a745; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold;">
+                    Guardar Día {{ item.dia }}
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+            
             <h2>3. Detalle de Operación por Día (Clic para expandir)</h2>
             <div class="accordion" id="listaDiasDetalle">
                 {% for item in listado_folios %}
@@ -293,5 +307,94 @@
             alert("Tabla copiada al portapapeles");
         }
     </script>
+
+<script>
+// Leemos las variables directamente desde tu render_template
+const deFolios = {{ detalle_folios | tojson }};
+const liFolios = {{ listado_folios | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Escuchar el clic en los botones de guardar instalados en tu tabla
+    document.querySelectorAll('.btn-cargar-dia').forEach(button => {
+        button.addEventListener('click', function() {
+            const diaSel = parseInt(this.getAttribute('data-dia'));
+            const botonActual = this;
+
+            // Buscar el grupo de folios válidos del día en el listado de la tabla
+            const datosDia = liFolios.find(item => item.dia === diaSel);
+            if (!datosDia || datosDia.folios.length === 0) {
+                alert('No hay folios válidos (<= 3 claves) para guardar en este día.');
+                return;
+            }
+
+            // Filtrar nuestro objeto de medicamentos para mandar solo las recetas autorizadas
+            const paqueteRecetas = {};
+            datosDia.folios.forEach(f => {
+                const num = String(f.numero);
+                if (deFolios[num]) { 
+                    paqueteRecetas[num] = deFolios[num]; 
+                }
+            });
+
+            // Cambiar estados del botón para evitar clics duplicados
+            botonActual.disabled = true;
+            const textoOrig = botonActual.innerHTML;
+            botonActual.innerHTML = 'Guardando...';
+            // 1. Agrega esta línea justo antes del fetch para capturar el token de tu HTML
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+                  || "{{ csrf_token() if csrf_token else '' }}";
+
+// 2. Modifica las cabeceras (headers) de tu fetch actual para que quede así:
+fetch("{{ url_for(request.blueprint + '.guardar_dia_local') if request.blueprint else url_for('guardar_dia_local') }}", {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken  // 🌟 Inyectamos el token de seguridad aquí
+    },
+    body: JSON.stringify({ dia: diaSel, recetas: paqueteRecetas })
+})
+
+            // Ejecutar la petición HTTP reconociendo el Blueprint actual automáticamente
+            fetch("{{ url_for(request.blueprint + '.guardar_dia_local') if request.blueprint else url_for('guardar_dia_local') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dia: diaSel, recetas: paqueteRecetas })
+            })
+            .then(res => {
+                if (!res.ok && res.headers.get('content-type').includes('text/html')) {
+                    throw new Error('Sesión expirada o permisos insuficientes (403/404).');
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('¡Éxito!: ' + data.message);
+                    botonActual.style.backgroundColor = '#17a2b8';
+                    botonActual.innerHTML = '✓ Guardado';
+                } else if (data.status === 'warning') {
+                    alert('Aviso: ' + data.message);
+                    botonActual.disabled = false;
+                    botonActual.style.backgroundColor = '#28a745';
+                    botonActual.innerHTML = textoOrig;
+                } else {
+                    alert('Error en base de datos: ' + data.message);
+                    botonActual.disabled = false;
+                    botonActual.style.backgroundColor = '#dc3545';
+                    botonActual.innerHTML = 'Reintentar';
+                }
+            })
+            .catch(err => {
+                alert('Error de comunicación: ' + err.message);
+                botonActual.disabled = false;
+                botonActual.style.backgroundColor = '#28a745';
+                botonActual.innerHTML = textoOrig;
+            });
+        });
+    });
+});
+</script>
+
+
+
 </body>
 {% endblock %}
