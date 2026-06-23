@@ -250,7 +250,6 @@ def auditoria():
 from sqlalchemy.exc import OperationalError
 # 🌟 AGREGA 'jsonify' A TUS IMPORTACIONES DE FLASK AL INICIO DEL ARCHIVO 🌟
 from flask import Flask, render_template, request, Blueprint, jsonify, session
-
 @bp.route("/guardar_dia", methods=["POST"])
 @roles_required([ 'UsuarioAdministrativo', 'Administrador'])
 def guardar_dia_local():
@@ -281,7 +280,27 @@ def guardar_dia_local():
                     print(f"⚠️ El folio [{folio_str}] YA EXISTE en Postgres. Saltando...")
                     continue 
 
-                print(f"🔍 Procesando folio NUEVO: [{folio_str}] con {len(medicamentos)} medicamentos asignados.")
+                # 🌟 DETERMINACIÓN DINÁMICA DEL ESTATUS SEGÚN SUS MEDICAMENTOS
+                tiene_surtido = False
+                tiene_negado = False
+
+                for med in medicamentos:
+                    cant_surtida = int(med.get('Surtida', 0))
+                    if cant_surtida > 0:
+                        tiene_surtido = True
+                    else:
+                        tiene_negado = True
+
+                # Clasificación de estatus alineado a tu lógica de negocio
+                if tiene_surtido and not tiene_negado:
+                    estatus_texto = "Surtida"
+                elif tiene_surtido and tiene_negado:
+                    estatus_texto = "Parcial"
+                else:
+                    estatus_texto = "No surtida"
+
+                print(f"🔍 Procesando folio NUEVO: [{folio_str}] | Estatus: [{estatus_texto}] con {len(medicamentos)} medicamentos asignados.")
+                
                 nueva_receta = RecetaMedica(
                     folio=folio_str,
                     fecha_emision=datetime.utcnow(), 
@@ -289,7 +308,7 @@ def guardar_dia_local():
                     id_usuario=current_user.id_usuario if hasattr(current_user, 'id_usuario') else 1,  
                     id_asignacion=2,      
                     diagnostico_id=1,  
-                    tipo_surtimiento="No surtida",
+                    tipo_surtimiento=estatus_texto, # 🌟 Se inyecta dinámicamente el estatus calculado
                     nota_id=5
                 )
 
@@ -297,7 +316,7 @@ def guardar_dia_local():
                 for med in medicamentos:
                     clave_reporte = str(med.get('Clave', '')).strip()
                     
-                    # 🌟 BÚSQUEDA FLEXIBLE: Coincide sin importar los dos últimos dígitos (.00, .01, etc.)
+                    # BÚSQUEDA FLEXIBLE: Coincide sin importar los dos últimos dígitos (.00, .01, etc.)
                     medicamento_db = db.session.query(Medicamento).filter(
                         Medicamento.clave.like(f"{clave_reporte}%")
                     ).first()
@@ -334,7 +353,7 @@ def guardar_dia_local():
                 print("🎉 ¡Commit exitoso! Datos guardados físicamente.")
                 return jsonify({
                     'status': 'success', 
-                    'message': f'Sincronización completada. Se guardaron {folios_guardados} folios limpios en la base de datos local.'
+                    'message': f'Sincronización completada. Se guardaron {folios_guardados} folios limpios en la base de datos local con sus estatus reales.'
                 })
             else:
                 print("⚠️ Advertencia: El bucle terminó pero el contador de folios es 0. Nada que guardar.")
@@ -360,7 +379,6 @@ def guardar_dia_local():
             db.session.rollback()
             print(f"💥 Error crítico de consistencia en Postgres: {str(e)}")
             return jsonify({'status': 'error', 'message': f'Error de consistencia en Postgres: {str(e)}'}), 500
-
 
 #______________________________________________________________________________________________________________________________________________
 from datetime import datetime

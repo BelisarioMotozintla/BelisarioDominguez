@@ -30,7 +30,10 @@ class Medicamento(db.Model):
     nivel_movimiento = Column(
         Enum('Nulo', 'Bajo', 'Medio', 'Alto', name='nivel_movimiento_enum'),
         default='Nulo'
-    )
+    )# 🆕 CLAVE FORÁNEA: Enlace directo al grupo terapéutico
+    grupo_id = Column(Integer, ForeignKey('imss_grupos_terapeuticos.grupo_id'), nullable=True) # Usa nullable=False si todos DEBEN tener grupo
+
+
 
     # Relaciones con otras tablas
     entrada_almacen = relationship('EntradaAlmacen', back_populates='medicamento')
@@ -43,6 +46,9 @@ class Medicamento(db.Model):
     inventario_farmacia = relationship('InventarioFarmacia', back_populates='medicamento')
     detalle_receta = relationship('DetalleReceta', back_populates='medicamento')
     bitacora_movimiento = relationship('BitacoraMovimiento', back_populates='medicamento')
+
+	# 🆕 RELACIÓN: Permite acceder a los datos del grupo desde el medicamento
+    grupo_terapeutico = relationship('GrupoTerapeutico', back_populates='medicamentos')
 
     def calcular_cpm(self, meses=3):
         """
@@ -74,6 +80,20 @@ class Medicamento(db.Model):
             self.nivel_movimiento = 'Medio'
         else:
             self.nivel_movimiento = 'Alto'
+            
+# Modelo GrupoTerapeutico
+class GrupoTerapeutico(db.Model):
+    __tablename__ = 'imss_grupos_terapeuticos'
+
+    grupo_id = Column(Integer, primary_key=True)
+    nombre_grupo = Column(String(150), nullable=False)
+    rango_inicio = Column(Integer, nullable=False)
+    rango_fin = Column(Integer, nullable=False)
+    cuidado_especial = Column(String(255))
+
+    # Relación inversa: Un grupo tiene muchos medicamentos
+    medicamentos = relationship('Medicamento', back_populates='grupo_terapeutico')
+    
 # Modelo EntradaAlmacen
 class EntradaAlmacen(db.Model):
     __tablename__ = 'EntradaAlmacen'
