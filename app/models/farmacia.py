@@ -32,7 +32,7 @@ class Medicamento(db.Model):
         default='Nulo'
     )# 🆕 CLAVE FORÁNEA: Enlace directo al grupo terapéutico
     grupo_id = Column(Integer, ForeignKey('imss_grupos_terapeuticos.grupo_id'), nullable=True) # Usa nullable=False si todos DEBEN tener grupo
-
+    material_familia_id = db.Column(db.String(3), db.ForeignKey('public.imss_material_familias.familia_id'), nullable=True)    
 
 
     # Relaciones con otras tablas
@@ -49,19 +49,20 @@ class Medicamento(db.Model):
 
 	# 🆕 RELACIÓN: Permite acceder a los datos del grupo desde el medicamento
     grupo_terapeutico = relationship('GrupoTerapeutico', back_populates='medicamentos')
-
+    material_familia_id = db.Column(db.String(3), db.ForeignKey('public.imss_material_familias.familia_id'), nullable=True)
+	
     def calcular_cpm(self, meses=3):
         """
-        Calcula el Consumo Promedio Mensual basado en salidas de los últimos 'meses' meses.
+        Calcula el Consumo Promedio Mensual basado en la relación activa salidas_farmacia.
         """
         from datetime import datetime, timedelta, timezone
         
-        # 1. Usar timezone.utc (utcnow está en proceso de eliminación en Python 3.12+)
+        # 1. Usar timezone.utc de forma correcta
         fecha_limite = datetime.now(timezone.utc) - timedelta(days=30 * meses)
         
-        # 2. Filtrar asegurando que la fecha no sea None y esté en el rango
+        # 2. Filtrar usando la relación activa 'salidas_farmacia'
         salidas_recientes = [
-            s.cantidad for s in self.salida_farmacia_paciente 
+            s.cantidad for s in self.salidas_farmacia 
             if s.fecha_salida and s.fecha_salida >= fecha_limite
         ]
 
@@ -71,7 +72,7 @@ class Medicamento(db.Model):
         else:
             self.cpm = 0.0
 
-        # 4. Actualizar nivel de movimiento con lógica simplificada
+        # 4. Actualizar nivel de movimiento
         if self.cpm == 0:
             self.nivel_movimiento = 'Nulo'
         elif self.cpm <= 5:
@@ -80,6 +81,8 @@ class Medicamento(db.Model):
             self.nivel_movimiento = 'Medio'
         else:
             self.nivel_movimiento = 'Alto'
+
+    
             
 # Modelo GrupoTerapeutico
 class GrupoTerapeutico(db.Model):
@@ -94,6 +97,21 @@ class GrupoTerapeutico(db.Model):
     # Relación inversa: Un grupo tiene muchos medicamentos
     medicamentos = relationship('Medicamento', back_populates='grupo_terapeutico')
     
+    
+class MaterialFamilia(db.Model):
+    __tablename__ = 'imss_material_familias'
+    __table_args__ = {'schema': 'public'} # Especifica tu esquema de PostgreSQL
+
+    familia_id = db.Column(db.String(3), primary_key=True)
+    nombre_familia = db.Column(db.String(100), nullable=False)
+    indicacion_almacen = db.Column(db.String(255), nullable=True)
+
+    # Relación inversa opcional para poder hacer: familia.medicamentos
+    medicamentos = db.relationship('Medicamento', backref='familia_material', lazy=True)
+
+ 
+ 
+ 
 # Modelo EntradaAlmacen
 class EntradaAlmacen(db.Model):
     __tablename__ = 'EntradaAlmacen'

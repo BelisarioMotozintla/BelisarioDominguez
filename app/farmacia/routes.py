@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, render_template, redirect, url_fo
 from datetime import datetime,timedelta,timezone,date
 import calendar
 from app import db
-from app.models.farmacia import Medicamento, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento
+from app.models.farmacia import Medicamento,GrupoTerapeutico,MaterialFamilia, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento
 from app.models.personal import Usuario, Empleado
 from flask_login import current_user
 from app.utils.helpers import roles_required
@@ -788,6 +788,299 @@ def eliminar_medicamento(id_medicamento):
     db.session.commit()
     flash("✅ Medicamento eliminado correctamente", "success")
     return redirect(url_for('farmacia.listar_medicamentos'))
+
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++Grupo Terapeutico +++++++++++++++++++++++++++++++++++++++++
+@bp.route('/GrupoTerapeutico')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def lista_grupos_terapeuticos():
+    # 1. CONSULTA PARA MEDICAMENTOS (Grupos 1 al 23)
+    # Filtramos para asegurarnos de contar solo registros que inicien con 010 o 040
+    resultados_medicamentos = db.session.query(
+        GrupoTerapeutico.grupo_id,
+        GrupoTerapeutico.nombre_grupo,
+        GrupoTerapeutico.rango_inicio,
+        GrupoTerapeutico.rango_fin,
+        db.func.count(Medicamento.clave) # Usamos tu columna real 'clave'
+    ).join(
+        Medicamento, 
+        Medicamento.grupo_id == GrupoTerapeutico.grupo_id,
+        isouter=True
+    ).group_by(
+        GrupoTerapeutico.grupo_id,
+        GrupoTerapeutico.nombre_grupo,
+        GrupoTerapeutico.rango_inicio,
+        GrupoTerapeutico.rango_fin
+    ).order_by(
+        GrupoTerapeutico.grupo_id.asc()
+    ).all()
+
+    # 2. CONSULTA PARA MATERIAL DE CURACIÓN Y REACTIVOS (Las 74 familias)
+    # Asumiendo que tu modelo de SQLAlchemy para la nueva tabla se llama 'MaterialFamilia'
+    resultados_materiales = db.session.query(
+        MaterialFamilia.familia_id,
+        MaterialFamilia.nombre_familia,
+        db.func.count(Medicamento.clave)
+    ).join(
+        Medicamento,
+        Medicamento.material_familia_id == MaterialFamilia.familia_id,
+        isouter=True
+    ).group_by(
+        MaterialFamilia.familia_id,
+        MaterialFamilia.nombre_familia
+    ).order_by(
+        MaterialFamilia.familia_id.asc()
+    ).all()
+    
+    etiquetas_catalogo = {
+        '010': '010 - Medicamentos',
+        '040': '040 - Psicotrópicos',
+        '060': '060 - Mat. Curación',
+        '070': '070 - Laboratorio',
+        '080': '080 - Radiología'
+    }
+
+    datos_procesados = []
+
+    # 3. PROCESAR MEDICAMENTOS (Identifica si es 010 o 040 de forma dinámica)
+    for grupo_id, nombre, inicio, fin, total in resultados_medicamentos:
+        # Si el grupo es 19 (Psiquiatría) y manejas Naloxona, puede ser 040, si no 010
+        tipo = '040' if grupo_id == 19 else '010' 
+        
+        datos_procesados.append({
+            'id': grupo_id,
+            'nombre': nombre,
+            'tipo': tipo,
+            'tipo_label': etiquetas_catalogo.get(tipo),
+            'inicio': inicio,
+            'fin': fin,
+            'total': total
+        })
+
+    # 4. PROCESAR MATERIALES, LABORATORIO Y RADIOLOGÍA
+    for familia_id, nombre, total in resultados_materiales:
+        # Detectamos dinámicamente el tipo leyendo el inicio de la familia
+        # Las claves 060, 070 y 080 se identifican por sus rangos cargados
+        if familia_id in ['707']: 
+            tipo = '070' # Laboratorio / Placas dentales
+        elif familia_id in ['018', '855', '889']: 
+            tipo = '080' # Radiología y servicios / Tiras reactivas
+        else: 
+            tipo = '060' # Material de curación estándar (Agujas, gasas, etc.)
+
+        datos_procesados.append({
+            'id': familia_id,
+            'nombre': nombre,
+            'tipo': tipo,
+            'tipo_label': etiquetas_catalogo.get(tipo),
+            'inicio': 'N/A', # El material de curación no usa rangos
+            'fin': 'N/A',
+            'total': total
+        })
+
+    return render_template('farmacia/grupoterapeutico.html', grupos=datos_procesados)
+
+
+@bp.route('/GrupoTerapeutico/<int:grupo_id>')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def detalle_GrupoTerapeutico(grupo_id):
+    grupo = db.get_or_404(GrupoTerapeutico, grupo_id)
+    
+    medicamentos_con_stock = []
+    for med in grupo.medicamentos:
+        # 1. Sumamos existencias reales de almacén y farmacia
+        stock_almacen = sum(inv.cantidad for inv in med.inventario_almacen if inv.cantidad)
+        stock_farmacia = sum(inv.cantidad for inv in med.inventario_farmacia if inv.cantidad)
+        stock_total = stock_almacen + stock_farmacia
+        
+        # 2. Extraemos los lotes únicos registrados en ambos inventarios
+        lotes = set()
+        for inv in med.inventario_almacen:
+            if getattr(inv, 'lote', None): lotes.add(inv.lote)
+        for inv in med.inventario_farmacia:
+            if getattr(inv, 'lote', None): lotes.add(inv.lote)
+        lotes_str = ", ".join(lotes) if lotes else "N/A"
+        
+        # 3. Recolectamos las fechas de vencimiento de ambas tablas
+        caducidades = []
+        for inv in med.inventario_almacen:
+            if getattr(inv, 'fecha_vencimiento', None): 
+                caducidades.append(inv.fecha_vencimiento)
+        for inv in med.inventario_farmacia:
+            if getattr(inv, 'fecha_vencimiento', None): 
+                caducidades.append(inv.fecha_vencimiento)
+        
+        # Obtenemos la fecha más próxima a vencer y la formateamos de manera limpia
+        if caducidades:
+            proxima_caducidad = min(caducidades)
+            caducidad_str = proxima_caducidad.strftime('%Y-%m-%d') if hasattr(proxima_caducidad, 'strftime') else str(proxima_caducidad)
+        else:
+            caducidad_str = "N/A"
+            
+        # 4. Lógica del semáforo visual según las existencias totales contra el mínimo
+        if stock_total == 0:
+            color_semaforo = "table-danger text-danger"
+        elif stock_total <= (med.stock_minimo or 10):
+            color_semaforo = "table-warning text-warning-emphasis"
+        else:
+            color_semaforo = "table-success text-success"
+
+        medicamentos_con_stock.append({
+            'clave': med.clave,
+            'principio_activo': med.principio_activo,
+            'presentacion': med.presentacion,
+            'concentracion': med.concentracion,
+            'lote': lotes_str,
+            'caducidad': caducidad_str,
+            'stock_almacen': stock_almacen,
+            'stock_farmacia': stock_farmacia,
+            'stock_total': stock_total,
+            'color_semaforo': color_semaforo
+        })
+        
+    return render_template('farmacia/detallegrupoterapeutico.html', grupo=grupo, medicamentos=medicamentos_con_stock)
+    
+
+@bp.route('/Medicamentos/TipoVia/<string:via_tipo>')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def ver_por_tipo_via(via_tipo):
+    etiquetas = {
+        'solidos': 'Medicamentos Sólidos y Formas Sólidas (Tabletas, Cápsulas, Grageas, Óvulos, etc.)',
+        'liquidos': 'Soluciones, Líquidos y Suspensiones (Jarabes, Gotas, Suspensiones)',
+        'inyectables': 'Inyectables y Vías Intravenosas (Ampolletas, Frascos Ámpula)'
+    }
+    
+    query_meds = db.session.query(Medicamento)
+    
+    # RESTRICCIÓN INSTITUCIONAL: Solo jala productos cuyas claves inicien con 010 o 040
+    query_meds = query_meds.filter(
+        Medicamento.clave.like('010.%') | Medicamento.clave.like('040.%')
+    )
+    
+    # CLASIFICACIÓN ESTRICTA CON EXCLUSIONES POR FORMA FARMACÉUTICA
+    if via_tipo == 'solidos':
+        query_meds = query_meds.filter(
+            (
+                Medicamento.via_administracion.ilike('%oral%') |
+                Medicamento.via_administracion.ilike('%tableta%') |
+                Medicamento.via_administracion.ilike('%capsula%') |
+                Medicamento.via_administracion.ilike('%comprimido%') |
+                Medicamento.via_administracion.ilike('%gragea%') |
+                Medicamento.via_administracion.ilike('%ovulo%') |
+                Medicamento.via_administracion.ilike('%polvo%') |
+                Medicamento.via_administracion.ilike('%supositorio%') |
+                Medicamento.presentacion.ilike('%tableta%') |
+                Medicamento.presentacion.ilike('%capsula%') |
+                Medicamento.presentacion.ilike('%comprimido%') |
+                Medicamento.presentacion.ilike('%gragea%') |
+                Medicamento.presentacion.ilike('%ovulo%')
+            ) & 
+            ~Medicamento.via_administracion.ilike('%solución%') &
+            ~Medicamento.via_administracion.ilike('%suspensión%') &
+            ~Medicamento.via_administracion.ilike('%jarabe%') &
+            ~Medicamento.via_administracion.ilike('%gotas%') &
+            ~Medicamento.via_administracion.ilike('%inyectable%') &
+            ~Medicamento.presentacion.ilike('%solución%') &
+            ~Medicamento.presentacion.ilike('%suspensión%') &
+            ~Medicamento.presentacion.ilike('%jarabe%') &
+            ~Medicamento.presentacion.ilike('%gotas%') &
+            ~Medicamento.presentacion.ilike('%inyectable%')
+        )
+
+    elif via_tipo == 'liquidos':
+        query_meds = query_meds.filter(
+            (
+                Medicamento.via_administracion.ilike('%solución%') |
+                Medicamento.via_administracion.ilike('%líquido%') |
+                Medicamento.via_administracion.ilike('%jarabe%') |
+                Medicamento.via_administracion.ilike('%suspensión%') |
+                Medicamento.via_administracion.ilike('%gotas%') |
+                Medicamento.via_administracion.ilike('%elíxir%') |
+                Medicamento.via_administracion.ilike('%emulsión%') |
+                Medicamento.via_administracion.ilike('%spray%') |
+                Medicamento.presentacion.ilike('%solución%') |
+                Medicamento.presentacion.ilike('%jarabe%') |
+                Medicamento.presentacion.ilike('%suspensión%') |
+                Medicamento.presentacion.ilike('%gotas%') |
+                Medicamento.presentacion.ilike('%líquido%')
+            ) &
+            ~Medicamento.via_administracion.ilike('%inyectable%') &
+            ~Medicamento.via_administracion.ilike('%intravenosa%') &
+            ~Medicamento.via_administracion.ilike('%intramuscular%') &
+            ~Medicamento.presentacion.ilike('%ampolleta%') &
+            ~Medicamento.presentacion.ilike('%frasco ámpula%')
+        )
+
+    elif via_tipo == 'inyectables':
+        query_meds = query_meds.filter(
+            Medicamento.via_administracion.ilike('%inyectable%') |
+            Medicamento.via_administracion.ilike('%intravenosa%') |
+            Medicamento.via_administracion.ilike('%ampolleta%') |
+            Medicamento.via_administracion.ilike('%intramuscular%') |
+            Medicamento.via_administracion.ilike('%subcutánea%') |
+            Medicamento.presentacion.ilike('%ampolleta%') |
+            Medicamento.presentacion.ilike('%frasco ámpula%') |
+            Medicamento.presentacion.ilike('%inyectable%')
+        )
+    
+    medicamentos_filtrados = query_meds.order_by(Medicamento.clave.asc()).all()
+    
+    # Mapeo de inventarios, lotes y semáforo visual (Alineación exacta con el HTML)
+    datos_medicamentos = []
+    for med in medicamentos_filtrados:
+        stock_almacen = sum(inv.cantidad for inv in med.inventario_almacen if inv.cantidad)
+        stock_farmacia = sum(inv.cantidad for inv in med.inventario_farmacia if inv.cantidad)
+        stock_total = stock_almacen + stock_farmacia
+        
+        lotes = set()
+        for inv in med.inventario_almacen:
+            if getattr(inv, 'lote', None): lotes.add(inv.lote)
+        for inv in med.inventario_farmacia:
+            if getattr(inv, 'lote', None): lotes.add(inv.lote)
+        lotes_str = ", ".join(lotes) if lotes else "N/A"
+        
+        caducidades = []
+        for inv in med.inventario_almacen:
+            if getattr(inv, 'fecha_vencimiento', None): caducidades.append(inv.fecha_vencimiento)
+        for inv in med.inventario_farmacia:
+            if getattr(inv, 'fecha_vencimiento', None): caducidades.append(inv.fecha_vencimiento)
+            
+        if caducidades:
+            proxima_caducidad = min(caducidades)
+            caducidad_str = proxima_caducidad.strftime('%Y-%m-%d') if hasattr(proxima_caducidad, 'strftime') else str(proxima_caducidad)
+        else:
+            caducidad_str = "N/A"
+            
+        if stock_total == 0:
+            color_semaforo = "table-danger text-danger"
+        elif stock_total <= (med.stock_minimo or 10):
+            color_semaforo = "table-warning text-warning-emphasis"
+        else:
+            color_semaforo = "table-success text-success"
+
+        datos_medicamentos.append({
+            'clave': med.clave,
+            'principio_activo': med.principio_activo,
+            'presentacion': med.presentacion,
+            'concentracion': med.concentracion,
+            'lote': lotes_str,
+            'caducidad': caducidad_str,
+            'stock_almacen': stock_almacen,
+            'stock_farmacia': stock_farmacia,
+            'stock_total': stock_total,
+            'color_semaforo': color_semaforo
+        })
+
+    titulo_vista = etiquetas.get(via_tipo, 'Listado de Insumos')
+    return render_template('farmacia/tipovia.html', medicamentos=datos_medicamentos, titulo=titulo_vista)
+
+    
+
+
+    
+
+#__________________________________________________________________________________________________________________________________
 
 ancho_hoja, alto_hoja = letter
 

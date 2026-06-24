@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <!-- BOTÓN DE RETORNO -->
+    <div class="mb-3">
+        <a href="{{ url_for('farmacia.lista_grupos_terapeuticos') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Grupos Terapéuticos
+        </a>
+    </div>
+    
+    <div class="card border-primary shadow mb-4">
+        <div class="card-header bg-primary text-white py-3">
+            <h3 class="mb-0">📋 {{ titulo }}</h3>
+        </div>
+        <div class="card-body bg-white text-muted">
+            Mostrando todos los insumos activos en el sistema que corresponden a esta categoría de administración médica.
+        </div>
+    </div>
+
+    <!-- BUSCADOR EN TIEMPO REAL -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="buscadorInsumos" class="form-control border-start-0 ps-0" 
+                       placeholder="Buscar por Clave, Principio Activo o Lote...">
+            </div>
+        </div>
+    </div>
+
+    <h4 class="mb-3 text-secondary">Medicamentos Encontrados (<span id="contadorMeds">{{ medicamentos|length }}</span>)</h4>
+    
+    <!-- ENVOLTURA PARA EVITAR EL DESBORDE DE LA TARJETA -->
+    <div class="card shadow">
+        <div class="card-body p-0">
+            <div class="table-responsive"> <!-- 👈 ESTA CLASE DETIENE EL DESCUADRE -->
+                <table class="table table-hover table-striped align-middle mb-0" style="font-size: 0.9rem;" id="tablaInsumos">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Clave IMSS</th>
+                            <th>Principio Activo / Descripción</th>
+                            <th>Presentación / Concentración</th>
+                            <th>Lote(s)</th>
+                            <th>Fecha Vencimiento</th>
+                            <th class="text-center bg-light text-dark">Exist. Almacén</th>
+                            <th class="text-center bg-light text-dark">Exist. Farmacia</th>
+                            <th class="text-center table-primary">Total Sistema</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for med in medicamentos %}
+                        <tr class="fila-medicamento">
+                            <td class="font-monospace fw-bold text-dark celda-clave">{{ med.clave }}</td>
+                            <td class="celda-principio">{{ med.principio_activo }}</td>
+                            <td>{{ med.presentacion }} - {{ med.concentracion }}</td>
+                            <td><span class="badge bg-secondary celda-lote">{{ med.lote }}</span></td>
+                            <td class="text-muted fw-bold">{{ med.caducidad }}</td>
+                            <td class="text-center fw-bold text-secondary bg-light">{{ med.stock_almacen }}</td>
+                            <td class="text-center fw-bold text-secondary bg-light">{{ med.stock_farmacia }}</td>
+                            <td class="text-center fw-bold {{ med.color_semaforo }}">{{ med.stock_total }}</td>
+                        </tr>
+                        {% else %}
+                        <tr id="filaVacia">
+                            <td colspan="8" class="text-center text-muted py-4">No hay medicamentos registrados bajo este tipo de vía actualmente.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div> <!-- 👈 FINAL DE LA ENVOLTURA RESPONSIVA -->
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DE JAVASCRIPT PARA EL FILTRADO EN TIEMPO REAL -->
+<script>
+document.getElementById('buscadorInsumos').addEventListener('keyup', function() {
+    const textoBusqueda = this.value.toLowerCase().trim();
+    const filas = document.querySelectorAll('.fila-medicamento');
+    let contadorVisibles = 0;
+
+    filas.forEach(fila => {
+        const clave = fila.querySelector('.celda-clave').textContent.toLowerCase();
+        const principio = fila.querySelector('.celda-principio').textContent.toLowerCase();
+        const lote = fila.querySelector('.celda-lote').textContent.toLowerCase();
+
+        if (clave.includes(textoBusqueda) || principio.includes(textoBusqueda) || lote.includes(textoBusqueda)) {
+            fila.style.display = '';
+            contadorVisibles++;
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+
+    document.getElementById('contadorMeds').textContent = contadorVisibles;
+});
+</script>
+{% endblock %}

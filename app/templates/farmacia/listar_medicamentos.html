@@ -8,6 +8,9 @@
       <a href="{{ url_for('farmacia.nuevo_medicamento') }}" class="btn btn-success">
         <i class="bi bi-plus-circle"></i> Nuevo Medicamento
       </a>
+    <a href="{{ url_for('farmacia.lista_grupos_terapeuticos') }}" class="btn btn-primary">
+  <i class="bi bi-list-ul"></i> Ver Grupos Terapéuticos
+</a>
       <!-- Botón para descargar el PDF filtrado o completo -->
 <div class="mb-3 text-end">
     <a href="{{ url_for('farmacia.catalogo_medicamentos', q=query) }}" target="_blank" class="btn btn-danger">

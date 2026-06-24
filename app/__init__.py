@@ -14,7 +14,7 @@ def create_app():
     from app.models.archivo_clinico import UnidadSalud, Paciente, PacienteUnidad, ArchivoClinico, SolicitudExpediente
     from app.models.personal import Usuario, Roles, Empleado, Turno, Puesto, Servicio, Estudios,MAC,PagoInternet
     from app.models.medicos import NotaConsultaExterna,Consulta,FolioCertificado,DiagnosticoPaciente,TratamientoFarmacologico,ControlClinico,Laboratorio,SignosVitales,PieDiabetico
-    from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento
+    from app.models.farmacia import Medicamento, EntradaAlmacen, MovimientoAlmacenFarmacia, TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, InventarioAlmacen, InventarioFarmacia,BloqueReceta,AsignacionReceta,Diagnostico,RecetaMedica, DetalleReceta, BitacoraAccion, BitacoraMovimiento,GrupoTerapeutico,MaterialFamilia
     from app.models.enfermeria import RegistroAdultoMayor, Archivo
     from app.models.comentario import Comentario
     from app.models.citas import Cita,Consultorio,Disponibilidad,Notificacion
