@@ -4,10 +4,17 @@
 
 {% block content %}
 <div class="container my-5">
+    <!-- ⬅️ BOTÓN REGRESAR AL PANEL -->
+    <div class="mb-4">
+        <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Regresar al Panel
+        </a>
+    </div>
+
     <h2 class="mb-4 text-primary text-center">🗂️ Grupos Terapéuticos e Insumos</h2>
-    <div class="container my-5">
+    
     <!-- TRES BOTONES DIRECTOS E INDEPENDIENTES -->
-    <div class="d-flex justify-content-center gap-3 mb-4">
+    <div class="d-flex justify-content-center gap-3 mb-5">
         <a href="{{ url_for('farmacia.ver_por_tipo_via', via_tipo='solidos') }}" class="btn btn-primary px-4 py-2 shadow-sm">
             💊 Sólidos (Oral)
         </a>
@@ -18,41 +25,137 @@
             💉 Inyectables
         </a>
     </div>
-    <div class="card shadow">
-        <div class="card-body p-0">
-            <table class="table table-hover table-striped mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Catálogo</th>
-                        <th>Nombre del Grupo Terapéutico</th>
-                        <th>Rango de Claves</th>
-                        <th class="text-center">Total Productos</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in grupos %}
-                    <tr>
-                        <td>
-                            <span class="badge {% if item.tipo == '010' %}bg-success{% elif item.tipo == '040' %}bg-danger{% elif item.tipo == '060' %}bg-warning text-dark{% else %}bg-info{% endif %}">
-                                {{ item.tipo_label }}
-                            </span>
-                        </td>
-                        <td>
-                            <!-- ENLACE CORREGIDO: Aseguramos el uso de item.id con estilo interactivo -->
-                            <a href="{{ url_for('farmacia.detalle_GrupoTerapeutico', grupo_id=item.id) }}" class="text-decoration-none fw-bold text-primary">
-                                {{ item.nombre }}
-                            </a>
-                        </td>
-                        <td class="text-muted">{{ item.inicio }} - {{ item.fin }}</td>
-                        <td class="text-center fw-bold text-primary">
-                            <!-- Muestra el total real resultante de la consulta masiva -->
-                            {{ item.total }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <!-- PESTAÑAS DE NAVEGACIÓN -->
+    <ul class="nav nav-tabs mb-4" id="catalogoTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="medicamentos-tab" data-bs-toggle="tab" data-bs-target="#medicamentos-pane" type="button" role="tab">
+                💊 Medicamentos y Psicotrópicos
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="materiales-tab" data-bs-toggle="tab" data-bs-target="#materiales-pane" type="button" role="tab">
+                📦 Materiales, Lab y Radio
+            </button>
+        </li>
+    </ul>
+
+    <!-- CONTENIDO DE LAS PESTAÑAS -->
+    <div class="tab-content" id="catalogoTabsContent">
+        
+        <!-- PANE DE MEDICAMENTOS -->
+        <div class="tab-pane fade show active" id="medicamentos-pane" role="tabpanel" tabindex="0">
+            <!-- 🔍 BUSCADOR DE MEDICAMENTOS -->
+            <div class="mb-3">
+                <input type="text" id="buscarMedicamento" class="form-control shadow-sm" placeholder="🔍 Buscar por nombre, catálogo o rango de medicamentos...">
+            </div>
+
+            <div class="card shadow">
+                <div class="card-body p-0">
+                    <table class="table table-hover table-striped mb-0" id="tablaMedicamentos">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Catálogo</th>
+                                <th>Nombre del Grupo Terapéutico</th>
+                                <th>Rango de Claves</th>
+                                <th class="text-center">Total Productos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in medicamentos %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if item.tipo == '010' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ item.tipo_label }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <!-- LÍNEA CORREGIDA: grupo_id en lugar de group_id -->
+                                    <a href="{{ url_for('farmacia.detalle_GrupoTerapeutico', tipo='medicamento', grupo_id=item.id) }}" class="text-decoration-none fw-bold text-primary">
+                                        {{ item.nombre }}
+                                    </a>
+                                </td>
+                                <td class="text-muted">{{ item.inicio }} - {{ item.fin }}</td>
+                                <td class="text-center fw-bold text-primary">{{ item.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+
+        <!-- PANE DE MATERIALES -->
+        <div class="tab-pane fade" id="materiales-pane" role="tabpanel" tabindex="0">
+            <!-- 🔍 BUSCADOR DE MATERIALES -->
+            <div class="mb-3">
+                <input type="text" id="buscarMaterial" class="form-control shadow-sm" placeholder="🔍 Buscar por familia, concepto o código de material...">
+            </div>
+
+            <div class="card shadow">
+                <div class="card-body p-0">
+                    <table class="table table-hover table-striped mb-0" id="tablaMateriales">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Catálogo</th>
+                                <th>Familia / Concepto</th>
+                                <th class="text-center">Total Productos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in materiales %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if item.tipo == '060' %}bg-warning text-dark{% elif item.tipo == '070' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ item.tipo_label }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('farmacia.detalle_GrupoTerapeutico', tipo='material', grupo_id=item.id) }}" class="text-decoration-none fw-bold text-primary">
+                                        {{ item.nombre }}
+                                    </a>
+                                </td>
+                                <td class="text-center fw-bold text-primary">{{ item.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+
+<!-- SCRIPT DE FILTRADO EN TIEMPO REAL -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function configurarFiltro(idInput, idTabla) {
+        const input = document.getElementById(idInput);
+        const tabla = document.getElementById(idTabla);
+        if (!input || !tabla) return;
+
+        const tbody = tabla.querySelector("tbody");
+        if (!tbody) return;
+        const filas = tbody.getElementsByTagName("tr");
+
+        input.addEventListener("keyup", function() {
+            const filtro = input.value.toLowerCase().trim();
+
+            for (let i = 0; i < filas.length; i++) {
+                const textoFila = filas[i].textContent.toLowerCase();
+                
+                if (textoFila.includes(filtro)) {
+                    filas[i].style.display = "";
+                } else {
+                    filas[i].style.display = "none";
+                }
+            }
+        });
+    }
+
+    configurarFiltro("buscarMedicamento", "tablaMedicamentos");
+    configurarFiltro("buscarMaterial", "tablaMateriales");
+});
+</script>
 {% endblock %}

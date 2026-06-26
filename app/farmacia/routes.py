@@ -796,13 +796,12 @@ def eliminar_medicamento(id_medicamento):
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def lista_grupos_terapeuticos():
     # 1. CONSULTA PARA MEDICAMENTOS (Grupos 1 al 23)
-    # Filtramos para asegurarnos de contar solo registros que inicien con 010 o 040
     resultados_medicamentos = db.session.query(
         GrupoTerapeutico.grupo_id,
         GrupoTerapeutico.nombre_grupo,
         GrupoTerapeutico.rango_inicio,
         GrupoTerapeutico.rango_fin,
-        db.func.count(Medicamento.clave) # Usamos tu columna real 'clave'
+        db.func.count(Medicamento.clave)
     ).join(
         Medicamento, 
         Medicamento.grupo_id == GrupoTerapeutico.grupo_id,
@@ -817,7 +816,6 @@ def lista_grupos_terapeuticos():
     ).all()
 
     # 2. CONSULTA PARA MATERIAL DE CURACIÓN Y REACTIVOS (Las 74 familias)
-    # Asumiendo que tu modelo de SQLAlchemy para la nueva tabla se llama 'MaterialFamilia'
     resultados_materiales = db.session.query(
         MaterialFamilia.familia_id,
         MaterialFamilia.nombre_familia,
@@ -841,14 +839,15 @@ def lista_grupos_terapeuticos():
         '080': '080 - Radiología'
     }
 
-    datos_procesados = []
+    # SEPARACIÓN DE LISTAS
+    lista_medicamentos = []
+    lista_materiales = []
 
-    # 3. PROCESAR MEDICAMENTOS (Identifica si es 010 o 040 de forma dinámica)
+    # 3. PROCESAR MEDICAMENTOS
     for grupo_id, nombre, inicio, fin, total in resultados_medicamentos:
-        # Si el grupo es 19 (Psiquiatría) y manejas Naloxona, puede ser 040, si no 010
         tipo = '040' if grupo_id == 19 else '010' 
         
-        datos_procesados.append({
+        lista_medicamentos.append({
             'id': grupo_id,
             'nombre': nombre,
             'tipo': tipo,
@@ -860,41 +859,58 @@ def lista_grupos_terapeuticos():
 
     # 4. PROCESAR MATERIALES, LABORATORIO Y RADIOLOGÍA
     for familia_id, nombre, total in resultados_materiales:
-        # Detectamos dinámicamente el tipo leyendo el inicio de la familia
-        # Las claves 060, 070 y 080 se identifican por sus rangos cargados
         if familia_id in ['707']: 
-            tipo = '070' # Laboratorio / Placas dentales
+            tipo = '070'
         elif familia_id in ['018', '855', '889']: 
-            tipo = '080' # Radiología y servicios / Tiras reactivas
+            tipo = '080'
         else: 
-            tipo = '060' # Material de curación estándar (Agujas, gasas, etc.)
+            tipo = '060'
 
-        datos_procesados.append({
+        lista_materiales.append({
             'id': familia_id,
             'nombre': nombre,
             'tipo': tipo,
             'tipo_label': etiquetas_catalogo.get(tipo),
-            'inicio': 'N/A', # El material de curación no usa rangos
+            'inicio': 'N/A',
             'fin': 'N/A',
             'total': total
         })
 
-    return render_template('farmacia/grupoterapeutico.html', grupos=datos_procesados)
+    # ENVÍO DE VARIABLES SEPARADAS AL HTML
+    return render_template(
+        'farmacia/grupoterapeutico.html', 
+        medicamentos=lista_medicamentos, 
+        materiales=lista_materiales
+    )
 
 
-@bp.route('/GrupoTerapeutico/<int:grupo_id>')
+
+# Añadimos <string:tipo> a la URL (ej. 'medicamento' o 'material')
+@bp.route('/GrupoTerapeutico/<string:tipo>/<string:grupo_id>')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
-def detalle_GrupoTerapeutico(grupo_id):
-    grupo = db.get_or_404(GrupoTerapeutico, grupo_id)
+def detalle_GrupoTerapeutico(tipo, grupo_id):
+    es_material = (tipo == 'material')
+    nombre_grupo_o_familia = ""
+    grupo = None
     
-    medicamentos_con_stock = []
-    for med in grupo.medicamentos:
-        # 1. Sumamos existencias reales de almacén y farmacia
+    if not es_material:
+        # Forzamos la búsqueda estricta en Medicamentos
+        grupo = db.get_or_404(GrupoTerapeutico, int(grupo_id))
+        nombre_grupo_o_familia = grupo.nombre_grupo
+        medicamentos_base = db.session.query(Medicamento).filter(Medicamento.grupo_id == int(grupo_id)).all()
+    else:
+        # Forzamos la búsqueda estricta en Materiales (aquí '004' se queda como string)
+        familia = db.get_or_404(MaterialFamilia, grupo_id)
+        nombre_grupo_o_familia = familia.nombre_familia
+        medicamentos_base = db.session.query(Medicamento).filter(Medicamento.material_familia_id == grupo_id).all()
+    
+    insumos_con_stock = []
+    
+    for med in medicamentos_base:
         stock_almacen = sum(inv.cantidad for inv in med.inventario_almacen if inv.cantidad)
         stock_farmacia = sum(inv.cantidad for inv in med.inventario_farmacia if inv.cantidad)
         stock_total = stock_almacen + stock_farmacia
         
-        # 2. Extraemos los lotes únicos registrados en ambos inventarios
         lotes = set()
         for inv in med.inventario_almacen:
             if getattr(inv, 'lote', None): lotes.add(inv.lote)
@@ -902,23 +918,18 @@ def detalle_GrupoTerapeutico(grupo_id):
             if getattr(inv, 'lote', None): lotes.add(inv.lote)
         lotes_str = ", ".join(lotes) if lotes else "N/A"
         
-        # 3. Recolectamos las fechas de vencimiento de ambas tablas
         caducidades = []
         for inv in med.inventario_almacen:
-            if getattr(inv, 'fecha_vencimiento', None): 
-                caducidades.append(inv.fecha_vencimiento)
+            if getattr(inv, 'fecha_vencimiento', None): caducidades.append(inv.fecha_vencimiento)
         for inv in med.inventario_farmacia:
-            if getattr(inv, 'fecha_vencimiento', None): 
-                caducidades.append(inv.fecha_vencimiento)
+            if getattr(inv, 'fecha_vencimiento', None): caducidades.append(inv.fecha_vencimiento)
         
-        # Obtenemos la fecha más próxima a vencer y la formateamos de manera limpia
         if caducidades:
             proxima_caducidad = min(caducidades)
             caducidad_str = proxima_caducidad.strftime('%Y-%m-%d') if hasattr(proxima_caducidad, 'strftime') else str(proxima_caducidad)
         else:
             caducidad_str = "N/A"
             
-        # 4. Lógica del semáforo visual según las existencias totales contra el mínimo
         if stock_total == 0:
             color_semaforo = "table-danger text-danger"
         elif stock_total <= (med.stock_minimo or 10):
@@ -926,11 +937,11 @@ def detalle_GrupoTerapeutico(grupo_id):
         else:
             color_semaforo = "table-success text-success"
 
-        medicamentos_con_stock.append({
+        insumos_con_stock.append({
             'clave': med.clave,
-            'principio_activo': med.principio_activo,
-            'presentacion': med.presentacion,
-            'concentracion': med.concentracion,
+            'nombre': med.principio_activo or med.descripcion,
+            'presentacion': med.presentacion or "N/A",
+            'concentracion': med.concentracion or "N/A",
             'lote': lotes_str,
             'caducidad': caducidad_str,
             'stock_almacen': stock_almacen,
@@ -939,7 +950,15 @@ def detalle_GrupoTerapeutico(grupo_id):
             'color_semaforo': color_semaforo
         })
         
-    return render_template('farmacia/detallegrupoterapeutico.html', grupo=grupo, medicamentos=medicamentos_con_stock)
+    return render_template(
+        'farmacia/detallegrupoterapeutico.html', 
+        grupo=grupo,
+        nombre_catalogo=nombre_grupo_o_familia, 
+        insumos=insumos_con_stock,
+        es_material=es_material
+    )
+
+
     
 
 @bp.route('/Medicamentos/TipoVia/<string:via_tipo>')
@@ -1456,6 +1475,133 @@ def listar_entradas():
     return render_template('farmacia/entradas.html', 
                            entradas=entradas, 
                            query=query)
+                           
+                           
+import io
+from datetime import date
+from flask import Response, render_template, request
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+# --- VISTA 1: MUESTRA LA TABLA HERMOSA EN LA PANTALLA ---
+@bp.route('/reporte_almacen_existencias')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def reporte_almacen_existencias():
+    todos_los_insumos = (
+        db.session.query(Medicamento, InventarioAlmacen)
+        .join(InventarioAlmacen) 
+        .filter(InventarioAlmacen.cantidad > 0)
+        .order_by(Medicamento.principio_activo.asc())
+        .all()
+    )
+    
+    lista_medicamentos = []
+    lista_materiales = []
+    
+    for med, inv in todos_los_insumos:
+        clave = med.clave if med.clave else ""
+        if clave.startswith('010') or clave.startswith('040'):
+            lista_medicamentos.append((med, inv))
+        elif clave.startswith('060') or clave.startswith('080'):
+            lista_materiales.append((med, inv))
+            
+    return render_template(
+        'farmacia/reporte_almacen.html', 
+        medicamentos=lista_medicamentos,
+        materiales=lista_materiales,
+        current_date=date.today()
+    )
+
+# --- VISTA 2: PROCESA LA DESCARGA DE LOS EXCEL INDEPENDIENTES ---
+@bp.route('/reporte_almacen_excel')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def reporte_almacen_excel():
+    tipo_reporte = request.args.get('tipo', 'medicamentos')
+    
+    todos_los_insumos = (
+        db.session.query(Medicamento, InventarioAlmacen)
+        .join(InventarioAlmacen) 
+        .filter(InventarioAlmacen.cantidad > 0)
+        .order_by(Medicamento.principio_activo.asc())
+        .all()
+    )
+    
+    wb = Workbook()
+    ws = wb.active
+    
+    # Estilos Visuales Premium
+    fuente_cabecera = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
+    fuente_datos = Font(name='Segoe UI', size=11, color='333333')
+    fuente_clave = Font(name='Consolas', size=10, color='555555')
+    fuente_cantidad = Font(name='Segoe UI', size=11, bold=True, color='1F4E78')
+    relleno_cebra = PatternFill(start_color='F9FBFD', end_color='F9FBFD', fill_type='solid')
+    al_centro = Alignment(horizontal='center', vertical='center')
+    al_izq = Alignment(horizontal='left', vertical='center')
+    borde_delgado = Border(left=Side(style='thin', color='E0E0E0'), right=Side(style='thin', color='E0E0E0'), top=Side(style='thin', color='E0E0E0'), bottom=Side(style='thin', color='E0E0E0'))
+
+    # Configuración según el botón presionado
+    if tipo_reporte == 'materiales':
+        ws.title = "Material de Curación"
+        relleno_cabecera = PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid') # Verde
+        nombre_archivo = f"Excel_Materiales_{date.today().strftime('%Y-%m-%d')}.xlsx"
+    else:
+        ws.title = "Medicamentos"
+        relleno_cabecera = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid') # Azul
+        nombre_archivo = f"Excel_Medicamentos_{date.today().strftime('%Y-%m-%d')}.xlsx"
+
+    # SOLUCIÓN AL ERROR DE GRIDLINES
+    ws.sheet_view.showGridLines = True
+
+    encabezados = ["Clave", "Principio Activo", "Presentación", "Lote", "Fecha Vencimiento", "Existencia"]
+    ws.append(encabezados)
+    
+    for cell in ws[1]:
+        cell.font = fuente_cabecera
+        cell.fill = relleno_cabecera
+        cell.alignment = al_centro
+
+    # Filtrar datos según el archivo solicitado
+    for med, inv in todos_los_insumos:
+        clave = med.clave if med.clave else ""
+        es_med = clave.startswith('010') or clave.startswith('040')
+        es_mat = clave.startswith('060') or clave.startswith('080')
+        
+        if (tipo_reporte == 'medicamentos' and es_med) or (tipo_reporte == 'materiales' and es_mat):
+            fecha_cad = inv.fecha_vencimiento.strftime('%Y-%m-%d') if inv.fecha_vencimiento else "Sin fecha"
+            ws.append([
+                med.clave, 
+                med.principio_activo.upper(), 
+                med.presentacion if med.presentacion else "N/A", 
+                inv.lote if inv.lote else "N/A", 
+                fecha_cad, 
+                inv.cantidad
+            ])
+
+    # Formatear filas de datos
+    ws.row_dimensions[1].height = 26
+    for row_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=2):
+        ws.row_dimensions[row_idx].height = 20
+        row[0].font = fuente_clave; row[0].alignment = al_centro
+        row[1].font = fuente_datos; row[1].alignment = al_izq
+        row[2].font = fuente_datos; row[2].alignment = al_izq
+        row[3].font = fuente_datos; row[3].alignment = al_centro
+        row[4].font = fuente_datos; row[4].alignment = al_centro
+        row[5].font = fuente_cantidad; row[5].alignment = al_centro
+        row[5].number_format = '#,##0'
+        
+        for cell in row:
+            cell.border = borde_delgado
+            if row_idx % 2 == 0:
+                cell.fill = relleno_cebra
+                
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = max(max_len + 3, 12)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return Response(output.read(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"})
 
 
 

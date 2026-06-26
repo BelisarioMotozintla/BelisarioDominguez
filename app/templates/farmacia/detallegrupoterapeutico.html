@@ -1,28 +1,35 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ grupo.nombre_grupo }}{% endblock %}
+<!-- Cambia dinámicamente el título de la pestaña del navegador -->
+{% block title %}{{ nombre_catalogo }}{% endblock %}
 
 {% block content %}
 <div class="container my-5">
     <a href="{{ url_for('farmacia.lista_grupos_terapeuticos') }}" class="btn btn-outline-secondary mb-3">
-        <i class="bi bi-arrow-left"></i> Volver al Panel
-    </a>
+    <i class="bi bi-arrow-left"></i> Volver al Panel
+</a>
     
     <div class="card border-primary shadow mb-4">
         <div class="card-header bg-primary text-white">
-            <h3 class="mb-0">{{ grupo.nombre_grupo }}</h3>
+            <h3 class="mb-0">{{ nombre_catalogo }}</h3>
         </div>
         <div class="card-body">
-            <p><strong>Rango autorizado:</strong> Claves entre la {{ grupo.rango_inicio }} y {{ grupo.rango_fin }}</p>
-            {% if grupo.cuidado_especial %}
-            <div class="alert alert-warning mb-0">
-                <strong>⚠️ Cuidados Especiales:</strong> {{ grupo.cuidado_especial }}
-            </div>
+            <!-- Muestra los rangos únicamente si el insumo pertenece a Medicamentos -->
+            {% if not es_material and grupo %}
+                <p class="mb-0"><strong>Rango autorizado:</strong> Claves entre la {{ grupo.rango_inicio }} y {{ grupo.rango_fin }}</p>
+                {% if grupo.cuidado_especial %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    <strong>⚠️ Cuidados Especiales:</strong> {{ grupo.cuidado_especial }}
+                </div>
+                {% endif %}
+            {% else %}
+                <p class="mb-0 text-muted"><em>Este catálogo corresponde a una familia de Materiales de Curación / Reactivos y no utiliza rangos de claves fijos.</em></p>
             {% endif %}
         </div>
     </div>
 
-    <h4 class="mb-3 text-secondary">Medicamentos / Materiales en este Grupo ({{ medicamentos|length }})</h4>
+    <!-- Contador dinámico adaptado a la variable unificada 'insumos' -->
+    <h4 class="mb-3 text-secondary">Productos / Insumos en este Grupo ({{ insumos|length }})</h4>
     
     <div class="card shadow">
         <div class="card-body p-0">
@@ -31,7 +38,10 @@
                     <tr>
                         <th>Clave IMSS</th>
                         <th>Principio Activo / Descripción</th>
+                        <!-- Oculta o muestra la cabecera según el tipo de catálogo -->
+                        {% if not es_material %}
                         <th>Presentación / Concentración</th>
+                        {% endif %}
                         <th>Lote(s)</th>
                         <th>Fecha Vencimiento</th>
                         <th class="text-center bg-light text-dark">Exist. Almacén</th>
@@ -40,20 +50,26 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for med in medicamentos %}
+                    {% for item in insumos %}
                     <tr>
-                        <td class="font-monospace fw-bold text-dark">{{ med.clave }}</td>
-                        <td>{{ med.principio_activo }}</td>
-                        <td>{{ med.presentacion }} - {{ med.concentracion }}</td>
-                        <td><span class="badge bg-secondary">{{ med.lote }}</span></td>
-                        <td class="text-muted fw-bold">{{ med.caducidad }}</td>
-                        <td class="text-center fw-bold text-secondary bg-light">{{ med.stock_almacen }}</td>
-                        <td class="text-center fw-bold text-secondary bg-light">{{ med.stock_farmacia }}</td>
-                        <td class="text-center fw-bold {{ med.color_semaforo }}">{{ med.stock_total }}</td>
+                        <td class="font-monospace fw-bold text-dark">{{ item.clave }}</td>
+                        <td>{{ item.nombre }}</td>
+                        <!-- Oculta el contenido de presentación si es material -->
+                        {% if not es_material %}
+                        <td>{{ item.presentacion }} - {{ item.concentracion }}</td>
+                        {% endif %}
+                        <td><span class="badge bg-secondary">{{ item.lote }}</span></td>
+                        <td class="text-muted fw-bold">{{ item.caducidad }}</td>
+                        <td class="text-center fw-bold text-secondary bg-light">{{ item.stock_almacen }}</td>
+                        <td class="text-center fw-bold text-secondary bg-light">{{ item.stock_farmacia }}</td>
+                        <!-- El semáforo de color se aplica directamente sobre la celda del total tal como lo tenías -->
+                        <td class="text-center fw-bold {{ item.color_semaforo }}">{{ item.stock_total }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">No hay productos registrados en este grupo terapéutico.</td>
+                        <td colspan="{% if es_material %}7{% else %}8{% endif %}" class="text-center text-muted py-4">
+                            No hay productos registrados en este grupo terapéutico o familia.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
