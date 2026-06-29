@@ -2719,3 +2719,236 @@ def reporte_inventario():
         'farmacia/reporte_inventario.html',
         reporte=reporte
     )
+#))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))\&&&&&&&&&&&&&&&&&& imprimir etiquetas
+
+import os
+from flask import Flask, send_file, request, current_app
+from io import BytesIO
+
+# Componentes de ReportLab para el renderizado preciso del PDF y gráficos nativos
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Image as RLImage
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.graphics.shapes import Drawing, Circle  # Para dibujar el círculo perfecto
+
+@bp.route('/imprimir_formatos_etiquetas')
+def imprimir_formatos_etiquetas():
+    query_param = request.args.get('q', '')
+    
+    # Ruta física de la imagen del logotipo institucional oficial
+    ruta_logo = os.path.join(current_app.root_path, 'static', 'img', 'logo_imss.png')
+    
+    # 1. UNIFICACIÓN DE CATÁLOGOS (Medicamento + Material de Curación)
+    query_meds = db.session.query(
+        Medicamento.clave.label('clave'),
+        Medicamento.principio_activo.label('nombre_insumo'),
+        Medicamento.presentacion.label('presentacion'),
+        Medicamento.concentracion.label('concentracion'),
+        Medicamento.via_administracion.label('via_o_tipo'),
+        db.literal('MEDICAMENTO').label('origen_tabla')
+    )
+    
+    if 'MaterialCuracion' in db.metadata.tables:
+        query_material = db.session.query(
+            MaterialCuracion.clave.label('clave'),
+            MaterialCuracion.descripcion.label('nombre_insumo'),
+            MaterialCuracion.presentacion.label('presentacion'),
+            db.literal('N/A').label('concentracion'),
+            MaterialCuracion.unidad_medida.label('via_o_tipo'),
+            db.literal('MATERIAL_CURACION').label('origen_tabla')
+        )
+        query_final = query_meds.union(query_material)
+    else:
+        query_final = query_meds
+
+    if query_param:
+        query_final = query_final.filter(Medicamento.principio_activo.ilike(f'%{query_param}%'))
+        
+    insumos = query_final.order_by(db.desc('origen_tabla'), 'nombre_insumo').all()
+
+    if not insumos:
+        return "No hay insumos disponibles que coincidan con los criterios.", 404
+
+    # 2. CONFIGURACIÓN GEOMÉTRICA DE LA HOJA
+    buffer = BytesIO()
+    # Mantenemos márgenes óptimos de 15 puntos
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=28, rightMargin=28, topMargin=15, bottomMargin=15)
+    story = []
+    
+    styles = getSampleStyleSheet()
+    
+    # --- ESTILOS TIPOGRÁFICOS CORREGIDOS ---
+    style_body = ParagraphStyle('Body', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=colors.black)
+    style_valor_destacado = ParagraphStyle('ValorDestacado', fontName='Helvetica-Bold', fontSize=11, leading=12, textColor=colors.black)
+
+    # PALETA DE LOS TRES COLORES OFICIALES PARA LAS BARRERAS DE LA CABECERA
+    COLORES_ALERTA = {
+        "ALTO RIESGO": colors.HexColor("#D32F2F"),   # Rojo
+        "LASA": colors.HexColor("#1976D2"),          # Azul
+        "ESTÁNDAR": colors.HexColor("#1E5D30")       # Verde
+    }
+
+    datos_tabla = []
+    fila_actual = []
+    contador_etiquetas = 0  
+    
+    # Proporciones exactas de la cuadrícula ajustadas para el logotipo
+    ancho_etiqueta = 270  
+    alto_etiqueta = 164   
+    altura_cabecera = 30  
+
+    for insumo in insumos:
+        # 3. SEGREGACIÓN DE ALERTAS VISUALES
+        tipo_alerta = "ESTÁNDAR"
+        nombre_evaluar = insumo.nombre_insumo.upper() if insumo.nombre_insumo else ""
+        
+        if insumo.origen_tabla == 'MEDICAMENTO':
+            if any(k in nombre_evaluar for k in ["INSULINA", "ENOXAPARINA", "BICARBONATO", "POTASIO"]):
+                tipo_alerta = "ALTO RIESGO"
+            elif any(k in nombre_evaluar for k in ["DIGOXINA", "DORIXINA", "DIMENHIDRINATO"]):
+                tipo_alerta = "LASA"
+        else:
+            tipo_alerta = "ESTÁNDAR"
+
+        # 4. BARRERAS TIPOGRÁFICAS EN EL NOMBRE (Acción Esencial 3 D)
+        nombre_final = insumo.nombre_insumo.upper() if insumo.nombre_insumo else "SIN DESCRIPCIÓN"
+        if tipo_alerta == "LASA":
+            nombre_final = f"<u>{nombre_final}</u>"
+
+        # 5. CONSTRUCCIÓN DE LA CABECERA (Logo proporcionado y centrado)
+        img_logo = RLImage(ruta_logo, width=185, height=26) if os.path.exists(ruta_logo) else Paragraph("<b>IMSS BIENESTAR</b>", style_valor_destacado)
+        
+        tabla_cabecera = Table([[img_logo]], colWidths=[ancho_etiqueta], rowHeights=[altura_cabecera])
+        color_franja = COLORES_ALERTA.get(tipo_alerta)
+        
+        tabla_cabecera.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), color_franja),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('PADDING', (0,0), (-1,-1), 0),
+        ]))
+
+        # 6. GENERACIÓN DEL CÍRCULO VECTORIAL PERFECTO
+        dibujo_circulo = Drawing(30, 30)
+        circulo_nativo = Circle(15, 15, 12)
+        circulo_nativo.fillColor = colors.white        
+        circulo_nativo.strokeColor = colors.HexColor("#777777") 
+        circulo_nativo.strokeWidth = 1.5               
+        dibujo_circulo.add(circulo_nativo)
+
+        # 7. CUERPO DE LA ETIQUETA
+        html_clave = f"<font size='7.5'>CLAVE:</font> <font size='11'><b>{insumo.clave}</b></font>"
+        parrafo_clave = Paragraph(html_clave, style_body)
+        
+        html_fechas = f"<b>FECHA DE CADUCIDAD:</b> ____ / ____"
+        parrafo_fechas = Paragraph(html_fechas, style_body)
+        
+        html_lote = f"<font size='7.5'>LOTE:</font> <font size='11'><b>_____________________</b></font>"
+        parrafo_lote = Paragraph(html_lote, style_body)
+        
+        html_nombre = f"<font size='7.5'>NOMBRE GENÉRICO:</font><br/><font size='11'><b>{nombre_final}</b></font>"
+        parrafo_nombre_tag = Paragraph(html_nombre, style_body)
+        
+        html_restante = f"""
+        <b>FORMA FARMACÉUTICA:</b> {insumo.presentacion or '____________________'}<br/>
+        <b>CONCENTRACIÓN:</b> {insumo.concentracion or '____________________'}<br/>
+        <b>VIA DE ADMINISTRACIÓN / TIPO:</b> {insumo.via_o_tipo or '____________________'}<br/>
+        <b>DATOS DE CONSERVACIÓN:</b> _________________________________
+        """
+        parrafo_restante = Paragraph(html_restante, style_body)
+
+        filas_datos = [
+            [parrafo_clave],
+            [parrafo_fechas],
+            [parrafo_lote],
+            [parrafo_nombre_tag],
+            [parrafo_restante]
+        ]
+        
+        tabla_datos_izquierda = Table(filas_datos, colWidths=[ancho_etiqueta - 45])
+        tabla_datos_izquierda.setStyle(TableStyle([
+            ('PADDING', (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING', (0,0), (0,0), 3), 
+            ('BOTTOMPADDING', (0,1), (0,1), 3), 
+            ('BOTTOMPADDING', (0,2), (0,2), 4), 
+            ('BOTTOMPADDING', (0,3), (0,3), 3), 
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ]))
+
+        tabla_cuerpo_blanco = Table([
+            [tabla_datos_izquierda, dibujo_circulo]
+        ], colWidths=[ancho_etiqueta - 45, 45], rowHeights=[alto_etiqueta - altura_cabecera])
+        
+        tabla_cuerpo_blanco.setStyle(TableStyle([
+            ('PADDING', (0,0), (-1,-1), 0),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (0,0), 10),
+            ('ALIGN', (1,0), (1,0), 'RIGHT'),
+            ('RIGHTPADDING', (1,0), (1,0), 10),
+        ]))
+        
+        # Integración final de la Etiqueta
+        tabla_individual = Table([
+            [tabla_cabecera],
+            [tabla_cuerpo_blanco]
+        ], colWidths=[ancho_etiqueta], rowHeights=[altura_cabecera, alto_etiqueta - altura_cabecera])
+        
+        tabla_individual.setStyle(TableStyle([
+            ('PADDING', (0,0), (-1,-1), 0),
+            ('BACKGROUND', (0,1), (0,1), colors.white),
+            ('BOX', (0,0), (-1,-1), 1, colors.black),
+        ]))
+        
+        fila_actual.append(tabla_individual)
+        contador_etiquetas += 1
+        
+        if len(fila_actual) == 2:
+            datos_tabla.append(fila_actual)
+            fila_actual = []
+            
+        if contador_etiquetas == 6:
+            tabla_planilla = Table(datos_tabla, colWidths=[ancho_etiqueta + 14] * 2)
+            tabla_planilla.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 8), # <--- MICRO-CALIBRACIÓN: Reducido de 14 a 8 para asegurar que no salte de página por milímetros
+                ('TOPPADDING', (0,0), (-1,-1), 0),
+                ('LEFTPADDING', (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ]))
+            story.append(tabla_planilla)
+            story.append(PageBreak())  
+            
+            datos_tabla = []
+            contador_etiquetas = 0
+
+    if fila_actual:
+        while len(fila_actual) < 2:
+            fila_actual.append("") 
+        datos_tabla.append(fila_actual)
+        
+    if datos_tabla:
+        tabla_planilla = Table(datos_tabla, colWidths=[ancho_etiqueta + 14] * 2)
+        tabla_planilla.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8), # <--- MICRO-CALIBRACIÓN: Ajuste de seguridad final
+            ('TOPPADDING', (0,0), (-1,-1), 0),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ]))
+        story.append(tabla_planilla)
+
+    doc.build(story)
+    
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name="etiquetas_imss_oficiales.pdf", mimetype="application/pdf")
+
+
+
+
+
+
+
