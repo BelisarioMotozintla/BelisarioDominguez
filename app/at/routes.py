@@ -1,5 +1,5 @@
 
-from flask import Flask, render_template, request, Blueprint
+from flask import Flask, render_template, request, Blueprint,jsonify
 import os
 import pandas as pd
 import json
@@ -245,140 +245,371 @@ def auditoria():
     return render_template("index.html")
 
 #_______________+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy import or_
+import collections
 
-# 🌟 AGREGA ESTA IMPORTACIÓN AL INICIO DE TU ARCHIVO DE RUTAS 🌟
-from sqlalchemy.exc import OperationalError
-# 🌟 AGREGA 'jsonify' A TUS IMPORTACIONES DE FLASK AL INICIO DEL ARCHIVO 🌟
-from flask import Flask, render_template, request, Blueprint, jsonify, session
 @bp.route("/guardar_dia", methods=["POST"])
-@roles_required([ 'UsuarioAdministrativo', 'Administrador'])
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
 def guardar_dia_local():
-    payload = request.get_json() or {}
-    dia_seleccionado = payload.get('dia')
-    recetas_inyectadas = payload.get('recetas', {})
 
-    print(f"\n🚀 [INICIO] Petición recibida para el día: {dia_seleccionado}")
-    print(f"📦 Total de folios enviados desde el cliente: {len(recetas_inyectadas)}")
+    payload = request.get_json() or {}
+
+    dia_seleccionado = payload.get("dia")
+    recetas_inyectadas = payload.get("recetas", {})
 
     if not recetas_inyectadas:
-        print("❌ Error: El payload de recetas llegó vacío.")
-        return jsonify({'status': 'error', 'message': 'No se encontraron folios validados para guardar en este día.'}), 400
+        return jsonify({
+            "status": "error",
+            "message": "No se encontraron folios."
+        }), 400
 
-    intentos_red = 3  
+
+    # ======================================================
+    # OBTENER LOS FOLIOS QUE YA EXISTEN
+    # ======================================================
+
+    folios_enviados = list(recetas_inyectadas.keys())
+
+    folios_existentes = {
+        r.folio
+        for r in (
+            db.session.query(RecetaMedica.folio)
+            .filter(RecetaMedica.folio.in_(folios_enviados))
+            .all()
+        )
+    }
+
+
+    # ======================================================
+    # OBTENER TODAS LAS CLAVES DEL ARCHIVO
+    # ======================================================
+
+    prefijos_claves = set()
+
+    for medicamentos in recetas_inyectadas.values():
+
+        for med in medicamentos:
+
+            clave = str(
+                med.get("Clave", "")
+            ).strip()
+
+            if clave:
+                prefijos_claves.add(clave)
+
+
+    # ======================================================
+    # CARGAR MEDICAMENTOS E INVENTARIO DE UNA SOLA VEZ
+    # ======================================================
+
+    medicamentos_dict = {}
+
+    if prefijos_claves:
+
+        condiciones = [
+            Medicamento.clave.like(f"{c}%")
+            for c in prefijos_claves
+        ]
+
+        consulta = (
+            db.session.query(
+                Medicamento,
+                InventarioFarmacia
+            )
+            .outerjoin(
+                InventarioFarmacia,
+                InventarioFarmacia.id_medicamento ==
+                Medicamento.id_medicamento
+            )
+            .filter(or_(*condiciones))
+            .all()
+        )
+
+
+        # Contar las bases para detectar excepciones
+        conteo_bases = collections.Counter(
+            [m.clave[:12] for m, _ in consulta]
+        )
+
+        def normalizar_hibrido(clave):
+            clave = str(clave).strip()
+            base = clave[:12]
+
+            if conteo_bases[base] > 1:
+                return clave[:15]
+
+            return base
+
+        for medicamento, inventario in consulta:
+            clave_normalizada = normalizar_hibrido(medicamento.clave)
+
+            medicamentos_dict[clave_normalizada] = {
+                "medicamento": medicamento,
+                "inventario": inventario
+            }
+    
+
+
+    # ======================================================
+    # INICIO DE IMPORTACIÓN
+    # ======================================================
+
+    intentos_red = 3
 
     while intentos_red > 0:
-        folios_guardados = 0 
-        print(f"🔄 Intentando procesar lote en base de datos. Intentos restantes: {intentos_red}")
-        
-        try:
-            print("--- INICIANDO PROCESAMIENTO DE RECETAS ---")
-            for folio_str, medicamentos in recetas_inyectadas.items():
-                
-                # 1. Validación de unicidad contra Postgres
-                existe_en_db = db.session.query(RecetaMedica).filter_by(folio=folio_str).first()
-                if existe_en_db:
-                    print(f"⚠️ El folio [{folio_str}] YA EXISTE en Postgres. Saltando...")
-                    continue 
 
-                # 🌟 DETERMINACIÓN DINÁMICA DEL ESTATUS SEGÚN SUS MEDICAMENTOS
+        db.session.rollback()
+
+        folios_guardados = 0
+
+        try:
+            # ======================================================
+            # RECORRER CADA FOLIO DEL DÍA
+            # ======================================================
+            recetas_nuevas = []
+            salidas_nuevas = []
+
+            for folio_str, medicamentos in recetas_inyectadas.items():
+
+                folio_str = str(folio_str).strip()
+
+                # --------------------------------------------
+                # Evitar folios repetidos
+                # (BD y mismo lote de importación)
+                # --------------------------------------------
+
+                if folio_str in folios_existentes:
+                    continue
+
                 tiene_surtido = False
                 tiene_negado = False
 
+                # --------------------------------------------
+                # Calcular tipo de surtimiento
+                # --------------------------------------------
+
                 for med in medicamentos:
-                    cant_surtida = int(med.get('Surtida', 0))
-                    if cant_surtida > 0:
+
+                    cantidad_recetada = int(
+                        med.get("Recetada", 0)
+                    )
+
+                    cantidad_surtida = int(
+                        med.get("Surtida", 0)
+                    )
+
+                    if cantidad_surtida > 0:
                         tiene_surtido = True
-                    else:
+
+                    if cantidad_surtida < cantidad_recetada:
                         tiene_negado = True
 
-                # Clasificación de estatus alineado a tu lógica de negocio
-                if tiene_surtido and not tiene_negado:
-                    estatus_texto = "Surtida"
-                elif tiene_surtido and tiene_negado:
-                    estatus_texto = "Parcial"
-                else:
-                    estatus_texto = "No surtida"
 
-                print(f"🔍 Procesando folio NUEVO: [{folio_str}] | Estatus: [{estatus_texto}] con {len(medicamentos)} medicamentos asignados.")
-                
+                if tiene_surtido and tiene_negado:
+
+                    tipo_surtimiento = "Parcial"
+
+                elif tiene_surtido:
+
+                    tipo_surtimiento = "Completa"
+
+                else:
+
+                    tipo_surtimiento = "No surtida"
+
+
+                # --------------------------------------------
+                # Crear la receta
+                # --------------------------------------------
+
                 nueva_receta = RecetaMedica(
+
                     folio=folio_str,
-                    fecha_emision=datetime.utcnow(), 
-                    id_paciente=64,        
-                    id_usuario=current_user.id_usuario if hasattr(current_user, 'id_usuario') else 1,  
-                    id_asignacion=2,      
-                    diagnostico_id=1,  
-                    tipo_surtimiento=estatus_texto, # 🌟 Se inyecta dinámicamente el estatus calculado
+
+                    fecha_emision=datetime.utcnow(),
+
+                    id_paciente=64,
+
+                    id_usuario=(
+                        current_user.id_usuario
+                        if hasattr(current_user, "id_usuario")
+                        else 1
+                    ),
+
+                    id_asignacion=2,
+
+                    diagnostico_id=1,
+
+                    tipo_surtimiento=tipo_surtimiento,
+
                     nota_id=5
                 )
 
-                # 3. Insertar los detalles buscando variantes (.00, .01, .02) con LIKE
+
+                # --------------------------------------------
+                # Marcar el folio como procesado
+                # (evita duplicados en el mismo archivo)
+                # --------------------------------------------
+
+                folios_existentes.add(folio_str)
+
+
+                # --------------------------------------------
+                # Ahora recorreremos los medicamentos
+                # (Parte 3)
+                # --------------------------------------------
+
                 for med in medicamentos:
-                    clave_reporte = str(med.get('Clave', '')).strip()
-                    
-                    # BÚSQUEDA FLEXIBLE: Coincide sin importar los dos últimos dígitos (.00, .01, etc.)
-                    medicamento_db = db.session.query(Medicamento).filter(
-                        Medicamento.clave.like(f"{clave_reporte}%")
-                    ).first()
-                    
-                    if not medicamento_db:
-                        print(f"   ❌ No se encontró ninguna variante para la clave [{clave_reporte}%] en Postgres. Saltando medicamento.")
-                        continue 
-                    
-                    print(f"   🎯 Clave mapeada con éxito: [{clave_reporte}] -> Encontrado en DB como: [{medicamento_db.clave}]")
-                    
-                    nuevo_detalle = DetalleReceta(
-                        id_medicamento=medicamento_db.id_medicamento,  
-                        cantidad=int(med.get('Recetada', 0)),
-                        cantidad_surtida=int(med.get('Surtida', 0)),
-                        dosis="Dosis establecida por auditoría SAI",
-                        indicaciones=str(med.get('Descripcion', 'S/D'))
+                    # ============================================
+                    # BUSCAR EL MEDICAMENTO EN MEMORIA
+                    # ============================================
+
+                    clave_reporte = normalizar_hibrido(
+                        med.get("Clave", "")
                     )
-                    nueva_receta.detalle.append(nuevo_detalle)
 
-                # Validamos si la receta se quedó con al menos un detalle válido
+                    registro = medicamentos_dict.get(clave_reporte)
+                    if registro is None:
+                        continue
+
+                    medicamento_db = registro["medicamento"]
+                    inventario = registro["inventario"]
+
+                    cantidad_recetada = int(
+                        med.get("Recetada", 0)
+                    )
+
+                    cantidad_surtida = int(
+                        med.get("Surtida", 0)
+                    )
+
+                    # ============================================
+                    # CREAR DETALLE DE RECETA
+                    # (Se conserva exactamente lo reportado por SAI)
+                    # ============================================
+
+                    nuevo_detalle = DetalleReceta(
+                        id_medicamento=medicamento_db.id_medicamento,
+                        cantidad=cantidad_recetada,
+                        cantidad_surtida=cantidad_surtida,
+                        dosis="Dosis establecida por auditoría SAI",
+                        indicaciones=str(
+                            med.get("Descripcion", "S/D")
+                        )
+                    )
+
+                    nueva_receta.detalle.append(
+                        nuevo_detalle
+                    )
+
+                    # ============================================
+                    # DESCONTAR INVENTARIO
+                    # ============================================
+
+                    if (
+                        inventario is not None
+                        and inventario.cantidad > 0
+                        and cantidad_surtida > 0
+                    ):
+
+                        cantidad_descontar = min(
+                            inventario.cantidad,
+                            cantidad_surtida
+                        )
+
+                        inventario.cantidad -= cantidad_descontar
+
+                        salida = SalidaFarmacia(
+
+                            id_medicamento=medicamento_db.id_medicamento,
+
+                            cantidad=cantidad_descontar,
+
+                            lote=inventario.lote or "SIN LOTE",
+
+                            fecha_vencimiento=inventario.fecha_vencimiento,
+
+                            fecha_salida=datetime.utcnow(),
+
+                            id_usuario=current_user.id_usuario,
+
+                            tipo_salida="RECETA",
+
+                            receta=nueva_receta
+                        )
+
+                        salidas_nuevas.append(salida)
+                # ============================================
+                # GUARDAR LA RECETA SI TIENE DETALLES
+                # ============================================
+
                 if nueva_receta.detalle:
+
                     db.session.add(nueva_receta)
+
                     folios_guardados += 1
-                    print(f"   ✅ Folio [{folio_str}] preparado con éxito ({len(nueva_receta.detalle)} detalles válidos).")
-                else:
-                    print(f"   ❌ El folio [{folio_str}] se descartó por completo porque no tuvo ningún medicamento válido en el catálogo.")
 
-            print(f"--- FIN DEL CICLO. TOTAL FOLIOS LISTOS PARA GUARDAR: {folios_guardados} ---")
 
-            # 4. Intentar guardar definitivamente en PostgreSQL (Neon.tech)
+            # ============================================
+            # FINALIZAR IMPORTACIÓN
+            # ============================================
+
             if folios_guardados > 0:
-                print("💾 Ejecutando db.session.commit() en Neon.tech...")
+
+                db.session.add_all(recetas_nuevas)
+                db.session.add_all(salidas_nuevas)
                 db.session.commit()
-                print("🎉 ¡Commit exitoso! Datos guardados físicamente.")
+
                 return jsonify({
-                    'status': 'success', 
-                    'message': f'Sincronización completada. Se guardaron {folios_guardados} folios limpios en la base de datos local con sus estatus reales.'
-                })
-            else:
-                print("⚠️ Advertencia: El bucle terminó pero el contador de folios es 0. Nada que guardar.")
-                db.session.rollback() 
-                return jsonify({
-                    'status': 'warning', 
-                    'message': 'No se realizaron cambios. Todos los folios de este día ya existían en tu sistema local.'
+                    "status": "success",
+                    "message": f"Se guardaron {folios_guardados} folios correctamente."
                 })
 
-        except OperationalError as oe:
-            db.session.rollback() 
-            intentos_red -= 1
-            print(f"🚨 Advertencia de red: Falló la conexión con Neon. Error: {str(oe)}")
-            print(f"⏳ Reintentando en 2 segundos... ({intentos_red} intentos restantes)")
-            
-            if intentos_red == 0:
-                print("❌ Error definitivo: Se agotaron los intentos de red sin éxito.")
-                return jsonify({'status': 'error', 'message': 'Fallo de conexión temporal con Neon.tech. Verifica el internet del servidor local.'}), 503
-            
-            time.sleep(2)
-                
-        except Exception as e:
+            else:
+
+                db.session.rollback()
+
+                return jsonify({
+                    "status": "warning",
+                    "message": "No hubo folios nuevos para importar."
+                })
+
+
+        except IntegrityError:
+
             db.session.rollback()
-            print(f"💥 Error crítico de consistencia en Postgres: {str(e)}")
-            return jsonify({'status': 'error', 'message': f'Error de consistencia en Postgres: {str(e)}'}), 500
+
+            return jsonify({
+                "status": "warning",
+                "message": "Se detectaron folios duplicados durante la importación."
+            }), 409
+
+
+        except OperationalError:
+
+            db.session.rollback()
+
+            intentos_red -= 1
+
+            if intentos_red == 0:
+
+                return jsonify({
+                    "status": "error",
+                    "message": "No fue posible conectarse con la base de datos."
+                }), 503
+
+            time.sleep(2)
+
+
+        except Exception as e:
+
+            db.session.rollback()
+
+            return jsonify({
+                "status": "error",
+                "message": str(e)
+            }), 500
 
 #______________________________________________________________________________________________________________________________________________
 from datetime import datetime

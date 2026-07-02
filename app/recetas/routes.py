@@ -1007,58 +1007,62 @@ def receta_pdf(id_receta):
 #==========================================================================================================surtimiento de receta===============================
 from app.models import RecetaMedica, Paciente, Medicamento, InventarioFarmacia
 from sqlalchemy import func
+
 @bp.route("/recetas/pendientes")
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def recetas_pendientes():
     query = request.args.get('q', '').strip().upper()
-	 # Captura el parámetro enviado desde el menú desplegable
-    abrir_modal = request.args.get('abrir_modal', 'false')    
-    # Usamos outerjoin con Paciente por si existen recetas previas sin paciente ligado
-    recetas_query = RecetaMedica.query.outerjoin(Paciente)
+    abrir_modal = request.args.get('abrir_modal', 'false')
+
+    recetas_query = (
+        RecetaMedica.query
+        .outerjoin(Paciente)
+        .filter(RecetaMedica.tipo_surtimiento != "Completa")
+    )
 
     if query:
-        # Buscador alfanumérico que acepta folios con letras como "JR0151" o nombres
         recetas_query = recetas_query.filter(
-            (RecetaMedica.folio.ilike(f"%{query}%")) | 
+            (RecetaMedica.folio.ilike(f"%{query}%")) |
             (Paciente.nombre.ilike(f"%{query}%"))
         )
 
-    todas_las_recetas = recetas_query.order_by(RecetaMedica.fecha_emision.desc()).all()
-    recetas_filtradas = [r for r in todas_las_recetas if r.tipo_surtimiento_calculado != "Completa"]
+    recetas_filtradas = (
+        recetas_query
+        .order_by(RecetaMedica.fecha_emision.desc())
+        .limit(40)
+        .all()
+    )
 
-    # Catálogo tradicional de medicamentos (Mantenemos tu query original intacta)
-    medicamentos_db = db.session.query(
-        Medicamento,
-        InventarioFarmacia
-    ).outerjoin(
-        InventarioFarmacia,
-        InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
-    ).all()
+    medicamentos_db = (
+        db.session.query(
+            Medicamento,
+            InventarioFarmacia
+        )
+        .outerjoin(
+            InventarioFarmacia,
+            InventarioFarmacia.id_medicamento == Medicamento.id_medicamento
+        )
+        .all()
+    )
 
-    # 🌟 AQUÍ ESTÁ LA SOLUCIÓN DE LOS CEROS:
-    # Aseguramos el mapeo de variables usando los atributos exactos de tu modelo Medicamento
     medicamentos = []
-    
+
     for m, inv in medicamentos_db:
-        # Extraemos de forma segura los valores de las columnas unificadas
-        clave_real = m.clave if m.clave else "S/C"
-        principio = m.principio_activo if m.principio_activo else "SIN NOMBRE"
-        presentacion = f" ({m.presentacion})" if m.presentacion else ""
-        
         medicamentos.append({
-            "id": m.id_medicamento,  # Vincula el ID real de la base de datos
-            "clave": clave_real,     # Llena tu campo {{ m.clave }}
-            "descripcion": f"{principio}{presentacion}", # Llena tu campo {{ m.descripcion }}
-            "existencia": inv.cantidad if inv else 0      # Llena tu campo {{ m.existencia }}
+            "id": m.id_medicamento,
+            "clave": m.clave if m.clave else "S/C",
+            "descripcion": f"{m.principio_activo or 'SIN NOMBRE'}"
+                           f"{f' ({m.presentacion})' if m.presentacion else ''}",
+            "existencia": inv.cantidad if inv else 0
         })
-        
-		
-    return render_template("recetas/pendientes.html", 
-                           recetas=recetas_filtradas, 
-                           query=query,
-                           medicamentos=medicamentos, abrir_modal=abrir_modal)
 
-
+    return render_template(
+        "recetas/pendientes.html",
+        recetas=recetas_filtradas,
+        query=query,
+        medicamentos=medicamentos,
+        abrir_modal=abrir_modal
+    )
 @bp.route("/surtir/<int:id_receta>", methods=["GET", "POST"])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def surtir_receta(id_receta):
