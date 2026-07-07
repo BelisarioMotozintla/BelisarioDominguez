@@ -249,6 +249,7 @@ from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy import or_
 import collections
 
+
 @bp.route("/guardar_dia", methods=["POST"])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def guardar_dia_local():
@@ -464,99 +465,72 @@ def guardar_dia_local():
                     # ============================================
                     # BUSCAR EL MEDICAMENTO EN MEMORIA
                     # ============================================
-
-                    clave_reporte = normalizar_hibrido(
-                        med.get("Clave", "")
-                    )
-
+                    clave_reporte = normalizar_hibrido(med.get("Clave", ""))
                     registro = medicamentos_dict.get(clave_reporte)
+                    
                     if registro is None:
-                        continue
+                        continue  # Si la clave no existe en tu catálogo local, la salta
 
                     medicamento_db = registro["medicamento"]
                     inventario = registro["inventario"]
 
-                    cantidad_recetada = int(
-                        med.get("Recetada", 0)
-                    )
-
-                    cantidad_surtida = int(
-                        med.get("Surtida", 0)
-                    )
+                    cantidad_recetada = int(med.get("Recetada", 0))
+                    cantidad_surtida = int(med.get("Surtida", 0))
 
                     # ============================================
                     # CREAR DETALLE DE RECETA
-                    # (Se conserva exactamente lo reportado por SAI)
                     # ============================================
-
                     nuevo_detalle = DetalleReceta(
                         id_medicamento=medicamento_db.id_medicamento,
                         cantidad=cantidad_recetada,
                         cantidad_surtida=cantidad_surtida,
                         dosis="Dosis establecida por auditoría SAI",
-                        indicaciones=str(
-                            med.get("Descripcion", "S/D")
-                        )
+                        indicaciones=str(med.get("Descripcion", "S/D"))
                     )
-
-                    nueva_receta.detalle.append(
-                        nuevo_detalle
-                    )
+                    nueva_receta.detalle.append(nuevo_detalle)
 
                     # ============================================
-                    # DESCONTAR INVENTARIO
+                    # DESCONTAR INVENTARIO Y REGISTRAR SALIDA
                     # ============================================
-
-                    if (
-                        inventario is not None
-                        and inventario.cantidad > 0
-                        and cantidad_surtida > 0
-                    ):
-
-                        cantidad_descontar = min(
-                            inventario.cantidad,
-                            cantidad_surtida
-                        )
-
-                        inventario.cantidad -= cantidad_descontar
+                    if cantidad_surtida > 0:
+                        # Si hay inventario disponible calculamos el descuento, si no, se va a cero pero SE REGISTRA
+                        if inventario is not None and inventario.cantidad > 0:
+                            cantidad_descontar = min(inventario.cantidad, cantidad_surtida)
+                            inventario.cantidad -= cantidad_descontar
+                            lote_val = inventario.lote or "SIN LOTE"
+                            fecha_venc = inventario.fecha_vencimiento
+                        else:
+                            # 🛡️ SALVAGUARDA: Si SAI dice surtido pero tu inventario local es 0, 
+                            # registramos la salida para auditoría y evitar desfases visuales
+                            cantidad_descontar = cantidad_surtida
+                            lote_val = "SIN STOCK LOCAL"
+                            fecha_venc = None
 
                         salida = SalidaFarmacia(
-
                             id_medicamento=medicamento_db.id_medicamento,
-
                             cantidad=cantidad_descontar,
-
-                            lote=inventario.lote or "SIN LOTE",
-
-                            fecha_vencimiento=inventario.fecha_vencimiento,
-
+                            lote=lote_val,
+                            fecha_vencimiento=fecha_venc,
                             fecha_salida=datetime.utcnow(),
-
-                            id_usuario=current_user.id_usuario,
-
+                            id_usuario=current_user.id_usuario if hasattr(current_user, 'id_usuario') else 1,
                             tipo_salida="RECETA",
-
-                            receta=nueva_receta
+                            receta=nueva_receta  # Vinculación automática por objeto
                         )
-
                         salidas_nuevas.append(salida)
-                # ============================================
-                # GUARDAR LA RECETA SI TIENE DETALLES
-                # ============================================
 
+                # ============================================
+                # DETECTAR SI LA RECETA TIENE DETALLES VÁLIDOS
+                # ============================================
                 if nueva_receta.detalle:
-
-                    db.session.add(nueva_receta)
-
+                    # 🚀 CORRECCIÓN: Almacenar en la lista maestra para el guardado por lote
+                    recetas_nuevas.append(nueva_receta)
                     folios_guardados += 1
 
-
             # ============================================
-            # FINALIZAR IMPORTACIÓN
+            # FINALIZAR IMPORTACIÓN (FUERA DEL FOR)
             # ============================================
-
             if folios_guardados > 0:
-
+                # 🛡️ Guardado masivo y limpio de duplicados
                 db.session.add_all(recetas_nuevas)
                 db.session.add_all(salidas_nuevas)
                 db.session.commit()
@@ -564,51 +538,36 @@ def guardar_dia_local():
                 return jsonify({
                     "status": "success",
                     "message": f"Se guardaron {folios_guardados} folios correctamente."
-                })
-
+                }), 200
             else:
-
                 db.session.rollback()
-
                 return jsonify({
                     "status": "warning",
                     "message": "No hubo folios nuevos para importar."
-                })
-
+                }), 200
 
         except IntegrityError:
-
             db.session.rollback()
-
             return jsonify({
                 "status": "warning",
                 "message": "Se detectaron folios duplicados durante la importación."
             }), 409
 
-
         except OperationalError:
-
             db.session.rollback()
-
             intentos_red -= 1
-
             if intentos_red == 0:
-
                 return jsonify({
                     "status": "error",
                     "message": "No fue posible conectarse con la base de datos."
                 }), 503
-
             time.sleep(2)
 
-
         except Exception as e:
-
             db.session.rollback()
-
             return jsonify({
                 "status": "error",
-                "message": str(e)
+                "message": f"Error inesperado: {str(e)}"
             }), 500
 
 #______________________________________________________________________________________________________________________________________________

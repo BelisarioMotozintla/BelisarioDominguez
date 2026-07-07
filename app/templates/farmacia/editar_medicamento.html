@@ -41,6 +41,32 @@
             <input type="text" name="unidad" class="form-control uppercase-input" value="{{ medicamento.unidad }}">
           </div>
 
+          <!-- 🆕 GRUPO TERAPÉUTICO (CON PRESELECCIÓN) -->
+         <div class="col-md-6 mb-3">
+  			<label class="form-label fw-bold">Grupo Terapéutico</label>
+  			<select name="grupo_id" class="form-select">
+    			<option value="">-- SELECCIONE UN GRUPO (OPCIONAL) --</option>
+    			{% for grupo in grupos %}
+      			<option value="{{ grupo.grupo_id }}" {% if grupo.grupo_id == medicamento.grupo_id %}selected{% endif %}>
+        			{{ grupo.nombre_grupo }}
+      			</option>
+    			{% endfor %}
+  			</select>
+			</div>
+			
+			<div class="col-md-6 mb-3">
+  			<label class="form-label fw-bold">Familia de Material</label>
+  			<select name="material_familia_id" class="form-select">
+    			<option value="">-- SELECCIONE UNA FAMILIA (OPCIONAL) --</option>
+    			{% for familia in familias %}
+      			<option value="{{ familia.familia_id }}" {% if familia.familia_id == medicamento.material_familia_id %}selected{% endif %}>
+        			{{ familia.nombre_familia }}
+      			</option>
+    			{% endfor %}
+  			</select>
+			</div>
+			
+
           <!-- Control de Catálogos (Checkboxes) -->
           <div class="col-12 mb-3">
             <label class="form-label d-block fw-bold">Pertenencia a Catálogos:</label>
@@ -78,13 +104,12 @@
           </div>
           <div class="col-md-3 mb-3">
             <label class="form-label">Nivel de Movimiento</label>
-           <select name="nivel_movimiento" class="form-select">
-  <option value="Nulo" {% if medicamento.nivel_movimiento == 'Nulo' %}selected{% endif %}>NULO</option>
-  <option value="Bajo" {% if medicamento.nivel_movimiento == 'Bajo' %}selected{% endif %}>BAJO</option>
-  <option value="Medio" {% if medicamento.nivel_movimiento == 'Medio' %}selected{% endif %}>MEDIO</option>
-  <option value="Alto" {% if medicamento.nivel_movimiento == 'Alto' %}selected{% endif %}>ALTO</option>
-</select>
-
+            <select name="nivel_movimiento" class="form-select">
+              <option value="Nulo" {% if medicamento.nivel_movimiento == 'Nulo' %}selected{% endif %}>NULO</option>
+              <option value="Bajo" {% if medicamento.nivel_movimiento == 'Bajo' %}selected{% endif %}>BAJO</option>
+              <option value="Medio" {% if medicamento.nivel_movimiento == 'Medio' %}selected{% endif %}>MEDIO</option>
+              <option value="Alto" {% if medicamento.nivel_movimiento == 'Alto' %}selected{% endif %}>ALTO</option>
+            </select>
           </div>
         </div>
 

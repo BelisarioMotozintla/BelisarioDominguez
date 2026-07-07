@@ -10,9 +10,37 @@
         ⬅️ Volver a Recetas
       </a>
       <button type="button" class="btn btn-success fw-bold d-flex align-items-center gap-2" onclick="abrirFiltroSalidasOC99()">
-    <i class="bi bi-file-earmark-excel"></i> Exportar Salidas OC99
-</button>
+        <i class="bi bi-file-earmark-excel"></i> Exportar Salidas OC99
+      </button>
       <h2 class="mb-0">Historial de Salidas de Farmacia</h2>
+    </div>
+  </div>
+
+  <!-- 🔍 BLOQUE NUEVO: BARRA DE BÚSQUEDA INTEGRADA -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body bg-light">
+      <form method="GET" action="{{ url_for(request.endpoint) }}" class="row g-2 align-items-center">
+        <div class="col-md-9">
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+              <i class="bi bi-search"></i>
+            </span>
+            <input type="text" name="q" class="form-control border-start-0 ps-0" 
+                   placeholder="Buscar por Folio Receta, Clave de Medicamento o Principio Activo..." 
+                   value="{{ search_query or '' }}">
+          </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary w-100 fw-bold">
+            Buscar
+          </button>
+          {% if search_query %}
+            <a href="{{ url_for(request.endpoint) }}" class="btn btn-outline-danger" title="Limpiar Filtros">
+              <i class="bi bi-x-lg"></i>
+            </a>
+          {% endif %}
+        </div>
+      </form>
     </div>
   </div>
   
@@ -38,6 +66,8 @@
           <td>
             {% if salida.medicamento %}
               <strong>{{ salida.medicamento.principio_activo }}</strong>
+              <!-- Muestra la clave en la tabla para facilitar la referencia al buscar -->
+              <small class="text-muted d-block">🔑 {{ salida.medicamento.clave }}</small>
               <small class="text-muted d-block">{{ salida.medicamento.concentracion }} - {{ salida.medicamento.presentacion }}</small>
             {% else %}
               <span class="text-muted">ID Med: {{ salida.id_medicamento }}</span>
@@ -61,17 +91,17 @@
           <!-- Folio de la Receta Vinculado con el Blueprint 'recetas' -->
           <td>
            {% if salida.receta and salida.receta.id_receta %}
-  <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}" class="text-decoration-none">
-    <span class="badge bg-primary fs-6 hover-shadow">📋 {{ salida.receta.folio or 'Ver Receta' }}</span>
-  </a>
-{% elif salida.id_receta %}
-  <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
-    <span class="badge bg-warning text-dark fs-6">🆔 Ver ID: {{ salida.id_receta }}</span>
-  </a>
-{% else %}
-  <!-- Si es una salida especial (baja, merma, traslado) que no tiene receta, pintamos el tipo de movimiento estático -->
-  <span class="badge bg-secondary text-wrap px-2 py-1">⚙️ {{ salida.tipo_salida or 'Ajuste Stock' }}</span>
-{% endif %}
+              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.receta.id_receta) }}" class="text-decoration-none">
+                <span class="badge bg-primary fs-6 hover-shadow">📋 {{ salida.receta.folio or 'Ver Receta' }}</span>
+              </a>
+            {% elif salida.id_receta %}
+              <a href="{{ url_for('recetas.detalle_receta', id_receta=salida.id_receta) }}" class="text-decoration-none">
+                <span class="badge bg-warning text-dark fs-6">🆔 Ver ID: {{ salida.id_receta }}</span>
+              </a>
+            {% else %}
+              <!-- Si es una salida especial (baja, merma, traslado) que no tiene receta, pintamos el tipo de movimiento estático -->
+              <span class="badge bg-secondary text-wrap px-2 py-1">⚙️ {{ salida.tipo_salida or 'Ajuste Stock' }}</span>
+            {% endif %}
           </td>
           
           <!-- Fecha y Hora del surtimiento -->
@@ -92,19 +122,19 @@
     </table>
   </div>
 
-  <!-- COMPONENTE DE PAGINACIÓN -->
+  <!-- COMPONENTE DE PAGINACIÓN ADAPTADO PARA MANTENER EL PARÁMETRO DE BÚSQUEDA 'q' -->
   {% if pagination and pagination.pages > 1 %}
   <nav aria-label="Navegación de páginas" class="mt-4">
     <ul class="pagination justify-content-center">
       
       <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">Anterior</a>
+        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num, q=search_query) if pagination.has_prev else '#' }}">Anterior</a>
       </li>
 
       {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
         {% if page_num %}
           <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for(request.endpoint, page=page_num) }}">{{ page_num }}</a>
+            <a class="page-link" href="{{ url_for(request.endpoint, page=page_num, q=search_query) }}">{{ page_num }}</a>
           </li>
         {% else %}
           <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -112,7 +142,7 @@
       {% endfor %}
 
       <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">Siguiente</a>
+        <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num, q=search_query) if pagination.has_next else '#' }}">Siguiente</a>
       </li>
 
     </ul>
@@ -163,12 +193,10 @@ function abrirFiltroSalidasOC99() {
         })
     }).then((result) => {
         if (result.isConfirmed) {
-            // Vinculado al nuevo endpoint del blueprint 'bp'
             const url = "{{ url_for('farmacia.descargar_salidas_oc99') }}";
             window.location.href = `${url}?anio=${result.value.anio}&mes=${result.value.mes}`;
         }
     });
 }
-
 </script>
 {% endblock %}

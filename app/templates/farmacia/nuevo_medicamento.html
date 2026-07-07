@@ -42,6 +42,28 @@
             <input type="text" name="unidad" class="form-control uppercase-input" placeholder="EJ. MG">
           </div>
 
+          <!-- 🆕 GRUPO TERAPÉUTICO -->
+          		<div class="col-md-6 mb-3">
+  		<label class="form-label fw-bold">Grupo Terapéutico</label>
+  		<select name="grupo_id" class="form-select">
+    		<option value="">-- SELECCIONE UN GRUPO (OPCIONAL) --</option>
+    		{% for grupo in grupos %}
+      		<option value="{{ grupo.grupo_id }}">{{ grupo.nombre_grupo }}</option>
+    		{% endfor %}
+  		</select>
+		</div>
+		
+		<div class="col-md-6 mb-3">
+  		<label class="form-label fw-bold">Familia de Material</label>
+  		<select name="material_familia_id" class="form-select">
+    		<option value="">-- SELECCIONE UNA FAMILIA (OPCIONAL) --</option>
+    		{% for familia in familias %}
+      		<!-- Se pasa familia_id (String de 3 caracteres) como valor -->
+      		<option value="{{ familia.familia_id }}">{{ familia.nombre_familia }}</option>
+    		{% endfor %}
+  		</select>
+		</div>
+		
           <!-- Control de Catálogos -->
           <div class="col-12 mb-3">
             <label class="form-label d-block fw-bold">Pertenencia a Catálogos:</label>

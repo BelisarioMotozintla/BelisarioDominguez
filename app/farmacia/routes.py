@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, render_template, redirect, url_fo
 from datetime import datetime,timedelta,timezone,date
 import calendar
 from app import db
-from app.models.farmacia import Medicamento,GrupoTerapeutico,MaterialFamilia, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento
+from app.models.farmacia import Medicamento,GrupoTerapeutico,MaterialFamilia, AsignacionReceta,MovimientoAlmacenFarmacia,InventarioAlmacen,InventarioFarmacia,EntradaAlmacen,TransferenciaSaliente, SalidaFarmacia,TransferenciaEntrante, Empleado,BitacoraMovimiento,RecetaMedica
 from app.models.personal import Usuario, Empleado
 from flask_login import current_user
 from app.utils.helpers import roles_required
@@ -443,33 +443,52 @@ def registrar_salida(id_medicamento):
 
 
 # Listar todas las salidas 
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
+
 @bp.route('/salidas')
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def listar_salidas():
     page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('q', '').strip()
     per_page = 20
 
-       
-
-    # Consulta maestra optimizada para SQLAlchemy 2.0 usando atributos de clase directos
+    # 1. Consulta maestra usando la relación hacia la tabla RecetaMedica
     query = (
         SalidaFarmacia.query
+        .outerjoin(SalidaFarmacia.medicamento)
+        # Nota: El join mapea la propiedad del modelo SalidaFarmacia (salida.receta)
+        .outerjoin(SalidaFarmacia.receta) 
         .options(
             joinedload(SalidaFarmacia.medicamento),
             joinedload(SalidaFarmacia.receta),
             joinedload(SalidaFarmacia.usuario).joinedload(Usuario.empleado)
         )
-        .order_by(SalidaFarmacia.fecha_salida.desc())
     )
 
+    # 2. 🔍 Aplicación de filtros usando la clase RecetaMedica
+    if search_query:
+        query = query.filter(
+            or_(
+                Medicamento.clave.ilike(f"%{search_query}%"),
+                Medicamento.principio_activo.ilike(f"%{search_query}%"),
+                # 🚀 Cambio clave: Apuntar a la clase RecetaMedica.folio
+                RecetaMedica.folio.ilike(f"%{search_query}%")
+            )
+        )
+
+    # 3. Ordenamiento final y paginación
+    query = query.order_by(SalidaFarmacia.fecha_salida.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     salidas = pagination.items
 
     return render_template(
         'farmacia/listar_salidas.html', 
         salidas=salidas, 
-        pagination=pagination
+        pagination=pagination,
+        search_query=search_query
     )
+
 
 #)))))))))) exportar todas las salidas a traves de un 0c99 excel
 @bp.route('/descargar_salidas_oc99')
@@ -632,28 +651,29 @@ def listar_medicamentos():
         pagination=pagination
     )
 
-
-# Nuevo medicamento
 @bp.route('/medicamentos/nuevo', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_medicamento():
     if request.method == 'POST':
-        # 1. Captura y Limpieza (eliminar espacios accidentales)
         clave = request.form.get('clave', '').strip().upper()
         principio = request.form.get('principio_activo', '').strip().upper()
         presentacion = request.form.get('presentacion', '').strip().upper()
+        
+        # 🆕 CAPTURA: Ambas Claves Foráneas
+        grupo_id_form = request.form.get('grupo_id')
+        grupo_id = int(grupo_id_form) if grupo_id_form and grupo_id_form.isdigit() else None
+        
+        familia_id = request.form.get('material_familia_id', '').strip()
+        familia_id = familia_id if familia_id else None # Guarda None si viene vacío
 
-        # 2. VALIDACIÓN: Campos obligatorios vacíos o puros espacios
         if not clave or not principio or not presentacion:
             flash("❌ La clave, el principio activo y la presentación son campos obligatorios.", "warning")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
-        # 3. VALIDACIÓN: Clave única
         if Medicamento.query.filter_by(clave=clave).first():
             flash(f"⚠️ La clave '{clave}' ya existe. Intenta con otra.", "danger")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
-        # 4. VALIDACIÓN: Datos numéricos
         try:
             s_min = int(request.form.get('stock_minimo') or 0)
             s_max = int(request.form.get('stock_maximo') or 0)
@@ -662,13 +682,11 @@ def nuevo_medicamento():
             flash("❌ Los stocks deben ser números enteros y el CPM decimal.", "danger")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
-        # 5. VALIDACIÓN: Lógica de inventario
         if s_min > s_max:
             flash(f"⚠️ Stock Mínimo ({s_min}) no puede ser mayor al Máximo ({s_max}).", "warning")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
         try:
-            # 6. CREACIÓN DEL REGISTRO
             nuevo_med = Medicamento(
                 clave=clave,
                 principio_activo=principio,
@@ -677,47 +695,56 @@ def nuevo_medicamento():
                 concentracion=request.form.get('concentracion', '').strip().upper(),
                 unidad=request.form.get('unidad', '').strip().upper(),
                 
-                # Checkboxes
+                # 🆕 ASIGNACIÓN: Ambos catálogos
+                grupo_id=grupo_id,
+                material_familia_id=familia_id,
+                
                 es_kit_basico='es_kit_basico' in request.form,
                 es_180_claves='es_180_claves' in request.form,
                 es_general='es_general' in request.form,
-                
                 stock_minimo=s_min,
                 stock_maximo=s_max,
                 cpm=cpm_val,
                 nivel_movimiento=request.form.get('nivel_movimiento', 'Nulo').capitalize()
             )
-            
             db.session.add(nuevo_med)
             db.session.commit()
             flash("✅ Medicamento registrado correctamente", "success")
             return redirect(url_for('farmacia.listar_medicamentos'))
-
         except Exception as e:
             db.session.rollback()
             flash(f"❌ Error de base de datos: {str(e)}", "danger")
             return redirect(url_for('farmacia.nuevo_medicamento'))
 
-    return render_template('farmacia/nuevo_medicamento.html')
+    # 🆕 MÉTODO GET: Consultar los dos catálogos independientes
+    grupos = GrupoTerapeutico.query.order_by(GrupoTerapeutico.nombre_grupo).all() 
+    familias = MaterialFamilia.query.order_by(MaterialFamilia.nombre_familia).all()
+    return render_template('farmacia/nuevo_medicamento.html', grupos=grupos, familias=familias)
 
-# Editar medicamento
+
+#EDITAR MEDICAMENTO
+
 @bp.route('/medicamentos/editar/<int:id_medicamento>', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def editar_medicamento(id_medicamento):
     medicamento = Medicamento.query.get_or_404(id_medicamento)
 
     if request.method == 'POST':
-        # 1. Captura y Limpieza inicial
         nueva_clave = request.form.get('clave', '').strip().upper()
         principio = request.form.get('principio_activo', '').strip().upper()
         presentacion = request.form.get('presentacion', '').strip().upper()
+        
+        # 🆕 CAPTURA: Ambas Claves Foráneas
+        grupo_id_form = request.form.get('grupo_id')
+        grupo_id = int(grupo_id_form) if grupo_id_form and grupo_id_form.isdigit() else None
+        
+        familia_id = request.form.get('material_familia_id', '').strip()
+        familia_id = familia_id if familia_id else None
 
-        # --- VALIDACIÓN DE CAMPOS VACÍOS ---
         if not nueva_clave or not principio or not presentacion:
             flash("❌ La clave, el principio activo y la presentación no pueden estar vacíos.", "warning")
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
-        # 2. Validación de Stocks (Números)
         try:
             s_min = int(request.form.get('stock_minimo') or 0)
             s_max = int(request.form.get('stock_maximo') or 0)
@@ -730,7 +757,6 @@ def editar_medicamento(id_medicamento):
             flash(f"⚠️ El Stock Mínimo ({s_min}) no puede ser mayor al Máximo ({s_max}).", "warning")
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
-        # 3. Validación de Clave Única
         med_existente = Medicamento.query.filter(
             Medicamento.clave == nueva_clave, 
             Medicamento.id_medicamento != id_medicamento
@@ -741,7 +767,6 @@ def editar_medicamento(id_medicamento):
             return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
         try:
-            # 4. Actualización
             medicamento.clave = nueva_clave
             medicamento.principio_activo = principio
             medicamento.presentacion = presentacion
@@ -749,27 +774,32 @@ def editar_medicamento(id_medicamento):
             medicamento.concentracion = request.form.get('concentracion', '').strip().upper()
             medicamento.unidad = request.form.get('unidad', '').strip().upper()
             
+            # 🆕 ASIGNACIÓN: Actualizar ambos campos
+            medicamento.grupo_id = grupo_id
+            medicamento.material_familia_id = familia_id
+            
             medicamento.es_kit_basico = 'es_kit_basico' in request.form
             medicamento.es_180_claves = 'es_180_claves' in request.form
             medicamento.es_general = 'es_general' in request.form
-            
             medicamento.stock_minimo = s_min
             medicamento.stock_maximo = s_max
             medicamento.cpm = cpm_val
 
-            # CORRECCIÓN DEL ENUM PARA POSTGRESQL
             nivel_form = request.form.get('nivel_movimiento', 'Nulo')
             medicamento.nivel_movimiento = nivel_form.capitalize() 
 
             db.session.commit()
             flash("✅ Medicamento actualizado correctamente", "success")
             return redirect(url_for('farmacia.listar_medicamentos'))
-            
         except Exception as e:
             db.session.rollback()
             flash(f"❌ Error crítico de base de datos: {str(e)}", "danger")
+            return redirect(url_for('farmacia.editar_medicamento', id_medicamento=id_medicamento))
 
-    return render_template('farmacia/editar_medicamento.html', medicamento=medicamento)
+    # 🆕 MÉTODO GET: Consultar los dos catálogos independientes
+    grupos = GrupoTerapeutico.query.order_by(GrupoTerapeutico.nombre_grupo).all()
+    familias = MaterialFamilia.query.order_by(MaterialFamilia.nombre_familia).all()
+    return render_template('farmacia/editar_medicamento.html', medicamento=medicamento, grupos=grupos, familias=familias)
 
 
 
