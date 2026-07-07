@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <!-- Agregamos el formulario que apuntará a la pantalla de captura -->
+  <form action="{{ url_for('farmacia.nuevo_movimiento') }}" method="GET">
+    
+    <div class="card shadow">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0"><i class="bi bi-clipboard-check"></i> Análisis de Necesidad y Abastecimiento Disponible</h2>
+        <a href="{{ url_for('farmacia.listar_medicamentos') }}" class="btn btn-sm btn-outline-light">Volver</a>
+      </div>
+      
+      <div class="card-body">
+        <div class="alert alert-info small d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-info-circle-fill"></i> Selecciona las claves que deseas traspasar. El sistema precargará las cantidades sugeridas.</span>
+          <!-- Botón para seleccionar/deseleccionar todo rápidamente -->
+          <button type="button" class="btn btn-xs btn-light border" id="btn-seleccionar-todo">Seleccionar Todo</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle">
+            <thead class="table-secondary text-center small text-uppercase fw-bold">
+              <tr>
+                <th style="width: 40px;">Surtir</th>
+                <th class="text-start">Medicamento / Clave</th>
+                <th>Estado Actual Farmacia</th>
+                <th>Disponible Almacén</th>
+                <th>Sugerencia de Traspaso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in propuestas %}
+              <tr class="{% if p.es_critico %}table-danger-light{% endif %}">
+                
+                <!-- 🆕 CHECKBOX DE SELECCIÓN -->
+                <td class="text-center">
+                  <input type="checkbox" class="form-check-input chk-surtir" name="id_med" value="{{ p.medicamento.id_medicamento }}">
+                  <!-- Campos ocultos emparejados que se enviarán solo si el JS los activa -->
+                  <input type="hidden" name="cant_{{ p.medicamento.id_medicamento }}" value="{{ p.sugerencia_real }}" disabled class="hdn-cant">
+                </td>
+
+                <!-- Detalles del Insumo -->
+                <td>
+                  <span class="fw-bold text-primary">{{ p.medicamento.principio_activo }}</span>
+                  {% if p.es_critico %}
+                    <span class="badge bg-danger ms-1 animate-flash">CRÍTICO</span>
+                  {% endif %}
+                  <small class="text-muted d-block">🔑 Clave: {{ p.medicamento.clave }} | {{ p.medicamento.presentacion }}</small>
+                </td>
+
+                <!-- Estado de la Farmacia -->
+                <td class="text-center small">
+                  <div class="fw-bold">Actual: <span class="text-dark">{{ p.farmacia_actual }} pz</span></div>
+                  <div class="text-muted">Mín: {{ p.medicamento.stock_minimo }} | Máx: {{ p.medicamento.stock_maximo }}</div>
+                </td>
+
+                <!-- Stock del Almacén -->
+                <td class="text-center">
+                  <span class="badge bg-success ps-2 pe-2 fs-6">{{ p.almacen_actual }} pz</span>
+                </td>
+
+                <!-- Cantidad Sugerida -->
+                <td class="text-center fw-bold fs-5 text-success bg-light">
+                  +{{ p.sugerencia_real }}
+                </td>
+
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  🎉 No hay propuestas de traspaso pendientes con stock utilizable en almacén.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if propuestas %}
+        <div class="mt-4 text-end">
+          <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm" id="btn-proceder" disabled>
+            <i class="bi bi-arrow-right-short"></i> Traspasar Claves Seleccionadas
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  // Control de activación de inputs ocultos para no saturar la URL
+  document.querySelectorAll('.chk-surtir').forEach(chk => {
+    chk.addEventListener('change', function() {
+      const row = this.closest('tr');
+      const hdnCant = row.querySelector('.hdn-cant');
+      
+      // Habilita el input numérico oculto solo si el checkbox está activo
+      hdnCant.disabled = !this.checked;
+
+      // Validar si habilitamos el botón de proceder
+      const algunoActivo = Array.from(document.querySelectorAll('.chk-surtir')).some(c => c.checked);
+      document.getElementById('btn-proceder').disabled = !algunoActivo;
+    });
+  });
+
+  // Funcionalidad de Seleccionar Todo
+  document.getElementById('btn-seleccionar-todo').addEventListener('click', function() {
+    const checkboxes = document.querySelectorAll('.chk-surtir');
+    const todosActivos = Array.from(checkboxes).every(c => c.checked);
+    
+    checkboxes.forEach(c => {
+      c.checked = !todosActivos;
+      c.dispatchEvent(new Event('change')); // Dispara el evento manual
+    });
+  });
+</script>
+
+<style>
+  .table-danger-light { background-color: rgba(220, 53, 69, 0.06) !important; }
+  @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .animate-flash { animation: flash 2s infinite; }
+</style>
+{% endblock %}

@@ -2076,12 +2076,37 @@ def listar_movimientos():
                            mes_actual=ahora.month, 
                            anio_actual=ahora.year)
 		
-
 @bp.route('/movimientos/nuevo_movimiento', methods=['GET', 'POST'])
 @roles_required(['UsuarioAdministrativo', 'Administrador'])
 def nuevo_movimiento():
     if request.method == 'GET':
-        return render_template('farmacia/nuevo_movimiento.html')
+        # 🧙‍♂️ NUEVO: Capturar los IDs seleccionados en los checkboxes
+        ids_precargados = request.args.getlist('id_med')
+        items_formulario = []
+
+        if ids_precargados:
+            for id_m in ids_precargados:
+                if not id_m.isdigit():
+                    continue
+                id_m = int(id_m)
+                
+                # Obtener la cantidad que calculó el análisis de necesidad
+                cant_sugerida = request.args.get(f'cant_{id_m}', 0, type=int)
+                
+                # Buscar el primer lote que tenga stock disponible en el Almacén General
+                inv_almacen = InventarioAlmacen.query.filter_by(id_medicamento=id_m)\
+                    .filter(InventarioAlmacen.cantidad > 0).first()
+                
+                if inv_almacen:
+                    items_formulario.append({
+                        "medicamento": inv_almacen.medicamento,
+                        "lote": inv_almacen.lote,
+                        # Salvaguarda: No traspasar más de lo que hay físicamente en Almacén
+                        "cantidad": min(cant_sugerida, inv_almacen.cantidad)
+                    })
+
+        # 🚀 Enviamos 'items_precargados'. Si la lista va vacía, el HTML abrirá en modo manual automáticamente.
+        return render_template('farmacia/nuevo_movimiento.html', items_precargados=items_formulario)
 
     if request.method == 'POST':
         try:
@@ -2103,7 +2128,7 @@ def nuevo_movimiento():
             if destino_externo:
                 obs_final += f" - DESTINO: {destino_externo}"
 
-            # 2. Procesar cada fila
+            # 2. Procesar cada fila (Tu ciclo original intacto)
             for i in range(len(ids_medicamentos)):
                 id_med = int(ids_medicamentos[i])
                 lote_actual = lotes[i].strip().upper()
@@ -2160,7 +2185,7 @@ def nuevo_movimiento():
             flash(f"❌ Error: {str(e)}", "danger")
             return redirect(url_for('farmacia.nuevo_movimiento'))
 
-    return render_template('farmacia/nuevo_movimiento.html')
+
 
 @bp.route('/movimientos/editar/<int:id>', methods=['GET', 'POST'])
 @roles_required(['Administrador'])
@@ -2289,6 +2314,68 @@ def eliminar_movimiento(id):
         flash(f"❌ Error al eliminar: {str(e)}", "danger")
     
     return redirect(url_for('farmacia.listar_movimientos'))
+
+################################################################## Faltante en farmacia #########################
+@bp.route('/farmacia/analisis_necesidad')
+@roles_required(['UsuarioAdministrativo', 'Administrador'])
+def analisis_necesidad():
+    # Consulta maestra cruzando catálogo con ambos inventarios
+    registros = (
+        db.session.query(
+            Medicamento,
+            InventarioFarmacia.cantidad.label('stock_farmacia'),
+            InventarioAlmacen.cantidad.label('stock_almacen')
+        )
+        .outerjoin(InventarioFarmacia, InventarioFarmacia.id_medicamento == Medicamento.id_medicamento)
+        .outerjoin(InventarioAlmacen, InventarioAlmacen.id_medicamento == Medicamento.id_medicamento)
+        .order_by(Medicamento.principio_activo.asc())
+        .all()
+    )
+
+    propuestas_surtido = []
+
+    for item in registros:
+        med = item.Medicamento
+        farmacia_actual = item.stock_farmacia or 0
+        almacen_actual = item.stock_almacen or 0
+
+        # 📊 CÁLCULO DE NECESIDAD TEÓRICA
+        necesidad_teorica = med.stock_maximo - farmacia_actual
+
+        # Si la farmacia está llena o por encima de su óptimo, no necesita nada
+        if necesidad_teorica <= 0:
+            continue
+
+        # 🛑 FILTRO SOLICITADO: Si en Almacén está en cero, ignoramos el registro 
+        # (No se puede traspasar lo que no se tiene disponible)
+        if almacen_actual <= 0:
+            continue
+
+        # 🚚 CÁLCULO DE SUGERENCIA REAL (Garantizado que almacen_actual > 0)
+        if almacen_actual >= necesidad_teorica:
+            sugerencia_real = necesidad_teorica
+            cobertura_status = "Completa"  # Almacén cubre todo el faltante
+        else:
+            sugerencia_real = almacen_actual
+            cobertura_status = "Parcial"   # Almacén entrega todo lo que tiene, pero no alcanza el óptimo
+
+        # Clasificación de urgencia según tus reglas de negocio
+        es_critico = farmacia_actual <= med.stock_minimo
+
+        propuestas_surtido.append({
+            "medicamento": med,
+            "farmacia_actual": farmacia_actual,
+            "almacen_actual": almacen_actual,
+            "necesidad_teorica": necesidad_teorica,
+            "sugerencia_real": sugerencia_real,
+            "cobertura": cobertura_status,
+            "es_critico": es_critico
+        })
+
+    return render_template(
+        'farmacia/analisis_necesidad.html',
+        propuestas=propuestas_surtido
+    )
 
 
 

@@ -20,22 +20,22 @@
                 </div>
 
                 <div class="row mb-3 bg-light p-3 rounded border">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Tipo de Movimiento</label>
-                    <select name="tipo_movimiento" id="tipo_movimiento" class="form-select border-primary" onchange="toggleDestino()">
-                        <option value="TRASLADO_FARMACIA">Traslado a Farmacia (Interno)</option>
-                        <option value="TRANSFERENCIA_EXTERNA">Transferencia a otra Unidad</option>
-                        <option value="BAJA_CADUCIDAD">Baja por Caducidad</option>
-                        <option value="BAJA_MERMA">Baja por Merma/Daño</option>
-                    </select>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Tipo de Movimiento</label>
+                        <select name="tipo_movimiento" id="tipo_movimiento" class="form-select border-primary" onchange="toggleDestino()">
+                            <option value="TRASLADO_FARMACIA">Traslado a Farmacia (Interno)</option>
+                            <option value="TRANSFERENCIA_EXTERNA">Transferencia a otra Unidad</option>
+                            <option value="BAJA_CADUCIDAD">Baja por Caducidad</option>
+                            <option value="BAJA_MERMA">Baja por Merma/Daño</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="div_destino" style="display:none;">
+                        <label class="form-label fw-bold">Unidad Médica Destino</label>
+                        <input type="text" name="destino_externo" class="form-control uppercase-input" placeholder="Nombre de la Unidad">
+                    </div>
                 </div>
-                <div class="col-md-6" id="div_destino" style="display:none;">
-                    <label class="form-label fw-bold">Unidad Médica Destino</label>
-                    <input type="text" name="destino_externo" class="form-control uppercase-input" placeholder="Nombre de la Unidad">
-                </div>
-            </div>
 
-            <!-- TABLA DE TRASLADO -->
+                <!-- TABLA DE TRASLADO -->
                 <div class="table-responsive">
                     <table class="table table-bordered align-middle" id="tabla-traslado">
                         <thead class="table-secondary">
@@ -93,38 +93,36 @@
 </template>
 
 <script>
-            // 1. Mostrar/Ocultar el campo de destino
-                function toggleDestino() {
-                    const tipo = document.getElementById('tipo_movimiento').value;
-                    const divDestino = document.getElementById('div_destino');
-                    const inputDestino = document.querySelector('input[name="destino_externo"]');
-                    
-                    if (tipo === 'TRANSFERENCIA_EXTERNA') {
-                        divDestino.style.display = 'block';
-                        inputDestino.setAttribute('required', 'true'); // Agrega requerimiento HTML5
-                    } else {
-                        divDestino.style.display = 'none';
-                        inputDestino.removeAttribute('required');
-                        inputDestino.value = ''; // Limpia el campo si cambian de opinión
-                    }
-                }
+    function toggleDestino() {
+        const tipo = document.getElementById('tipo_movimiento').value;
+        const divDestino = document.getElementById('div_destino');
+        const inputDestino = document.querySelector('input[name="destino_externo"]');
+        
+        if (tipo === 'TRANSFERENCIA_EXTERNA') {
+            divDestino.style.display = 'block';
+            inputDestino.setAttribute('required', 'true');
+        } else {
+            divDestino.style.display = 'none';
+            inputDestino.removeAttribute('required');
+            inputDestino.value = '';
+        }
+    }
 
-                // 2. Validación extra antes de enviar (por si acaso)
-                document.getElementById('form-movimiento').onsubmit = function(e) {
-                    const tipo = document.getElementById('tipo_movimiento').value;
-                    const destino = document.querySelector('input[name="destino_externo"]').value.strip();
-                    
-                    if (tipo === 'TRANSFERENCIA_EXTERNA' && destino === "") {
-                        e.preventDefault(); // Detiene el envío
-                        alert("Por favor, especifica la Unidad Médica Destino.");
-                        return false;
-                    }
-                };
-
-            </script>
+    document.getElementById('form-movimiento').onsubmit = function(e) {
+        const tipo = document.getElementById('tipo_movimiento').value;
+        const destino = document.querySelector('input[name="destino_externo"]').value.trim();
+        
+        if (tipo === 'TRANSFERENCIA_EXTERNA' && destino === "") {
+            e.preventDefault();
+            alert("Por favor, especifica la Unidad Médica Destino.");
+            return false;
+        }
+    };
+</script>
 
 <script>
-function agregarFila() {
+// 🧙‍♂️ FUNCIÓN MEJORADA: Soporta precarga pasándole parámetros opcionales
+function agregarFila(datosPrecarga = null) {
     const template = document.getElementById('fila-mov-template').content.cloneNode(true);
     const tbody = document.getElementById('cuerpo-traslado');
     const nuevaFila = template.querySelector('tr');
@@ -150,17 +148,29 @@ function agregarFila() {
     });
 
     // Evento al cambiar medicamento: Cargar lotes específicos de esta fila
-    $selectMed.on('change', function() {
+    $selectMed.on('change', function(e, loteParaPreseleccionar = null, cantParaAsignar = null) {
         const id_med = $(this).val();
+        if (!id_med) return;
+
         $selectLote.empty().append('<option value="">Cargando...</option>').prop('disabled', true);
         
         $.getJSON(`/farmacia/buscar_lotes_almacen/${id_med}`, function(data) {
             $selectLote.empty().append('<option value="">-- Lote --</option>');
             if (data.length > 0) {
                 data.forEach(item => {
-                    $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}">Lote: ${item.lote} - Vence: ${item.vencimiento} (${item.cantidad})</option>`);
+                    // Validar si este es el lote que debemos preseleccionar
+                    const esSeleccionado = (loteParaPreseleccionar && item.lote === loteParaPreseleccionar) ? 'selected' : '';
+                    $selectLote.append(`<option value="${item.lote}" data-max="${item.cantidad}" ${esSeleccionado}>Lote: ${item.lote} - Vence: ${item.vencimiento} (${item.cantidad})</option>`);
                 });
                 $selectLote.prop('disabled', false);
+                
+                // Si hay precarga, disparar el cambio del lote e inyectar la cantidad sugerida
+                if (loteParaPreseleccionar) {
+                    $selectLote.trigger('change');
+                    if (cantParaAsignar) {
+                        $inputCant.val(cantParaAsignar);
+                    }
+                }
             } else {
                 $selectLote.append('<option value="">Sin stock</option>');
             }
@@ -173,12 +183,37 @@ function agregarFila() {
         $inputCant.attr('max', max);
         $infoStock.text(max ? `Disponible: ${max}` : "");
     });
+
+    // 🚀 APLICAR PRECARGA SI EXISTE
+    if (datosPrecarga) {
+        // Creamos la opción seleccionada artificialmente en Select2 para que se pinte el texto
+        const nuevaOpcion = new Option(datosPrecarga.principio_activo, datosPrecarga.id_medicamento, true, true);
+        $selectMed.append(nuevaOpcion).trigger('change', [datosPrecarga.lote, datosPrecarga.cantidad]);
+    }
 }
 
 function eliminarFila(btn) {
-    if ($('#cuerpo-traslado tr').length > 1) $(btn).closest('tr').remove();
+    if ($('#cuerpo-traslado tr').length > 1) {
+        $(btn).closest('tr').remove();
+    }
 }
 
-$(document).ready(() => agregarFila());
+// 🧙‍♂️ AL CARGAR LA PÁGINA: Decidir si inyectar las filas del asistente o una vacía
+$(document).ready(() => {
+    {% if items_precargados %}
+        // Si el asistente envió información, generamos las filas correspondientes en bucle
+        {% for item in items_precargados %}
+            agregarFila({
+                id_medicamento: {{ item.medicamento.id_medicamento }},
+                principio_activo: "{{ item.medicamento.principio_activo }} ({{ item.medicamento.clave }})",
+                lote: "{{ item.lote }}",
+                cantidad: {{ item.cantidad }}
+            });
+        {% endfor %}
+    {% else %}
+        // Si no hay precarga, iniciamos el formulario tradicional con una sola fila limpia
+        agregarFila();
+    {% endif %}
+});
 </script>
 {% endblock %}

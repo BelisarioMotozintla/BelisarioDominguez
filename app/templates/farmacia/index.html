@@ -14,9 +14,23 @@
     </a>
     
     <!-- Movimientos -->
-    <a href="{{ url_for('farmacia.listar_movimientos') }}" class="btn btn-sm btn-outline-secondary d-flex flex-column align-items-center justify-content-center px-3 py-2">
-      <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movimientos
-    </a>
+   <div class="btn-group" role="group">
+  <button id="btnGroupMovimientos" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex flex-column align-items-center justify-content-center px-3 py-2" data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="bi bi-arrow-left-right mb-1 fs-5"></i> Movimientos
+  </button>
+  <ul class="dropdown-menu" aria-labelledby="btnGroupMovimientos">
+    <li>
+      <a class="dropdown-item" href="{{ url_for('farmacia.listar_movimientos') }}">
+        <i class="bi bi-list-ul me-2"></i> Historial de Movimientos
+      </a>
+    </li>
+    <li>
+      <a class="dropdown-item fw-bold text-primary" href="{{ url_for('farmacia.analisis_necesidad') }}">
+        <i class="bi bi-clipboard-check me-2"></i> Análisis de Necesidad
+      </a>
+    </li>
+  </ul>
+</div>
 
     <!-- DROPDOWN: Salidas -->
     <div class="btn-group" role="group">
