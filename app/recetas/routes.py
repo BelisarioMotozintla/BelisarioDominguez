@@ -178,18 +178,16 @@ def listar_salidas():
     # ETAPA 2: INYECCIÓN CONTROLADA DE NEGADOS ABSOLUTOS POR FECHA
     # =================================================================
     for dia_key, d_datos in dicc_dias.items():
-        # Buscamos todas las recetas únicas que ya procesamos en este día específico
+        fecha_del_dia = datetime.strptime(dia_key, '%d/%m/%Y').date()
         recetas_procesadas_en_dia = set(s.receta for s in d_datos["detalles_salidas"] if s.receta)
         
         for receta_obj in recetas_procesadas_en_dia:
             for p in receta_obj.detalle:
-                # REVISIÓN MILIMÉTRICA: ¿Existe ya alguna salida física para este medicamento en esta receta HOY?
                 tiene_salida_real = any(
                     x.id_medicamento == p.id_medicamento and x.id_receta == receta_obj.id_receta 
                     for x in d_datos["detalles_salidas"]
                 )
                 
-                # SOLO SI NO TIENE NINGUNA SALIDA REAL, se trata de un negado total y se crea el renglón virtual
                 if not tiene_salida_real:
                     clase_negada = SalidaFarmacia(
                         id_receta=receta_obj.id_receta,
@@ -197,7 +195,7 @@ def listar_salidas():
                         cantidad=0,
                         lote="SIN EXISTENCIA",
                         id_usuario=receta_obj.id_usuario,
-                        fecha_salida=receta_obj.fecha_emision
+                        fecha_salida=fecha_del_dia
                     )
                     clase_negada.medicamento = p.medicamento
                     clase_negada.receta = receta_obj
@@ -237,9 +235,46 @@ def listar_salidas():
         d["total_claves_surtidas"] = len(d["claves_set"])
         d["total_claves_negadas"] = len(d["claves_negadas_set"])
 
-    reporte_surtido = []
-    reporte_negados = []
+    # =================================================================
+    # ETAPA 4: GENERACIÓN DE MATRICES OC99 PARA TAB 02 Y TAB 03
+    # =================================================================
+    dicc_surtidos = {}
+    dicc_negados = {}
     dias_lista = [d["dia"] for d in reporte_dias]
+
+    for d_datos in reporte_dias:
+        dia_actual = d_datos["dia"]
+        for item_salida in d_datos["detalles_salidas"]:
+            if not item_salida.medicamento:
+                continue
+                
+            clave = item_salida.medicamento.clave
+            descripcion = item_salida.medicamento.principio_activo or "S/D"
+            cant_surtida = item_salida.amount if hasattr(item_salida, 'amount') else item_salida.cantidad
+            cant_solicitada = cant_surtida
+            
+            if item_salida.receta:
+                partida_origen = next((pt for pt in item_salida.receta.detalle if pt.id_medicamento == item_salida.id_medicamento), None)
+                if partida_origen:
+                    cant_solicitada = partida_origen.cantidad
+
+            # Matriz de Surtidos
+            if cant_surtida > 0:
+                if clave not in dicc_surtidos:
+                    dicc_surtidos[clave] = {"clave": clave, "descripcion": descripcion, "dias": {}, "total": 0}
+                dicc_surtidos[clave]["dias"][dia_actual] = dicc_surtidos[clave]["dias"].get(dia_actual, 0) + cant_surtida
+                dicc_surtidos[clave]["total"] += cant_surtida
+
+            # Matriz de Negados
+            if cant_surtida < cant_solicitada:
+                piezas_negadas_item = cant_solicitada - cant_surtida
+                if clave not in dicc_negados:
+                    dicc_negados[clave] = {"clave": clave, "descripcion": descripcion, "dias": {}, "total": 0}
+                dicc_negados[clave]["dias"][dia_actual] = dicc_negados[clave]["dias"].get(dia_actual, 0) + piezas_negadas_item
+                dicc_negados[clave]["total"] += piezas_negadas_item
+
+    reporte_surtido = sorted(dicc_surtidos.values(), key=lambda x: x["clave"])
+    reporte_negados = sorted(dicc_negados.values(), key=lambda x: x["clave"])
 
     return render_template('recetas/listar_salidas.html', 
                            salidas=salidas, 
@@ -251,6 +286,7 @@ def listar_salidas():
                            dias=dias_lista,
                            fecha_inicio=fecha_inicio_str,
                            fecha_fin=fecha_fin_str)
+
 
 #________________________________________________________________________________
 

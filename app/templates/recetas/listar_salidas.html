@@ -12,56 +12,60 @@
             <a href="{{ url_for('farmacia.index') }}" class="btn btn-secondary">Regresar</a>
         </div>
     </div>
-
-    <!-- 👤 PANEL DE PRODUCTIVIDAD Y FILTRO DE RANGO DE FECHAS -->
+   <!-- 👤 PANEL DE CONTROL UNIFICADO (FILTROS Y BUSCADOR) -->
     <div class="card shadow-sm border-0 mb-4 bg-light">
         <div class="card-body p-3">
-            <form method="GET" action="{{ url_for('farmacia.listar_salidas') }}" class="row g-2 align-items-center">
-                {% if query %}
-                    <input type="hidden" name="q" value="{{ query }}">
-                {% endif %}
-                <div class="col-md-4">
+            <form method="GET" action="{{ url_for('recetas.listar_salidas') }}" class="row g-3 align-items-center">
+                
+                <!-- Datos de Usuario -->
+                <div class="col-md-3">
                     <span class="fw-bold text-secondary">
                         <i class="bi bi-person-workspace text-danger me-1"></i> 
                         Usuario: <span class="text-dark">{{ current_user.usuario if current_user is defined else 'Operador Logueado' }}</span>
                     </span>
-                    <div class="text-muted small">Por defecto mostrando: <span class="badge bg-secondary">Semana Actual</span></div>
+                    <div class="text-muted small">Mostrando: <span class="badge bg-secondary">Rango Seleccionado</span></div>
                 </div>
-                <div class="col-md-3">
+
+                <!-- Input Desde -->
+                <div class="col-md-2">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white text-muted">Desde</span>
                         <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio or '' }}">
                     </div>
                 </div>
-                <div class="col-md-3">
+
+                <!-- Input Hasta -->
+                <div class="col-md-2">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white text-muted">Hasta</span>
                         <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin or '' }}">
                     </div>
                 </div>
-                <div class="col-md-2 d-grid">
-                    <button type="submit" class="btn btn-sm btn-danger fw-bold">
-                        <i class="bi bi-funnel-fill"></i> Filtrar Fechas
-                    </button>
+
+                <!-- Input Buscador de Texto -->
+                <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control" placeholder="Folio, paciente, lote o med..." value="{{ query or '' }}">
+                    </div>
                 </div>
+
+                <!-- Botones de Acción -->
+                <div class="col-md-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm btn-danger fw-bold w-100">
+                        <i class="bi bi-funnel-fill"></i> Aplicar
+                    </button>
+                    {% if query or request.args.get('fecha_inicio') or request.args.get('fecha_fin') %}
+                        <a href="{{ url_for('recetas.listar_salidas') }}" class="btn btn-sm btn-outline-secondary" title="Limpiar Filtros">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    {% endif %}
+                </div>
+
             </form>
         </div>
     </div>
 
-    <!-- BUSCADOR ESTILO UNIFICADO -->
-    <form method="GET" action="{{ url_for('farmacia.listar_salidas') }}" class="mb-4">
-        {% if fecha_inicio %}<input type="hidden" name="fecha_inicio" value="{{ fecha_inicio }}">{% endif %}
-        {% if fecha_fin %}<input type="hidden" name="fecha_fin" value="{{ fecha_fin }}">{% endif %}
-        
-        <div class="input-group shadow-sm">
-            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" name="q" class="form-control" placeholder="Buscar por folio, paciente, medicamento o lote..." value="{{ query or '' }}">
-            <button class="btn btn-danger" type="submit">Buscar</button>
-            {% if query or request.args.get('fecha_inicio') or request.args.get('fecha_fin') %}
-                <a href="{{ url_for('farmacia.listar_salidas') }}" class="btn btn-outline-secondary">Limpiar Filtros</a>
-            {% endif %}
-        </div>
-    </form>
 
     <!-- PESTAÑAS DE NAVEGACIÓN COMPLETAS CON MATRICES OC99 -->
     <ul class="nav nav-tabs mb-4" id="reporteTabs" role="tablist">
@@ -150,7 +154,7 @@
                                 <td class="text-center fw-bold bg-light">{{ d.dia }}</td>
                                 <td class="text-center fw-bold">{{ d.folios_lista|length }}</td>
                                 <td class="py-2">
-                                    <div class="d-flex flex-wrap gap-2 px-2">
+                                   <div class="d-flex flex-wrap gap-2 px-2">
                                         {% for f in d.folios_lista %}
                                             {% set clase_color = 'text-dark border-dark' %}
                                             {% if f.estado == 'Completa' %}
@@ -161,9 +165,12 @@
                                                 {% set clase_color = 'text-danger border-danger' %}
                                             {% endif %}
                                             
-                                            <!-- Se reemplaza el índice por d.dia reemplazando barras para el ID de HTML -->
                                             {% set id_dia_limpio = d.dia|string|replace('/', '-') %}
-                                            <a href="#collapse-fecha-{{ id_dia_limpio }}" class="badge bg-white border {{ clase_color }} text-decoration-none p-2 fw-normal" style="font-size: 0.8rem;">
+                                            <!-- MODIFICADO: Ahora apunta a la tarjeta de la receta e incorpora la clase enlace-folio -->
+                                            <a href="#card-folio-{{ f.folio|trim }}" 
+                                               data-target-dia="collapse-fecha-{{ id_dia_limpio }}"
+                                               class="badge bg-white border {{ clase_color }} text-decoration-none p-2 fw-normal enlace-folio" 
+                                               style="font-size: 0.8rem;">
                                                 {{ f.folio }}
                                             </a>
                                         {% endfor %}
@@ -365,7 +372,9 @@
 </div> <!-- Fin Container-fluid -->
 
 <!-- SCRIPTS PARA INTERFACES DE EXCEL -->
+<!-- SCRIPTS PARA INTERFACES DE EXCEL Y ENFOQUE INTELIGENTE -->
 <script>
+    // Tu función original para enviar las matrices limpias a Excel
     function copyTable(id) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -381,6 +390,54 @@
         }
         window.getSelection().removeAllRanges();
     }
+
+    // Automatización para expandir y enfocar recetas al hacer clic en los folios
+    document.addEventListener("DOMContentLoaded", function() {
+        const enlaces = document.querySelectorAll(".enlace-folio");
+
+        enlaces.forEach(enlace => {
+            enlace.addEventListener("click", function(e) {
+                e.preventDefault();
+                
+                const idTargetFolio = this.getAttribute("href");
+                const idContenedorDia = this.getAttribute("data-target-dia");
+                
+                const contenedorDia = document.getElementById(idContenedorDia);
+                const tarjetaFolio = document.querySelector(idTargetFolio);
+                
+                if (contenedorDia && tarjetaFolio) {
+                    // Forzar el regreso a la TAB 01 por si el usuario está en las pestañas de matrices
+                    const tabIndicadores = document.getElementById('indicadores-tab');
+                    if (tabIndicadores) {
+                        bootstrap.Tab.getInstance(tabIndicadores)?.show() || new bootstrap.Tab(tabIndicadores).show();
+                    }
+
+                    // Si el día está cerrado, lo abrimos dinámicamente con Bootstrap
+                    if (!contenedorDia.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(contenedorDia, { toggle: false });
+                        bsCollapse.show();
+                        
+                        contenedorDia.addEventListener('shown.bs.collapse', function alAbrir() {
+                            ejecutarEnfoque(tarjetaFolio);
+                            contenedorDia.removeEventListener('shown.bs.collapse', alAbrir);
+                        });
+                    } else {
+                        ejecutarEnfoque(tarjetaFolio);
+                    }
+                }
+            });
+        });
+
+        function ejecutarEnfoque(elemento) {
+            elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            elemento.style.transition = "background-color 0.3s ease";
+            elemento.style.backgroundColor = "#fff3cd"; // Destello amarillo de enfoque
+            
+            setTimeout(() => {
+                elemento.style.backgroundColor = ""; // Regresa a su tono limpio original
+            }, 1200);
+        }
+    });
 </script>
 </body>
 {% endblock %}
