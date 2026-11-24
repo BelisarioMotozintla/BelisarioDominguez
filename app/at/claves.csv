@@ -81,6 +81,7 @@
 010.000.1098.00,Vitaminas A C y D. Solución. Cada ml contiene: Palmitato de Retinol 7000 a 9000 UI. Ácido ascórbico 80 a 125 mg. Colecalciferol 1400 a 1800 UI. Envase con 15 ml.
 010.000.1206.00,Butilhioscina o hioscina. Gragea o Tableta Cada Gragea o Tableta contiene: Bromuro de butilhioscina o butilbromuro de hioscina 10 mg Envase con 10 Grageas o Tabletas.
 010.000.1207.00,Butilhioscina o hioscina. Solución Inyectable Cada ampolleta contiene: Bromuro de butilhioscina o butilbromuro de hioscina 20 mg Envase con 3 ampolletas de 1 ml.
+010.000.1209.00,Cisaprida. Tableta Cada Tableta contiene: Cisaprida 5 mg Envase con 30 Tabletas.
 010.000.1210.00,Pinaverio. Tableta Cada Tableta contiene: Bromuro de pinaverio 100 mg Envase con 14 Tabletas
 010.000.1223.00,Aluminio y magnesio. Tableta Masticable Cada Tableta Masticable contiene: Hidróxido de aluminio 200 mg Hidróxido de magnesio 200 mg o trisilicato de magnesio: 447.3 mg Envase con 50 Tabletas Masticables.
 010.000.1224.00,Aluminio y magnesio. Suspensión Oral Cada 100 ml contienen: Hidróxido de aluminio 3.7 g Hidróxido de magnesio 4.0 g o trisilicato de magnesio: 8.9 g Envase con 240 ml y dosificador.
@@ -256,6 +257,8 @@
 010.000.4107.00,Amiodarona. Solución Inyectable. Cada ampolleta contiene: Clorhidrato de amiodarona 150 mg Envase con 6 ampolletas de 3 ml.
 010.000.4114.00,Trinitrato de glicerilo. Solución Inyectable Cada frasco ámpula contiene: Trinitrato de glicerilo 50 mg Envase con un frasco ámpula de 10 ml.
 010.000.4117.00,Pentoxifilina. Tableta o Gragea de Liberación Prolongada Cada Tableta o Gragea contiene: Pentoxifilina 400 mg Envase con 30 Tabletas o Grageas.
+010.000.4118.01,Isosorbida dinitrato de. Solución Inyectable Cada ml contiene: Dinitrato de isosorbida 1 mg Envase con 10 apolletas con 10 ml (10 mg/10 ml)
+010.000.4124.01,Simvastatina. Tableta Cada Tableta contiene: Simvastatina 20 mg Envase con 30 Tabletas.
 010.000.4126.00,Sulfadiazina de plata. Crema Cada 100 gramos contiene: Sulfadiazina de plata micronizada 1 g Envase con 375 g.
 010.000.4149.00,Pioglitazona. Tableta Cada Tableta contiene: Clorhidrato de pioglitazona equivalente a 15 mg de pioglitazona. Envase con 7 Tabletas.
 010.000.4152.01,Sitagliptina. Comprimido Cada Comprimido contiene: Fosfato de sitagliptina monohidratada equivalente a 100 mg de sitagliptina Envase con 28 Comprimidos.
@@ -308,22 +311,28 @@
 010.000.5383.00,Multivitaminas (polivitaminas) y minerales. Jarabe. Cada 5 ml contienen: Vitamina A 2 500 UI. Vitamina D2 200 UI. Vitamina E 15.0 mg. Vitamina C 60.0 mg. Tiamina 1.05 mg. Riboflavina 1.2 mg. Piridoxina 1.05 mg. Cianocobalamina 4.5 µg. Nicotinamida 13.5 mg. Hierro elemental 10.0 mg. Envase con 240 ml y dosificador.
 010.000.5384.00,Multivitaminas. Solución Inyectable. Adulto. Cada frasco ámpula con liofilizado contiene: Retinol (vitamina A) 3300.0 U. Colecalciferol (vitamina D3) 200.0 U. Acetato de Tocoferol (vitamina E) 10.0 U. Nicotinamida 40.0 mg. Riboflavina 3.6 mg. Clorhidrato de piridoxina equivalente a 4.0 mg de piridoxima. Dexpantenol equivalente a 15.0 mg de ácido pantoténico. Clorhidrato de tiamina equivalente a 3.0 mg de tiamina. Ácido ascórbico 100.0 mg. Biotina 0.060 mg. Cianocobalamina 0.005 mg. Ácido fólico 0.400 mg. Envase con un frasco ámpula y diluyente de 5 ml
 010.000.5428.00,Ondansetrón. Solución Inyectable Cada ampolleta o frasco ampula contiene: Clorhidrato dihidratado de ondansetrón equivalente a 8 mg de ondansetrón Envase con 3 ampolletas o frascos ámpula con 4 ml.
+010.000.5487.01,Citalopram. Tableta Cada Tableta contiene: Bromhidrato de citalopram equivalente a 20 mg de citalopram. Envase con 28 Tabletas
 010.000.5501.00,Diclofenaco. Solución inyectable. Cada ampolleta contiene: Diclofenaco sódico 75 mg Envase con 2 ampolletas con 3 ml.
+010.000.5503.00,Sulindaco. Tableta o Gragea Cada Tableta o Gragea contiene: Sulindaco 200 mg Envase con 20 Tabletas o Grageas.
 010.000.5620.00,Vildagliptina. Comprimido Cada Comprimido contiene: Vildagliptina 50 mg Envase con 28 Comprimidos.
 010.000.5621.00,Linagliptina. Tableta. Cada tableta contiene: Linagliptina 5 mg. Envase con 30 tabletas.
 010.000.5646.00,Fluticasona. Suspensión en aerosol nasal. Cada disparo proporciona: Furoato de fluticasona 27.5 µg. Envase con 120 disparos.
 010.000.5671.02,Rifaximina. Tableta Cada Tableta contiene: Rifaximina 550 mg Envase con 14 Tabletas.
 010.000.5720.00,Paracetamol solución inyectable cada frasco contiene: paracetamol 500 mg. Envase con un frasco con 50 ml.
 010.000.5721.00,Paracetamol solución inyectable cada frasco contiene: paracetamol 1 g. Envase con un frasco con 100 ml.
+010.000.5940.00,Ibuprofeno. Tableta O Cápsula Cada Tableta o Cápsula contiene: Ibuprofeno 200 mgEnvase con 10 Tabletas o Cápsulas
+010.000.5940.02,Ibuprofeno. Tableta O Cápsula Cada Tableta o Cápsula contiene: Ibuprofeno 200 mgEnvase con 20 Tabletas o Cápsulas
 010.000.5941.00,Ibuprofeno. Tableta O Cápsula: Cada Tableta o Cápsula contiene: Ibuprofeno 400 mg Envase con 10 Tabletas o Cápsulas
 010.000.5942.00,Ibuprofeno. Tableta O Cápsula: Cada Tableta o Cápsula contiene: Ibuprofeno 600 mg Envase con 10 Cápsulas
 010.000.5943.00,Ibuprofeno. Suspensión Oral Cada 100 ml contienen: Ibuprofeno 2 g Envase con 120 ml y medida dosificadora
 010.000.6000.00,Carbonato de calcio/ Vitamina D3. Tableta. Cada tableta contiene: Carbonato de calcio 1666.670 mg equivalente a 600 mg de calcio. Colecalciferol 6.2 mg equivalente a 400 UI de Vitamina D3. Envase con 30 tabletas.
 010.000.6007.01,Dapagliflozina. Tableta. Cada tableta contiene: Dapagliflozina propanodiol equivalente a 10 mg de dapagliflozina. Envase con 28 tabletas.
+010.000.6009.00,Empagliflozina. Tableta. Cada tableta contiene: Empagliflozina 25 mg Envase con 30 tabletas
 010.000.6012.04,Misoprostol. Tableta. Cada tableta contiene: Misoprostol 200 µg. Envase con 12 tabletas.
 010.000.6021.00,Indacaterol/Glicopirronio. Cápsula. Cada cápsula contiene: Maleato de Indacaterol equivalente a 110 µg de indacaterol. Bromuro de Glicopirronio equivalente a 50 µg. De Glicopirronio. Envase con 30 cápsulas con polvo para inhalación (no ingeribles) y un dispositivo para inhalación.
 010.000.6099.00,Lactulosa. Jarabe. Cada 100 ml contienen: Lactulosa 66.70 g Envase con 120 ml y medida dosificadora (0.667 g/ml).
 010.000.6117.01,INSULINA ASPARTA/INSULINA ASPARTA PROTAMINA. SUSPENSIÓN INYECTABLE Cada ml contiene: Insulina asparta de origen ADN recombinante (30% de insulina asparta soluble y 70% de insulina asparta protamina cristalina) 100 U. Envase o caja de cartón con 5 plumas prellenadas o precargadas con 3 mL (100 U/mL).
+010.000.6134.01,Fenofibrato. Capsula. Cada cápsula contiene: Fenofibrato 200 mg Envase con 28 cápsulas.
 010.000.6160.00,Levonorgestrel. Polvo. El dispositivo intrauterino con polvo contiene: Levonorgestrel 19.5 mg Envase con un dispositivo intrauterino
 010.000.6222.00,"ÁCIDO ACETILSALICÍLICO, TABLETAS Cada tableta contiene: Ácido acetilsalicílico 100 mg con o sin recubrimiento. Envase con 28 tabletas."
 010.000.6259.00,LABETALOL. Solución inyectable. Cada frasco ámpula contiene: labetalol 100 mg/20 mL Caja con un frasco ámpula
@@ -381,6 +390,7 @@
 060.066.1102,Antisépticos. Solución con gluconato de clorhexidina al 2% p/v en alcohol isopropílico al 70% contenida en un aplicador con tinta naranja o rosa o incoloro. Contiene: 3 ml Estéril y desechable Envase
 060.066.1219,Desinfectantes. Desinfectante de alto nivel concentrado en forma líquida transparente elaborado a base de: cuaternarios de amonio agentes tensoactivos y agua purificada utilizado para limpiar áreas de hospitales instrumental y equipo médico entre otros. Envase de 1 L
 060.066.1227,Desinfectantes. Desinfectante de alto nivel concentrado en forma líquida transparente elaborado a base de: cuaternarios de amonio agentes tensoactivos y agua purificada utilizado para limpiar áreas de hospitales instrumental y equipo médico entre otros. Envase de 5 L
+060.066.1284,Antiséptico. Solución antiséptica de amplio espectro; electrolizada de superoxidación con pH neutro con efecto bactericida indicado como auxiliar en el lavado y tratamiento de infecciones en todo tipo de lesiones en piel y tejidos e irrigación quirúrgica. Solución al 0.002% de especies activas de cloro y oxígeno. Bolsa de laminación con 500 mL.
 060.066.1391,"Gel lubricante. Gel anestésico y antiséptico, hidrosoluble, transparente, estéril y desechable, que contiene Hidrocloruro de lidocaína al 2% y Dihidrocloruro de clorhexidina al 0.05 % Caja con 25 tubos colapsables de 12.5g cada uno."
 060.082.0104,Aplicadores. Con algodón. De madera. Envase con 150 a 750 piezas.
 060.082.0278,Aplicadores. Aplicador de madera plástico o material reciclable de 15 cm de longitud con punta de algodón. Estériles y desechables. Envase con dos o tres aplicadores.
@@ -400,7 +410,7 @@
 060.125.0236,Bolsas. Para enema. Capacidad 1500 ml con tubo transportador de 5.0 a 6.0 mm de diámetro interno 128 cm de longitud y dispositivo obturador de plástico para control de flujo. El extremo proximal debe tener la punta roma sin filos un orificio lateral cercano a la punta lubricante y protector plástico. Desechable. Pieza.
 060.125.0244,"Bolsas. Para urocultivo (niña). Estéril, de plástico grado médico, forma rectangular, con capacidad de 50 ml y escala de 10, 20, 30 y 50 ml. Con orificio en forma de pera, 2.5 cm en su lado más ancho y 1 cm en el más angosto. Área adhesiva de 45 x 60 mm. Pieza. "
 060.125.0582,Bolsas. Para ileostomía o colostomía. Tamaño adulto. Autoadherible   de   plástico   grado   médico   suave transparente a prueba de olor drenable en forma de botella de 30 x 15 cm abierta en su parte más angosta con cuello de 6 a 9 cm de ancho y 3.0 a 6.2 cm de largo con  pinza  de  seguridad  o  mecanismo  de  cierre  con protector de piel integrado a base de carboximetilcelulosa sódica con adhesivo con guía recortable que permita abrir orificio para el estoma a diferentes medidas que van de 25 a 60 mm la cara interna deberá tener un protector que evite la irritación de la piel. Pieza.
-060.125.1861,Bolsas. Bolsa de papel grado médico con porosidad controlada hidrófugo para esterilizar con gas o vapor.  Con o sin tratamiento antibacteriano con reactivo químico impreso y película plástica transparente termosoldable de: 7.5   x  28.0 cm. Envase con 1000 piezas.
+060.125.1861,Bolsas. Bolsa de papel grado médico con porosidad controlada hidrófugo para esterilizar con gas o vapor. Con o sin tratamiento antibacteriano con reactivo químico impreso y película plástica transparente termosoldable de: 7.5   x  28.0 cm. Envase con 1000 piezas.
 060.125.1879,Bolsas para recolección de orina. Sistema para recolección de orina; estéril rectangular o triangular de cloruro de polivinilo con escala graduada graduaciones cada 200 ml el sistema de drenaje debe ser un circuito cerrado con las siguientes características: con sitio para toma de muestras dispositivo antirreflujo y pinza en el tubo de vaciado Capacidad: 2000 ml. Pieza.
 060.125.1887,Bolsas. Bolsa de papel grado médico con porosidad controlada hidrófugo para esterilizar con gas o vapor. Con o sin tratamiento antibacteriano con reactivo químico impreso y película plástica transparente termosoldable de: 10.0 x  42.0 cm. Envase con 1000 piezas.
 060.125.1895,Bolsas. Bolsa de papel grado médico con porosidad controlada hidrófugo para esterilizar con gas o vapor. Con o sin tratamiento antibacteriano con reactivo químico impreso y película plástica transparente termosoldable de: 25.0 x  36.0 cm. Envase con 1000 piezas.
@@ -422,9 +432,11 @@
 060.130.0015,Botas. Bota quirúrgica de tela no tejida 100% de polipropileno tipo SMS de 35 g/m2 mínimo impermeable a la penetración de líquidos y fluidos antiestática con dos cintas de sujeción. Desechable. Par.
 060.132.0054,Brazaletes. Para identificación. De plástico. Adulto. Envase con 100 piezas.
 060.132.0203,Brazaletes. Para identificación. De plástico. Infantil. Envase con 100 piezas.
+060.155.0338,Campos quirúrgicos. Campos quirúrgicos de incisión impregnados con iodopovidona en una de sus caras. Compuesto de una película impermeable; transparente con adhesivo grado médico autoadheribles hipoalergénico. Con una superficie de impregnación de: 56 x 45 cm. Estériles y desechables Empaque individual. Envase con 10 piezas. Las  medidas  las  seleccionará  la  Unidad  Médica  de acuerdo a sus necesidades.
 060.164.4586,Sondas. Para drenaje urinario de permanencia prolongada. De elastómero de silicón con globo de autorretención de 30 ml con válvula para jeringa. Estéril y desechable. Tipo: foley de dos vías. Calibre: 18 Fr. Pieza.
 060.164.4594,Sondas. Para drenaje urinario de permanencia prolongada. De elastómero de silicón con globo de autorretención de 30 ml con válvula para jeringa. Estéril y desechable. Tipo: foley de dos vías. Calibre: 20 Fr. Pieza.
 060.166.0103,Catéteres. Para venoclisis. De Fluoropolímeros (Politetrafluoretileno Fluoretilenpropileno y Etilentrifluoretileno) o poliuretano radiopaco con aguja. Longitud: 17-24 mm Calibre: 24 G. Envase con 50 piezas.*Para la adquisición de estas claves deberá acatarse el material específico que solicite cada institución.
+060.166.3339,Sondas. Para aspiración de plástico transparente libre de pirógenos atóxico de 55 cm de longitud con válvula de control de aspiración con punta roma. Estéril y desechable. Calibre: 12 Fr. Pieza.
 060.166.3347,Sondas. Para aspiración de plástico transparente libre de pirógenos atóxico de 55 cm de longitud con válvula de control de aspiración con punta roma. Estéril y desechable. 14 Fr.
 060.166.3354,Sondas. Para aspiración de plástico transparente libre de pirógenos atóxico de 55 cm de longitud con válvula de control de aspiración con punta roma. Estéril y desechable. 16 Fr. Pieza.
 060.166.3362,Sondas. Para aspiración de plástico transparente libre de pirógenos atóxico de 55 cm de longitud con válvula de control de aspiración con punta roma. Estéril y desechable. 18 Fr. Pieza.
@@ -450,6 +462,8 @@
 060.167.8154,Sondas. Para   drenaje   urinario   de   permanencia   prolongada. De elastómero de silicón con globo de autorretención de 5 ml. Estéril y desechable. Tipo: foley de dos vías. Calibre: 20 Fr. Pieza.
 060.168.0077,Sondas. Para aspirar secreciones. De plástico con válvula de control. Estéril y desechable. Tamaño: Adulto. Longitud: 55 cm Calibre: 18 Fr Diámetro Externo: 6.0 mm. Pieza.
 060.168.0085,Sondas. Para aspirar secreciones. De plástico con válvula de control. Estéril y desechable. Tamaño: Infantil. Longitud: 55 cm. Calibre: 10 Fr. Diámetro Externo: 3.3 mm. Pieza.
+060.168.4277,Sondas. Gastrointestinales desechables y con marca radiopaca. Tipo: levin. Calibre: 12 Fr. Pieza.
+060.168.4418,Sondas. Gastrointestinales desechables y con marca radiopaca. Tipo: levin. Calibre: 18 Fr. Pieza.
 060.168.6595,Sondas. Para drenaje urinario. De látex punta redonda. Tipo: nelaton. Longitud: 40 cm. Calibre: 10 Fr. Pieza.
 060.168.6603,Catéteres. Para venoclisis. De Fluoropolímeros (Politetrafluoretileno Fluoretilenpropileno y Etilentrifluoretileno) o poliuretano radiopaco con aguja. Longitud: 46-52 mm Calibre: 14 G. Envase con 50 piezas.*Para la adquisición de estas claves deberá acatarse el material específico que solicite cada institución.
 060.168.6611,Sondas. Para drenaje urinario. De látex punta redonda. Tipo: Nelaton. Longitud: 40 cm  Calibre: 12 Fr. Pieza.
@@ -516,6 +530,7 @@
 060.360.0032,Espejo. Vaginal desechable mediano valva superior de 10.7 cm valva inferior de 12.0 cm orificio central de 3.4 cm. Pieza.
 060.435.0073,GEL. ACIDO FOSFORICO MINIMO AL 35% PARA GRABADO DE ESMALTE Y ACONDICIONAMIENTODE DENTINA PREVIO A LA RESTAURACION DENTAL. TIENE UNA COLORACION AZUL O VERDEPARA FACILITAR EL LIMITE VISIBLE DE LA RESTAURACION. VISCOSIDAD MEDIA. JERINGACON 5 MILILITROS. INCLUYE MINIMO 40 PUNTAS DISPENSADORAS FLEXIBLES.
 060.436.0057,Gasas. Seca cortada de algodón 100%. Tejida. Doblada en 12 capas. No estéril. Tipo de tejido VII. De 20 x 12 Título de hilo de 28 a 32 m/g tanto en urdimbre como en trama. Peso mínimo por m2 19g/ m2 Largo:  7.5 cm. Ancho:  5 cm. Área: 432 cm2. Envase con 200.
+060.436.0107,Gasas. Seca cortada de algodón 100%. Tejida. Doblada en 12 capas. No estéril. Tipo de tejido VII. De 20 x 12 Título de hilo de 28 a 32 m/g tanto en urdimbre como en trama. Peso mínimo por m2 19g/ m2 Largo:  10 cm. Ancho: 10 cm. Área: 1152 cm2. Envase con 200.
 060.436.0693,Gasas. Seca cortada de algodón con marca radiopaca. Estéril. Medidas: 10 x 10 cm. Envase con 10 piezas.
 060.436.0701,Gasas. Seca cortada de algodón de doce capas; con tejido tipo III. Largo: Ancho: 10 cm Estéril y desechable. Envase con dos y cinco piezas.
 060.439.0039,Gorros. Gorro de tela no tejida de polipropileno desechable. Impermeable a la penetración de líquidos y fluidos; antiestática y resistente a la tensión. Cintas de ajuste en el extremo distal. Tamaño estándar. Desechable Pieza.
@@ -588,6 +603,7 @@
 060.623.0860,Espaciadores de volumen. De  plástico  rígido  resistente  que  se  adapte  a  los diferentes medicamentos broncodilatadores en aerosol. Puede  tener  o  no  ensamblada  una  mascarilla  o  una boquilla. Vida útil: tres meses. Neonatal. Pieza.
 060.623.0878,Espaciadores de volumen. De  plástico  rígido  resistente  que  se  adapte  a  los diferentes medicamentos broncodilatadores en aerosol. Puede  tener  o  no  ensamblada  una  mascarilla  o  una boquilla. Vida útil: tres meses. Pediátrico. Pieza.
 060.623.0886,Espaciadores de volumen. De  plástico  rígido  resistente  que  se  adapte  a  los diferentes medicamentos broncodilatadores en aerosol. Puede  tener  o  no  ensamblada  una  mascarilla  o  una boquilla. Vida útil: tres meses. Adulto. Pieza.
+060.626.0024,Medias antiembólicas elásticas de compresión mediana para miembros inferiores hasta el muslo. Tallas: Chica larga. Envase con un par.
 060.626.0032,Medias antiembólicas elásticas de compresión mediana para miembros inferiores hasta el muslo. Tallas: Mediana corta. Envase con un par.
 060.626.0040,Medias antiembólicas elásticas de compresión mediana para miembros inferiores hasta el muslo. Tallas: Mediana larga. Envase con un par.
 060.626.0057,Medias antiembólicas elásticas de compresión mediana para miembros inferiores hasta el muslo. Tallas: Grande corta. Envase con un par.
